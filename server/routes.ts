@@ -24,9 +24,12 @@ async function sendToWhatsApp(to: string, type: 'text' | 'image', content: any) 
 
   const url = `https://graph.facebook.com/v24.0/${phoneId}/messages`;
   
+  // Ensure phone number has + prefix (Meta requires it)
+  const formattedTo = to.startsWith('+') ? to : `+${to}`;
+  
   const payload: any = {
     messaging_product: "whatsapp",
-    to: to,
+    to: formattedTo,
     type: type,
   };
 
