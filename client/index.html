@@ -8,14 +8,14 @@
     <meta name="theme-color" content="#7c3aed" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="Ryztor" />
+    <meta name="apple-mobile-web-app-title" content="Ryztor Agent IA" />
     
     <!-- SEO Meta Tags -->
-    <meta name="description" content="Ryztor Inbox - Gestiona tus mensajes de WhatsApp Business con IA integrada" />
-    <meta name="keywords" content="WhatsApp, Inbox, Business, Mensajes, IA, Chatbot" />
+    <meta name="description" content="Ryztor Agent IA - Gestiona tus mensajes de WhatsApp Business con IA integrada" />
+    <meta name="keywords" content="WhatsApp, Inbox, Business, Mensajes, IA, Chatbot, Ryztor" />
     
     <!-- Open Graph -->
-    <meta property="og:title" content="Ryztor Inbox" />
+    <meta property="og:title" content="Ryztor Agent IA" />
     <meta property="og:description" content="Gestiona tus mensajes de WhatsApp Business con IA integrada" />
     <meta property="og:image" content="/icon-512.png" />
     <meta property="og:type" content="website" />
@@ -27,7 +27,10 @@
     <!-- PWA Manifest -->
     <link rel="manifest" href="/manifest.json" />
     
-    <title>Ryztor Inbox</title>
+    <title>Ryztor Agent IA</title>
+    
+    <!-- OneSignal Push Notifications -->
+    <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -37,9 +40,13 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js');
-      }
+      // OneSignal initialization
+      window.OneSignalDeferred = window.OneSignalDeferred || [];
+      OneSignalDeferred.push(async function(OneSignal) {
+        await OneSignal.init({
+          appId: "07dfe1e4-83b1-4623-b57c-e6e33232d4eb",
+        });
+      });
     </script>
   </body>
 </html>

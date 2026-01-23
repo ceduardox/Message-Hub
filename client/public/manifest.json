@@ -1,7 +1,7 @@
 {
-  "name": "Ryztor Inbox",
-  "short_name": "Ryztor",
-  "description": "WhatsApp Mini Inbox - Gestiona tus mensajes de WhatsApp",
+  "name": "Ryztor Agent IA",
+  "short_name": "Ryztor IA",
+  "description": "Ryztor Agent IA - Gestiona tus mensajes de WhatsApp con IA integrada",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
