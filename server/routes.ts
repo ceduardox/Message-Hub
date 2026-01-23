@@ -85,6 +85,9 @@ export async function registerRoutes(
 
   // Receiving messages
   app.post("/webhook", async (req, res) => {
+    console.log("=== WEBHOOK RECEIVED ===");
+    console.log("Body:", JSON.stringify(req.body, null, 2));
+    
     // Always return 200 OK to Meta immediately
     res.sendStatus(200);
 
@@ -92,7 +95,10 @@ export async function registerRoutes(
       const body = req.body;
       
       // Basic validation of the payload structure
-      if (!body.object) return;
+      if (!body.object) {
+        console.log("No body.object found, skipping");
+        return;
+      }
 
       if (body.object === "whatsapp_business_account") {
         for (const entry of body.entry || []) {
@@ -103,7 +109,11 @@ export async function registerRoutes(
 
             // Handle Messages
             if (value.messages && value.messages.length > 0) {
+              console.log("=== MESSAGE RECEIVED ===");
               const msg = value.messages[0];
+              console.log("Message ID:", msg.id);
+              console.log("From:", msg.from);
+              console.log("Type:", msg.type);
               const from = msg.from; // wa_id
               const name = value.contacts?.[0]?.profile?.name || from;
               
@@ -255,6 +265,21 @@ export async function registerRoutes(
       console.error("Send error:", error.response?.data || error.message);
       res.status(500).json({ message: "Failed to send message" });
     }
+  });
+
+  // Debug endpoint - check configuration
+  app.get("/api/debug", requireAuth, async (req, res) => {
+    const config = {
+      hasMetaToken: !!process.env.META_ACCESS_TOKEN,
+      hasPhoneId: !!process.env.WA_PHONE_NUMBER_ID,
+      phoneId: process.env.WA_PHONE_NUMBER_ID || "NOT SET",
+      hasVerifyToken: !!process.env.WA_VERIFY_TOKEN,
+      hasAdminUser: !!process.env.ADMIN_USER,
+      hasAdminPass: !!process.env.ADMIN_PASS,
+      conversationCount: (await storage.getConversations()).length,
+      timestamp: new Date().toISOString(),
+    };
+    res.json(config);
   });
 
   // Media Proxy
