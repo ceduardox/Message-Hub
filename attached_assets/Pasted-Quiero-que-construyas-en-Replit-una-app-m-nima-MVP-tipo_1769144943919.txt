@@ -1,0 +1,85 @@
+Quiero que construyas en Replit una app mínima (MVP) tipo “mini inbox” para WhatsApp Cloud API (sin IA).
+
+MIS DATOS
+- Mi número WhatsApp: +591 60825029 (solo referencia)
+- Phone Number ID (OBLIGATORIO): 1003393019513022
+- WABA ID (OPCIONAL): 1816651828985080
+
+STACK (rápido)
+- Node.js + Express (JavaScript, no TypeScript)
+- Base de datos: SQLite
+- Panel web simple: HTML + Bootstrap CDN
+- Login admin: usuario/clave con sesión (express-session)
+
+SECRETS EN REPLIT (los crearé yo)
+- META_ACCESS_TOKEN = (mi token)
+- WA_PHONE_NUMBER_ID = 1003393019513022
+- WA_VERIFY_TOKEN = ryztor_verify_2026
+- ADMIN_USER = admin
+- ADMIN_PASS = (mi clave)
+- APP_SECRET = (opcional, pero implementar la verificación si existe)
+
+FUNCIONALIDAD MVP
+1) WEBHOOK
+- GET /webhook
+  - Si hub.verify_token == WA_VERIFY_TOKEN, responder hub.challenge
+  - Si no, 403
+- POST /webhook
+  - Recibir mensajes entrantes y guardarlos en DB:
+    - texto (type=text)
+    - imagen (type=image) guardando media_id y mime_type
+  - Guardar también: wa_id del cliente (from), message_id, timestamp, raw_json
+  - Recibir statuses (delivered/read) si llegan y actualizar el mensaje
+
+2) MEDIA (IMÁGENES)
+- GET /media/:mediaId (solo admin)
+  - Pedir a Graph API el URL temporal del media_id y mostrar/descargar la imagen
+  - (Opcional) cache en /uploads para no descargar siempre
+
+3) ENVIAR DESDE EL PANEL
+- POST /api/send/text { to, text }
+- POST /api/send/image { to, image_url, caption? }
+Usar endpoint:
+POST https://graph.facebook.com/v20.0/1003393019513022/messages
+con Authorization: Bearer META_ACCESS_TOKEN
+
+4) PANEL ADMIN
+- /login (ADMIN_USER / ADMIN_PASS)
+- / (inbox):
+  - Lista de chats por wa_id (último mensaje y hora)
+  - Al abrir chat: historial (in/out)
+  - Imágenes: preview con <img src="/media/{media_id}">
+  - Form para enviar texto
+  - Form para enviar imagen por URL pública
+  - Botón “Actualizar” o auto-refresh cada 8s (sin websockets)
+
+DB (mínimo)
+- conversations(id, wa_id UNIQUE, updated_at)
+- messages(id, conversation_id, direction[in|out], type[text|image], text, media_id, mime_type,
+          wa_message_id, timestamp, status, raw_json, created_at)
+
+README.md
+- Cómo poner los Secrets
+- URL para configurar en Meta como webhook:
+  https://<mi-repl>.replit.app/webhook
+- Verify token: ryztor_verify_2026
+- Qué suscribir: messages y message_status
+
+PRIORIDAD
+1) Backend + DB + Webhook verificado
+2) Panel admin
+3) Envío de mensajes
+4) Media de imágenes
+NOTAS CRÍTICAS (para que funcione a la primera)
+- En Express, configura express.json con verify para guardar req.rawBody (Buffer) antes de procesar, para poder validar X-Hub-Signature-256 si APP_SECRET existe.
+- El endpoint de webhook DEBE ser exactamente /webhook (GET y POST).
+- Asegura que el server escuche en process.env.PORT y host 0.0.0.0 (Replit).
+- En README, indica que en Meta debo poner el Callback URL como:
+  https://<repl>.replit.app/webhook
+  y el Verify Token: ryztor_verify_2026
+- Maneja idempotencia: si llega el mismo wa_message_id dos veces, no duplicar (unique index).
+
+
+
+Clave secreta de la aplicación me avisa, para agregarla si es necesaria
+Identificador de la aplicación 1173718914922689
