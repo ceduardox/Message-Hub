@@ -4,59 +4,21 @@ import { useConversations, useConversation } from "@/hooks/use-inbox";
 import { ConversationList } from "@/components/ConversationList";
 import { ChatArea } from "@/components/ChatArea";
 import { Button } from "@/components/ui/button";
-import { LogOut, MessageSquareDashed, Bug, X } from "lucide-react";
+import { LogOut, MessageSquareDashed } from "lucide-react";
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
-import { useQuery } from "@tanstack/react-query";
 
 export default function InboxPage() {
   const { logout, user } = useAuth();
   const [activeId, setActiveId] = useState<number | null>(null);
-  const [showDebug, setShowDebug] = useState(false);
   const { data: conversations = [], isLoading: loadingList } = useConversations();
   const { data: activeConversation } = useConversation(activeId);
-  
-  const { data: debugInfo } = useQuery({
-    queryKey: ["/api/debug"],
-    enabled: showDebug,
-    refetchInterval: 5000,
-  });
 
   return (
     <div className="h-screen w-full overflow-hidden bg-background text-foreground flex flex-col md:flex-row">
-      {/* Debug Panel */}
-      {showDebug && (
-        <div className="fixed bottom-4 right-4 z-50 bg-black text-green-400 p-4 rounded-lg shadow-xl max-w-md max-h-96 overflow-auto font-mono text-xs">
-          <div className="flex justify-between items-center mb-2">
-            <span className="font-bold">Debug Info</span>
-            <Button size="icon" variant="ghost" onClick={() => setShowDebug(false)} className="h-6 w-6 text-white">
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-          <pre className="whitespace-pre-wrap">
-            {debugInfo ? JSON.stringify(debugInfo, null, 2) : "Loading..."}
-          </pre>
-          <div className="mt-2 pt-2 border-t border-green-800">
-            <p>Conversations en DB: {conversations.length}</p>
-            <p>Webhook URL: https://ryztor.replit.app/webhook</p>
-          </div>
-        </div>
-      )}
-      
-      {/* Debug Button */}
-      <Button
-        size="icon"
-        variant="outline"
-        className="fixed bottom-4 left-4 z-50"
-        onClick={() => setShowDebug(!showDebug)}
-        title="Debug Panel"
-      >
-        <Bug className="h-4 w-4" />
-      </Button>
-      
       {/* Mobile Sidebar (Always visible on mobile if no active chat, hidden if chat active) */}
       <div className={`md:hidden flex-1 ${activeId ? 'hidden' : 'block'}`}>
         <ConversationList 

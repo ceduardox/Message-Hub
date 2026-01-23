@@ -6,8 +6,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Send, Image as ImageIcon, Phone, MoreVertical, Paperclip, Check, CheckCheck } from "lucide-react";
+import { Send, Image as ImageIcon, Phone, MoreVertical, Plus, Check, CheckCheck, MapPin, Bug, Copy, ExternalLink, X } from "lucide-react";
 import type { Conversation, Message } from "@shared/schema";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useToast } from "@/hooks/use-toast";
 
 interface ChatAreaProps {
   conversation: Conversation;
@@ -18,8 +25,24 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
   const [text, setText] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [showImageInput, setShowImageInput] = useState(false);
+  const [showDebug, setShowDebug] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { mutate: sendMessage, isPending } = useSendMessage();
+  const { toast } = useToast();
+
+  const getLocationUrl = (msg: Message) => {
+    const raw = msg.rawJson as any;
+    if (raw?.location) {
+      const { latitude, longitude } = raw.location;
+      return `https://www.google.com/maps?q=${latitude},${longitude}`;
+    }
+    return null;
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast({ title: "Copiado", description: "URL copiada al portapapeles" });
+  };
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -124,6 +147,41 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
                     )}
                   </div>
                 )}
+
+                {/* Location Content */}
+                {msg.type === "location" && (() => {
+                  const locationUrl = getLocationUrl(msg);
+                  const raw = msg.rawJson as any;
+                  return locationUrl ? (
+                    <div className="mb-2 p-3 rounded-lg bg-black/5 border border-black/10">
+                      <div className="flex items-center gap-2 mb-2">
+                        <MapPin className="h-5 w-5 text-red-500" />
+                        <span className="font-medium text-sm">Ubicación compartida</span>
+                      </div>
+                      {raw?.location?.name && (
+                        <p className="text-xs text-muted-foreground mb-2">{raw.location.name}</p>
+                      )}
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-xs h-8"
+                          onClick={() => copyToClipboard(locationUrl)}
+                        >
+                          <Copy className="h-3 w-3 mr-1" /> Copiar
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-xs h-8"
+                          onClick={() => window.open(locationUrl, '_blank')}
+                        >
+                          <ExternalLink className="h-3 w-3 mr-1" /> Abrir
+                        </Button>
+                      </div>
+                    </div>
+                  ) : null;
+                })()}
                 
                 {/* Text Content */}
                 {msg.text && <p className="whitespace-pre-wrap">{msg.text}</p>}
@@ -155,8 +213,23 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
         })}
       </div>
 
+      {/* Debug Panel */}
+      {showDebug && (
+        <div className="absolute bottom-20 right-4 z-30 bg-black/90 text-green-400 p-3 rounded-lg shadow-xl max-w-xs text-xs font-mono">
+          <div className="flex justify-between items-center mb-2">
+            <span className="font-bold">Debug</span>
+            <Button size="icon" variant="ghost" onClick={() => setShowDebug(false)} className="h-5 w-5 text-white hover:text-red-400">
+              <X className="h-3 w-3" />
+            </Button>
+          </div>
+          <p>To: +{conversation.waId}</p>
+          <p>Messages: {messages.length}</p>
+          <p>Last: {messages[messages.length - 1]?.type || 'N/A'}</p>
+        </div>
+      )}
+
       {/* Input Area */}
-      <div className="p-4 bg-white border-t border-border z-20">
+      <div className="p-3 bg-white border-t border-border z-20">
         {showImageInput && (
           <div className="mb-3 animate-in slide-in-from-bottom-2 duration-200">
             <div className="relative">
@@ -177,25 +250,27 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
         )}
         
         <div className="flex items-end space-x-2 bg-muted/30 p-2 rounded-3xl border border-border/50 focus-within:border-primary/50 focus-within:ring-4 focus-within:ring-primary/5 transition-all duration-200">
-          <Button
-            variant="ghost"
-            size="icon"
-            className={cn(
-              "rounded-full h-10 w-10 flex-shrink-0 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors",
-              showImageInput && "text-primary bg-primary/10"
-            )}
-            onClick={() => setShowImageInput(!showImageInput)}
-          >
-            <ImageIcon className="h-5 w-5" />
-          </Button>
-          
-          <Button
-            variant="ghost"
-            size="icon"
-            className="rounded-full h-10 w-10 flex-shrink-0 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors hidden sm:flex"
-          >
-            <Paperclip className="h-5 w-5" />
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="rounded-full h-10 w-10 flex-shrink-0 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+              >
+                <Plus className="h-5 w-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-48">
+              <DropdownMenuItem onClick={() => setShowImageInput(!showImageInput)}>
+                <ImageIcon className="h-4 w-4 mr-2 text-purple-500" />
+                Imagen (URL)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setShowDebug(!showDebug)}>
+                <Bug className="h-4 w-4 mr-2 text-green-500" />
+                Debug
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           <Textarea
             value={text}
