@@ -101,15 +101,15 @@ export default function InboxPage() {
       </div>
 
       {/* Mobile Chat View (Only visible if chat active) */}
-      <div className={`md:hidden flex-1 flex flex-col ${activeId ? 'block' : 'hidden'}`}>
+      <div className={`md:hidden h-screen flex flex-col ${activeId ? 'flex' : 'hidden'}`}>
         {activeId && activeConversation && (
           <>
-             <div className="p-2 bg-white border-b border-border flex items-center">
+             <div className="p-2 bg-white border-b border-border flex items-center flex-shrink-0">
                <Button variant="ghost" size="sm" onClick={() => setActiveId(null)}>
                  ← Back
                </Button>
              </div>
-             <div className="flex-1 overflow-hidden">
+             <div className="flex-1 min-h-0">
               <ChatArea 
                 conversation={activeConversation.conversation} 
                 messages={activeConversation.messages} 
