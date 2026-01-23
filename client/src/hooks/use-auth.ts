@@ -63,8 +63,11 @@ export function useAuth() {
     },
   });
 
+  // Only return user if authenticated
+  const isAuthenticated = userQuery.data?.authenticated === true;
+
   return {
-    user: userQuery.data,
+    user: isAuthenticated ? userQuery.data : null,
     isLoading: userQuery.isLoading,
     login: loginMutation.mutate,
     isLoggingIn: loginMutation.isPending,
