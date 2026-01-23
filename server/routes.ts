@@ -6,7 +6,7 @@ import { z } from "zod";
 import session from "express-session";
 import MemoryStore from "memorystore";
 import axios from "axios";
-import { generateAiResponse, getTrainingCacheInfo, clearTrainingCache } from "./ai-service";
+import { generateAiResponse } from "./ai-service";
 
 // Helper to send messages via Graph API
 async function sendToWhatsApp(to: string, type: 'text' | 'image', content: any) {
@@ -559,18 +559,6 @@ export async function registerRoutes(
       console.error("Error fetching AI logs:", error);
       res.status(500).json({ message: "Error fetching AI logs" });
     }
-  });
-
-  // Get Cache Info
-  app.get("/api/ai/cache", requireAuth, (req, res) => {
-    const cacheInfo = getTrainingCacheInfo();
-    res.json(cacheInfo);
-  });
-
-  // Force Cache Refresh
-  app.post("/api/ai/cache/refresh", requireAuth, (req, res) => {
-    clearTrainingCache();
-    res.json({ success: true, message: "Cache cleared" });
   });
 
   return httpServer;
