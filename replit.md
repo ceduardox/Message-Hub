@@ -39,20 +39,18 @@ The server handles three main responsibilities:
 ### AI Agent Integration
 - **AI Provider**: OpenAI GPT-4o-mini via official SDK
 - **Auto-Response**: When enabled, automatically responds to incoming WhatsApp messages
-- **Training Data**: Supports text information, URLs, and image URLs stored in database
-- **Conversation Context**: Reviews last 6 messages (optimized from 10 for token efficiency)
-- **Image Responses**: Can send images via URL when included in training data using [IMAGEN: url] format
+- **Product Database**: Individual products stored with name, keywords, description, price, image URL
+- **Smart Product Search**: AI searches products by name/keywords, only includes matching products in context
+- **Accent Normalization**: Search handles Spanish accents (berberina = berbérina)
+- **Conversation Context**: Reviews last 3 messages for efficiency
+- **Image Responses**: Can send images via URL using [IMAGEN: url] format
 - **Logging**: All AI interactions logged for debugging (tokens used, success/error status)
-- **Settings Page**: /ai-agent route for enabling/disabling, setting system prompt, and managing training data
+- **Settings Page**: /ai-agent route for enabling/disabling, setting system prompt, and managing products
 - **Token Optimization**: 
-  - max_tokens: 120 (reduced from 500)
-  - shouldAttachCatalog: Only sends product info when keywords detected (precio, producto, comprar, etc.)
-  - Duplicate message prevention: Excludes current message from history
-  - Strict response rules: 2-5 lines max, max 2 questions, human tone (Isabella)
-- **Training Data Cache**: 
-  - In-memory cache to avoid DB queries on every message
-  - Configurable refresh interval (1-60 minutes, default 5)
-  - Manual "Actualizar ahora" button for instant refresh after training data changes
+  - max_tokens: 120
+  - Only includes matching products (~400-600 tokens) instead of full catalog
+  - Falls back to catalog text field if no products in database
+  - Strict response rules: 2-5 lines max, max 2 questions, human tone
 
 ### Authentication
 - Simple username/password authentication against environment variables (ADMIN_USER, ADMIN_PASS)
