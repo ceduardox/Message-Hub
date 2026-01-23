@@ -12,11 +12,17 @@ async function sendToWhatsApp(to: string, type: 'text' | 'image', content: any) 
   const token = process.env.META_ACCESS_TOKEN;
   const phoneId = process.env.WA_PHONE_NUMBER_ID;
 
+  console.log("=== SENDING MESSAGE ===");
+  console.log("To:", to);
+  console.log("Type:", type);
+  console.log("PhoneId:", phoneId);
+  console.log("Token exists:", !!token);
+
   if (!token || !phoneId) {
     throw new Error("Missing Meta configuration (token or phone ID)");
   }
 
-  const url = `https://graph.facebook.com/v20.0/${phoneId}/messages`;
+  const url = `https://graph.facebook.com/v22.0/${phoneId}/messages`;
   
   const payload: any = {
     messaging_product: "whatsapp",
@@ -33,14 +39,24 @@ async function sendToWhatsApp(to: string, type: 'text' | 'image', content: any) 
     }
   }
 
-  const response = await axios.post(url, payload, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-  });
+  console.log("URL:", url);
+  console.log("Payload:", JSON.stringify(payload, null, 2));
 
-  return response.data;
+  try {
+    const response = await axios.post(url, payload, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+    console.log("WhatsApp Response:", JSON.stringify(response.data, null, 2));
+    return response.data;
+  } catch (error: any) {
+    console.error("=== WHATSAPP API ERROR ===");
+    console.error("Status:", error.response?.status);
+    console.error("Error Data:", JSON.stringify(error.response?.data, null, 2));
+    throw error;
+  }
 }
 
 export async function registerRoutes(
@@ -291,7 +307,7 @@ export async function registerRoutes(
       if (!token) return res.status(500).send("Meta Token missing");
 
       // 1. Get Media URL
-      const urlResponse = await axios.get(`https://graph.facebook.com/v20.0/${mediaId}`, {
+      const urlResponse = await axios.get(`https://graph.facebook.com/v22.0/${mediaId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
