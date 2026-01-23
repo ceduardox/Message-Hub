@@ -46,22 +46,24 @@ export function useSendMessage() {
 
       if (!res.ok) {
         const errorData = await res.json();
+        const errorInfo = errorData.error;
+        if (errorInfo) {
+          throw new Error(`[${errorInfo.code}] ${errorInfo.details}`);
+        }
         throw new Error(errorData.message || "Failed to send message");
       }
       return api.messages.send.responses[200].parse(await res.json());
     },
     onSuccess: (_, variables) => {
-      // Invalidate specific conversation to show new message
-      // We need to know which conversation this was for, but the API sends by 'to' (waId)
-      // For MVP, invalidating everything is safer, or we could look up the conversation ID from the active view
       queryClient.invalidateQueries({ queryKey: [api.conversations.get.path] });
       queryClient.invalidateQueries({ queryKey: [api.conversations.list.path] });
     },
     onError: (error) => {
       toast({
-        title: "Failed to send",
+        title: "Error al enviar",
         description: error.message,
         variant: "destructive",
+        duration: 10000,
       });
     },
   });

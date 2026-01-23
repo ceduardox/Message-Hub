@@ -279,7 +279,15 @@ export async function registerRoutes(
 
     } catch (error: any) {
       console.error("Send error:", error.response?.data || error.message);
-      res.status(500).json({ message: "Failed to send message" });
+      const errorData = error.response?.data?.error || {};
+      res.status(500).json({ 
+        message: "Failed to send message",
+        error: {
+          code: errorData.code || error.response?.status || "unknown",
+          type: errorData.type || "api_error",
+          details: errorData.message || error.message || "Unknown error"
+        }
+      });
     }
   });
 
