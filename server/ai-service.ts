@@ -105,20 +105,15 @@ export async function generateAiResponse(
       }
     }
 
-    // Also include images list
-    const imagesList = trainingData
-      .filter((d) => d.type === "image_url")
-      .slice(0, 8)
-      .map((d) => `• ${d.title}: ${d.content}`)
-      .join("\n");
-    
-    if (imagesList) {
-      trainingContextShort += `\n\nIMÁGENES DISPONIBLES:\n${imagesList}`;
+    // Only mention that images exist (don't send all URLs - saves ~200 tokens)
+    const hasImages = trainingData.some((d) => d.type === "image_url");
+    if (hasImages && !mentionedProduct) {
+      trainingContextShort += `\n\n(Hay imágenes disponibles para cada producto)`;
     }
 
-    // Get last 6 messages EXCLUDING the current one (which is already in recentMessages)
+    // Get last 3 messages EXCLUDING the current one (reduced from 6 - saves ~150 tokens)
     const conversationHistory = recentMessages
-      .slice(-7, -1) // Take 6 messages before the last one
+      .slice(-4, -1) // Take 3 messages before the last one
       .map((m) => ({
         role: m.direction === "in" ? "user" : "assistant",
         content: m.text || `[${m.type}]`,
