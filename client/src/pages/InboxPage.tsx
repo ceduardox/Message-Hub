@@ -18,7 +18,7 @@ export default function InboxPage() {
   const { data: activeConversation } = useConversation(activeId);
 
   return (
-    <div className="h-screen w-full overflow-hidden bg-background text-foreground flex flex-col md:flex-row">
+    <div className="h-[100dvh] w-full overflow-hidden bg-background text-foreground flex flex-col md:flex-row">
       {/* Mobile Sidebar (Always visible on mobile if no active chat, hidden if chat active) */}
       <div className={`md:hidden flex-1 ${activeId ? 'hidden' : 'block'}`}>
         <ConversationList 
@@ -101,15 +101,15 @@ export default function InboxPage() {
       </div>
 
       {/* Mobile Chat View (Only visible if chat active) */}
-      <div className={`md:hidden flex-1 flex flex-col ${activeId ? 'block' : 'hidden'}`}>
+      <div className={`md:hidden flex flex-col h-full ${activeId ? 'flex' : 'hidden'}`}>
         {activeId && activeConversation && (
           <>
-             <div className="p-2 bg-white border-b border-border flex items-center">
+             <div className="p-2 bg-white border-b border-border flex items-center flex-shrink-0">
                <Button variant="ghost" size="sm" onClick={() => setActiveId(null)}>
-                 ← Back
+                 ← Volver
                </Button>
              </div>
-             <div className="flex-1 overflow-hidden">
+             <div className="flex-1 min-h-0">
               <ChatArea 
                 conversation={activeConversation.conversation} 
                 messages={activeConversation.messages} 

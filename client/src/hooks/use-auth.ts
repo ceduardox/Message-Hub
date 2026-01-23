@@ -34,9 +34,10 @@ export function useAuth() {
       }
       return api.auth.login.responses[200].parse(await res.json());
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [api.auth.me.path] });
-      toast({ title: "Welcome back", description: "Successfully logged in" });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: [api.auth.me.path] });
+      await queryClient.refetchQueries({ queryKey: [api.auth.me.path] });
+      toast({ title: "Bienvenido", description: "Inicio de sesión exitoso" });
       setLocation("/");
     },
     onError: (error) => {

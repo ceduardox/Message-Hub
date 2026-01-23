@@ -179,9 +179,9 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#efeae2] dark:bg-[#0b141a] relative">
+    <div className="flex flex-col h-full max-h-full bg-[#efeae2] dark:bg-[#0b141a] relative overflow-hidden">
       {/* Chat Header */}
-      <header className="h-16 bg-[#f0f2f5] dark:bg-[#202c33] border-b border-border/30 flex items-center justify-between px-4 z-20">
+      <header className="h-16 flex-shrink-0 bg-[#f0f2f5] dark:bg-[#202c33] border-b border-border/30 flex items-center justify-between px-4 z-20">
         <div className="flex items-center gap-3 flex-1 min-w-0">
           <Avatar className="h-10 w-10 flex-shrink-0">
             <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${conversation.contactName || conversation.waId}`} />
@@ -340,7 +340,7 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
       )}
 
       {/* Input Area */}
-      <div className="p-2 bg-[#f0f2f5] dark:bg-[#202c33] z-20">
+      <div className="p-2 bg-[#f0f2f5] dark:bg-[#202c33] z-20 flex-shrink-0">
         {showImageInput && !imageUrl && (
           <div className="mb-2 px-2">
             <Input placeholder="URL de imagen..." value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} className="text-sm" />
