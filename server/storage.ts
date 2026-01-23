@@ -7,6 +7,7 @@ import {
   aiSettings,
   aiTrainingData,
   aiLogs,
+  products,
   type Conversation,
   type InsertConversation,
   type Message,
@@ -21,6 +22,8 @@ import {
   type InsertAiTrainingData,
   type AiLog,
   type InsertAiLog,
+  type Product,
+  type InsertProduct,
 } from "@shared/schema";
 import { eq, desc, asc } from "drizzle-orm";
 
@@ -60,6 +63,13 @@ export interface IStorage {
   deleteAiTrainingData(id: number): Promise<void>;
   getAiLogs(limit?: number): Promise<AiLog[]>;
   createAiLog(log: InsertAiLog): Promise<AiLog>;
+
+  // Products
+  getProducts(): Promise<Product[]>;
+  getProduct(id: number): Promise<Product | undefined>;
+  createProduct(product: InsertProduct): Promise<Product>;
+  updateProduct(id: number, product: Partial<InsertProduct>): Promise<Product>;
+  deleteProduct(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -197,6 +207,30 @@ export class DatabaseStorage implements IStorage {
   async createAiLog(log: InsertAiLog): Promise<AiLog> {
     const [created] = await db.insert(aiLogs).values(log).returning();
     return created;
+  }
+
+  // Products
+  async getProducts(): Promise<Product[]> {
+    return await db.select().from(products).orderBy(asc(products.name));
+  }
+
+  async getProduct(id: number): Promise<Product | undefined> {
+    const [product] = await db.select().from(products).where(eq(products.id, id));
+    return product;
+  }
+
+  async createProduct(product: InsertProduct): Promise<Product> {
+    const [created] = await db.insert(products).values(product).returning();
+    return created;
+  }
+
+  async updateProduct(id: number, product: Partial<InsertProduct>): Promise<Product> {
+    const [updated] = await db.update(products).set(product).where(eq(products.id, id)).returning();
+    return updated;
+  }
+
+  async deleteProduct(id: number): Promise<void> {
+    await db.delete(products).where(eq(products.id, id));
   }
 }
 

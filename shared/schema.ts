@@ -137,3 +137,19 @@ export type AiLog = typeof aiLogs.$inferSelect;
 export type InsertAiSettings = z.infer<typeof insertAiSettingsSchema>;
 export type InsertAiTrainingData = z.infer<typeof insertAiTrainingDataSchema>;
 export type InsertAiLog = z.infer<typeof insertAiLogSchema>;
+
+// === PRODUCTS TABLE ===
+
+export const products = pgTable("products", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 100 }).notNull(),
+  keywords: varchar("keywords", { length: 200 }), // Alternative names/keywords for search
+  description: text("description"),
+  price: varchar("price", { length: 50 }), // e.g., "280 Bs"
+  imageUrl: text("image_url"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertProductSchema = createInsertSchema(products).omit({ id: true, createdAt: true });
+export type Product = typeof products.$inferSelect;
+export type InsertProduct = z.infer<typeof insertProductSchema>;
