@@ -230,7 +230,7 @@ export async function registerRoutes(
   });
 
   app.get(api.conversations.get.path, requireAuth, async (req, res) => {
-    const id = parseInt(req.params.id);
+    const id = parseInt(req.params.id as string);
     const conversation = await storage.getConversation(id);
     if (!conversation) return res.status(404).json({ message: "Conversation not found" });
     
@@ -341,6 +341,14 @@ export async function registerRoutes(
     const id = parseInt(req.params.id);
     const { labelId } = req.body;
     const updated = await storage.updateConversation(id, { labelId });
+    res.json(updated);
+  });
+
+  // Toggle pin
+  app.patch("/api/conversations/:id/pin", requireAuth, async (req, res) => {
+    const id = parseInt(req.params.id);
+    const { isPinned } = req.body;
+    const updated = await storage.updateConversation(id, { isPinned });
     res.json(updated);
   });
 

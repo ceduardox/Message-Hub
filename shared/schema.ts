@@ -23,6 +23,7 @@ export const conversations = pgTable("conversations", {
   waId: varchar("wa_id").notNull().unique(),
   contactName: text("contact_name"),
   labelId: integer("label_id").references(() => labels.id),
+  isPinned: boolean("is_pinned").default(false),
   lastMessage: text("last_message"),
   lastMessageTimestamp: timestamp("last_message_timestamp"),
   updatedAt: timestamp("updated_at").defaultNow(),
