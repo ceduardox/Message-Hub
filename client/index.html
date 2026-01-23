@@ -40,12 +40,44 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
-      // OneSignal initialization
+      // OneSignal initialization with full configuration
       window.OneSignalDeferred = window.OneSignalDeferred || [];
       OneSignalDeferred.push(async function(OneSignal) {
         await OneSignal.init({
           appId: "07dfe1e4-83b1-4623-b57c-e6e33232d4eb",
+          autoPrompt: false,
+          allowLocalhostAsSecureOrigin: true,
+          notifyButton: {
+            enable: false
+          }
         });
+        
+        // Expose function to manually trigger subscription
+        window.subscribeToNotifications = async function() {
+          try {
+            const permission = await OneSignal.Notifications.requestPermission();
+            console.log("OneSignal permission result:", permission);
+            if (permission) {
+              const subscribed = await OneSignal.User.PushSubscription.optIn();
+              console.log("OneSignal subscription result:", subscribed);
+              return { success: true, subscribed: true };
+            }
+            return { success: false, reason: "Permission denied" };
+          } catch (error) {
+            console.error("OneSignal subscription error:", error);
+            return { success: false, reason: error.message };
+          }
+        };
+        
+        // Check subscription status
+        window.getNotificationStatus = function() {
+          return {
+            permission: OneSignal.Notifications.permission,
+            subscribed: OneSignal.User.PushSubscription.optedIn
+          };
+        };
+        
+        console.log("OneSignal initialized. Call window.subscribeToNotifications() to subscribe.");
       });
     </script>
   </body>

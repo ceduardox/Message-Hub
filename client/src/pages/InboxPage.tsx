@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useConversations, useConversation } from "@/hooks/use-inbox";
 import { ConversationList } from "@/components/ConversationList";
 import { ChatArea } from "@/components/ChatArea";
+import { NotificationBell } from "@/components/NotificationBell";
 import { Button } from "@/components/ui/button";
 import { LogOut, MessageSquareDashed, Bot } from "lucide-react";
 import { Link } from "wouter";
@@ -31,6 +32,10 @@ export default function InboxPage() {
           />
         </div>
         <div className="p-4 border-t border-border space-y-2 flex-shrink-0 bg-background">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium">{user?.username}</span>
+            <NotificationBell />
+          </div>
           <Link href="/ai-agent">
             <Button 
               variant="outline" 
@@ -74,6 +79,7 @@ export default function InboxPage() {
                   <span className="text-sm font-medium">{user?.username}</span>
                 </div>
                 <div className="flex items-center gap-1">
+                  <NotificationBell />
                   <Link href="/ai-agent">
                     <Button 
                       variant="ghost" 

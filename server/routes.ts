@@ -14,22 +14,29 @@ async function sendPushNotification(title: string, message: string, data?: Recor
   const apiKey = process.env.ONESIGNAL_REST_API_KEY;
   const appId = "07dfe1e4-83b1-4623-b57c-e6e33232d4eb";
 
+  console.log("[OneSignal] Attempting to send notification:", { title, message });
+  console.log("[OneSignal] API Key configured:", !!apiKey);
+
   if (!apiKey) {
-    console.log("OneSignal API key not configured, skipping push notification");
+    console.log("[OneSignal] ERROR: API key not configured, skipping push notification");
     return;
   }
 
   try {
-    await axios.post(
+    const payload = {
+      app_id: appId,
+      included_segments: ["Subscribed Users"],
+      headings: { en: title },
+      contents: { en: message },
+      data: data || {},
+      web_push_topic: `message-${Date.now()}`,
+    };
+    
+    console.log("[OneSignal] Sending payload:", JSON.stringify(payload, null, 2));
+    
+    const response = await axios.post(
       "https://onesignal.com/api/v1/notifications",
-      {
-        app_id: appId,
-        included_segments: ["All"],
-        headings: { en: title },
-        contents: { en: message },
-        data: data || {},
-        web_push_topic: `message-${Date.now()}`, // Unique topic prevents grouping
-      },
+      payload,
       {
         headers: {
           Authorization: `Basic ${apiKey}`,
@@ -37,9 +44,36 @@ async function sendPushNotification(title: string, message: string, data?: Recor
         },
       }
     );
-    console.log("Push notification sent:", title, message);
+    console.log("[OneSignal] SUCCESS - Response:", JSON.stringify(response.data, null, 2));
   } catch (error: any) {
-    console.error("Failed to send push notification:", error.response?.data || error.message);
+    console.error("[OneSignal] FAILED - Error:", error.response?.data || error.message);
+    
+    // If "Subscribed Users" segment fails, try "All" segment as fallback
+    if (error.response?.data?.errors?.includes("Segment 'Subscribed Users' was not found")) {
+      console.log("[OneSignal] Retrying with 'All' segment...");
+      try {
+        const fallbackResponse = await axios.post(
+          "https://onesignal.com/api/v1/notifications",
+          {
+            app_id: appId,
+            included_segments: ["All"],
+            headings: { en: title },
+            contents: { en: message },
+            data: data || {},
+            web_push_topic: `message-${Date.now()}`,
+          },
+          {
+            headers: {
+              Authorization: `Basic ${apiKey}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+        console.log("[OneSignal] Fallback SUCCESS:", JSON.stringify(fallbackResponse.data, null, 2));
+      } catch (fallbackError: any) {
+        console.error("[OneSignal] Fallback FAILED:", fallbackError.response?.data || fallbackError.message);
+      }
+    }
   }
 }
 
