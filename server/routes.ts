@@ -7,7 +7,7 @@ import session from "express-session";
 import MemoryStore from "memorystore";
 import axios from "axios";
 import { generateAiResponse } from "./ai-service";
-import { insertProductSchema } from "@shared/schema";
+import { insertProductSchema, updateOrderStatusSchema } from "@shared/schema";
 
 // Send push notification via OneSignal
 async function sendPushNotification(title: string, message: string, data?: Record<string, string>) {
@@ -206,42 +206,73 @@ export async function registerRoutes(
               const from = msg.from; // wa_id
               const name = value.contacts?.[0]?.profile?.name || from;
               
-              // 1. Ensure Conversation Exists
+              // 1. Build message text FIRST (handle different types including location)
+              let messageText: string | null = null;
+              let messageForAi: string | null = null;
+              
+              if (msg.type === 'text') {
+                messageText = msg.text.body;
+                messageForAi = msg.text.body;
+              } else if (msg.type === 'location') {
+                // Handle location/GPS/Maps messages
+                const loc = msg.location;
+                const lat = loc?.latitude;
+                const lon = loc?.longitude;
+                const locName = loc?.name || '';
+                const locAddress = loc?.address || '';
+                
+                messageText = locName 
+                  ? `[Ubicación: ${locName}${locAddress ? ' - ' + locAddress : ''}]`
+                  : `[Ubicación GPS: ${lat}, ${lon}]`;
+                
+                // Tell AI they received a location/address
+                messageForAi = `[El cliente envió su UBICACIÓN/DIRECCIÓN DE ENTREGA: ${locName || 'Ubicación GPS'}${locAddress ? ', ' + locAddress : ''}. Coordenadas: ${lat}, ${lon}. Esto significa que está compartiendo su dirección para un pedido.]`;
+                
+                console.log("=== LOCATION RECEIVED ===", { lat, lon, locName, locAddress });
+              } else if (msg.type === 'image') {
+                messageText = '[Imagen]';
+                messageForAi = '[El cliente envió una imagen]';
+              } else {
+                messageText = `[${msg.type}]`;
+                messageForAi = `[El cliente envió un mensaje de tipo: ${msg.type}]`;
+              }
+
+              // 2. Ensure Conversation Exists (now using correct messageText)
               let conversation = await storage.getConversationByWaId(from);
               if (!conversation) {
                 conversation = await storage.createConversation({
                   waId: from,
                   contactName: name,
-                  lastMessage: msg.type === 'text' ? msg.text.body : `[${msg.type}]`,
+                  lastMessage: messageText || `[${msg.type}]`,
                   lastMessageTimestamp: new Date(parseInt(msg.timestamp) * 1000),
                 });
               } else {
                 await storage.updateConversation(conversation.id, {
-                  contactName: name, // update name if changed
-                  lastMessage: msg.type === 'text' ? msg.text.body : `[${msg.type}]`,
+                  contactName: name,
+                  lastMessage: messageText || `[${msg.type}]`,
                   lastMessageTimestamp: new Date(parseInt(msg.timestamp) * 1000),
                 });
               }
 
-              // 2. Prevent Duplicate Messages
+              // 3. Prevent Duplicate Messages
               const existing = await storage.getMessageByWaId(msg.id);
               if (existing) continue;
 
-              // 3. Send push notification for new incoming message
-              const messagePreview = msg.type === 'text' ? msg.text.body : `[${msg.type}]`;
+              // 4. Send push notification for new incoming message
+              const messagePreview = messageText || `[${msg.type}]`;
               sendPushNotification(
                 name,
                 messagePreview.length > 100 ? messagePreview.substring(0, 100) + "..." : messagePreview,
                 { conversationId: conversation.id.toString(), waId: from }
               );
 
-              // 4. Save Message
+              // 5. Save Message
               await storage.createMessage({
                 conversationId: conversation.id,
                 waMessageId: msg.id,
                 direction: "in",
                 type: msg.type,
-                text: msg.type === 'text' ? msg.text.body : null,
+                text: messageText,
                 mediaId: msg.image ? msg.image.id : null,
                 mimeType: msg.image ? msg.image.mime_type : null,
                 timestamp: msg.timestamp,
@@ -249,13 +280,13 @@ export async function registerRoutes(
                 rawJson: msg,
               });
 
-              // 4. AI Auto-Response (if enabled)
-              if (msg.type === 'text') {
+              // 5. AI Auto-Response (if enabled) - now works with location too
+              if (messageForAi) {
                 try {
                   const recentMessages = await storage.getMessages(conversation.id);
                   const aiResult = await generateAiResponse(
                     conversation.id,
-                    msg.text.body,
+                    messageForAi,
                     recentMessages
                   );
 
@@ -275,10 +306,19 @@ export async function registerRoutes(
                       rawJson: waResponse,
                     });
 
-                    await storage.updateConversation(conversation.id, {
+                    // Update conversation with last message and order status if ready
+                    const updateData: any = {
                       lastMessage: aiResult.response,
                       lastMessageTimestamp: new Date(),
-                    });
+                    };
+                    
+                    // Mark order as ready if AI detected complete order
+                    if (aiResult.orderReady) {
+                      updateData.orderStatus = 'ready';
+                      console.log("=== MARKING ORDER AS READY ===", conversation.id);
+                    }
+                    
+                    await storage.updateConversation(conversation.id, updateData);
 
                     // Send image if AI included one
                     if (aiResult.imageUrl) {
@@ -482,6 +522,20 @@ export async function registerRoutes(
     const id = parseInt(req.params.id);
     const { isPinned } = req.body;
     const updated = await storage.updateConversation(id, { isPinned });
+    res.json(updated);
+  });
+
+  // Update order status with Zod validation
+  app.patch("/api/conversations/:id/order-status", requireAuth, async (req, res) => {
+    const id = parseInt(req.params.id);
+    
+    // Validate with Zod schema
+    const parsed = updateOrderStatusSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: "Invalid order status. Must be null, 'pending', 'ready', or 'delivered'", details: parsed.error.errors });
+    }
+    
+    const updated = await storage.updateConversation(id, { orderStatus: parsed.data.orderStatus });
     res.json(updated);
   });
 

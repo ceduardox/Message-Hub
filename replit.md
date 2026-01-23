@@ -69,9 +69,20 @@ The server handles three main responsibilities:
 - Session duration: 7 days (extended from 24h)
 - Protected API routes require active session
 
+### Order Management (Call Center Features)
+- **Order Status Field**: conversations.orderStatus ('pending', 'ready', 'delivered', null)
+- **Visual Indicators**: 
+  - Green highlight and checkmark icon for "ready to deliver" orders
+  - Yellow icon for "pending" orders
+  - Blue truck icon for "delivered" orders
+- **Auto-detection**: AI marks orders as "ready" when it detects complete order info (product, quantity, address)
+- **Manual control**: Dropdown in chat header to change order status
+- **Location Recognition**: Webhook detects location/GPS messages and passes them to AI as delivery address
+
 ### WhatsApp Integration
 - **Webhook Verification**: GET /webhook validates verify_token
 - **Message Reception**: POST /webhook processes incoming messages and status updates
+- **Location Messages**: Recognizes GPS/Maps locations as delivery addresses
 - **Message Sending**: Uses Meta Graph API v24.0 with Bearer token authentication
 - **Media Handling**: Proxies media requests through /media/:mediaId endpoint
 

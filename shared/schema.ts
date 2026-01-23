@@ -24,6 +24,7 @@ export const conversations = pgTable("conversations", {
   contactName: text("contact_name"),
   labelId: integer("label_id").references(() => labels.id),
   isPinned: boolean("is_pinned").default(false),
+  orderStatus: varchar("order_status", { length: 20 }), // null = no order, 'pending' = in progress, 'ready' = ready for delivery, 'delivered' = completed
   lastMessage: text("last_message"),
   lastMessageTimestamp: timestamp("last_message_timestamp"),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -86,6 +87,14 @@ export const sendMessageSchema = z.object({
 });
 
 export type SendMessageRequest = z.infer<typeof sendMessageSchema>;
+
+// Order Status
+export const orderStatusSchema = z.enum(["pending", "ready", "delivered"]).nullable();
+export type OrderStatus = z.infer<typeof orderStatusSchema>;
+
+export const updateOrderStatusSchema = z.object({
+  orderStatus: orderStatusSchema,
+});
 
 // Admin Login
 export const loginSchema = z.object({

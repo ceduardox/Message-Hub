@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Send, Image as ImageIcon, Plus, Check, CheckCheck, MapPin, Bug, Copy, ExternalLink, X, Zap, Tag, Trash2 } from "lucide-react";
+import { Send, Image as ImageIcon, Plus, Check, CheckCheck, MapPin, Bug, Copy, ExternalLink, X, Zap, Tag, Trash2, Package, PackageCheck, Truck, PackageX } from "lucide-react";
 import type { Conversation, Message, Label, QuickMessage } from "@shared/schema";
 import {
   DropdownMenu,
@@ -76,6 +76,28 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
+    },
+  });
+
+  const setOrderStatusMutation = useMutation({
+    mutationFn: async (orderStatus: string | null) => {
+      const res = await fetch(`/api/conversations/${conversation.id}/order-status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderStatus }),
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Error al actualizar estado");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
+      toast({ title: "Estado de pedido actualizado" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
 
@@ -250,6 +272,47 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* Order Status Dropdown */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button 
+              variant={conversation.orderStatus === 'ready' ? "default" : "ghost"} 
+              size="icon" 
+              className={cn(
+                "flex-shrink-0",
+                conversation.orderStatus === 'ready' && "bg-green-500 text-white",
+                conversation.orderStatus === 'pending' && "text-yellow-600",
+                conversation.orderStatus === 'delivered' && "text-blue-600"
+              )}
+              data-testid="button-order-status"
+            >
+              {conversation.orderStatus === 'ready' ? <PackageCheck className="h-4 w-4" /> :
+               conversation.orderStatus === 'pending' ? <Package className="h-4 w-4" /> :
+               conversation.orderStatus === 'delivered' ? <Truck className="h-4 w-4" /> :
+               <Package className="h-4 w-4" />}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-52 bg-popover border shadow-lg">
+            <DropdownMenuItem onClick={() => setOrderStatusMutation.mutate(null)}>
+              <PackageX className="h-4 w-4 mr-2 text-muted-foreground" />
+              Sin pedido
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => setOrderStatusMutation.mutate('pending')}>
+              <Package className="h-4 w-4 mr-2 text-yellow-600" />
+              Pedido en proceso
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setOrderStatusMutation.mutate('ready')}>
+              <PackageCheck className="h-4 w-4 mr-2 text-green-600" />
+              Listo para entregar
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setOrderStatusMutation.mutate('delivered')}>
+              <Truck className="h-4 w-4 mr-2 text-blue-600" />
+              Entregado
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </header>
 
       {/* Messages List */}

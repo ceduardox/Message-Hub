@@ -6,6 +6,9 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+// Order status type
+export type OrderStatus = 'pending' | 'ready' | 'delivered' | null;
+
 // Normalize text: lowercase and remove accents
 function normalize(text: string): string {
   return text.toLowerCase()
@@ -53,7 +56,7 @@ export async function generateAiResponse(
   conversationId: number,
   userMessage: string,
   recentMessages: Message[]
-): Promise<{ response: string; imageUrl?: string; tokensUsed: number } | null> {
+): Promise<{ response: string; imageUrl?: string; tokensUsed: number; orderReady?: boolean } | null> {
   try {
     const settings = await storage.getAiSettings();
     if (!settings?.enabled) {
@@ -107,6 +110,8 @@ export async function generateAiResponse(
 - Máximo 2 preguntas por respuesta
 - Tono humano y cálido
 - Para enviar imagen usa: [IMAGEN: url]
+- IMPORTANTE: Cuando el cliente confirme el pedido con TODOS los datos (producto, cantidad, dirección/ubicación), escribe [PEDIDO_LISTO] al final de tu respuesta para marcar que hay un pedido listo para entregar.
+- Un pedido está listo cuando tienes: producto, cantidad, y dirección de entrega (ubicación GPS o dirección escrita)
 ${productContext ? `\n=== PRODUCTOS ===\n${productContext}` : ""}`;
 
     const messages: any[] = [
@@ -137,7 +142,14 @@ ${productContext ? `\n=== PRODUCTOS ===\n${productContext}` : ""}`;
     
     if (imageMatch) {
       imageUrl = imageMatch[1];
-      cleanResponse = responseText.replace(imageMatch[0], "").trim();
+      cleanResponse = cleanResponse.replace(imageMatch[0], "").trim();
+    }
+
+    // Check if order is ready (AI detected complete order with all data)
+    const orderReady = cleanResponse.includes("[PEDIDO_LISTO]");
+    if (orderReady) {
+      cleanResponse = cleanResponse.replace(/\[PEDIDO_LISTO\]/gi, "").trim();
+      console.log("=== ORDER READY DETECTED ===", { conversationId });
     }
 
     await storage.createAiLog({
@@ -148,7 +160,7 @@ ${productContext ? `\n=== PRODUCTOS ===\n${productContext}` : ""}`;
       success: true,
     });
 
-    return { response: cleanResponse, imageUrl, tokensUsed };
+    return { response: cleanResponse, imageUrl, tokensUsed, orderReady };
   } catch (error: any) {
     console.error("AI Error:", error);
     

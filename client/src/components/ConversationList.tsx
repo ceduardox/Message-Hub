@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MessageSquare, User, Pin, Filter } from "lucide-react";
+import { MessageSquare, User, Pin, Filter, Package, PackageCheck, Truck } from "lucide-react";
 import type { Conversation, Label } from "@shared/schema";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -29,6 +29,12 @@ const LABEL_COLORS: Record<string, string> = {
   red: "bg-red-500",
   purple: "bg-purple-500",
   orange: "bg-orange-500",
+};
+
+const ORDER_STATUS_CONFIG: Record<string, { icon: typeof Package; label: string; className: string; bgColor: string }> = {
+  pending: { icon: Package, label: "Pedido en proceso", className: "text-yellow-600", bgColor: "bg-yellow-100 border-yellow-300" },
+  ready: { icon: PackageCheck, label: "Listo para entregar", className: "text-green-600", bgColor: "bg-green-100 border-green-300" },
+  delivered: { icon: Truck, label: "Entregado", className: "text-blue-600", bgColor: "bg-blue-100 border-blue-300" },
 };
 
 export function ConversationList({ 
@@ -136,14 +142,18 @@ export function ConversationList({
         <div className="flex-1 overflow-y-auto p-3 space-y-1">
           {filteredConversations.map((conv) => {
             const label = getLabelById(conv.labelId);
+            const orderConfig = conv.orderStatus ? ORDER_STATUS_CONFIG[conv.orderStatus] : null;
+            const OrderIcon = orderConfig?.icon;
+            
             return (
               <div
                 key={conv.id}
                 className={cn(
-                  "w-full flex items-start gap-3 p-3 rounded-xl transition-all duration-200 text-left border border-transparent cursor-pointer group",
+                  "w-full flex items-start gap-3 p-3 rounded-xl transition-all duration-200 text-left border cursor-pointer group",
                   activeId === conv.id 
                     ? "bg-white dark:bg-card shadow-md border-border ring-1 ring-primary/10" 
-                    : "hover:bg-muted/50"
+                    : "hover:bg-muted/50 border-transparent",
+                  orderConfig && conv.orderStatus === 'ready' && "border-green-300 bg-green-50/50 dark:bg-green-950/20"
                 )}
                 onClick={() => onSelect(conv.id)}
                 data-testid={`conversation-item-${conv.id}`}
@@ -169,6 +179,11 @@ export function ConversationList({
                         <Badge className={cn("text-[10px] px-1.5 py-0 flex-shrink-0", LABEL_COLORS[label.color] || "bg-gray-500")}>
                           {label.name}
                         </Badge>
+                      )}
+                      {OrderIcon && (
+                        <div className={cn("flex items-center gap-1 flex-shrink-0", orderConfig?.className)} title={orderConfig?.label}>
+                          <OrderIcon className="h-4 w-4" />
+                        </div>
                       )}
                     </div>
                     {conv.lastMessageTimestamp && (
