@@ -30,6 +30,9 @@ interface AiSettings {
   enabled: boolean;
   systemPrompt: string | null;
   catalog: string | null;
+  maxTokens: number | null;
+  temperature: number | null;
+  model: string | null;
 }
 
 interface Product {
@@ -57,6 +60,12 @@ export default function AIAgentPage() {
   const { toast } = useToast();
   const [systemPrompt, setSystemPrompt] = useState("");
   const [promptEdited, setPromptEdited] = useState(false);
+  
+  // AI config state
+  const [maxTokens, setMaxTokens] = useState(120);
+  const [temperature, setTemperature] = useState(70);
+  const [model, setModel] = useState("gpt-4o-mini");
+  const [configEdited, setConfigEdited] = useState(false);
   
   // Product form state
   const [newName, setNewName] = useState("");
@@ -90,7 +99,12 @@ export default function AIAgentPage() {
     if (settings && !promptEdited) {
       setSystemPrompt(settings.systemPrompt || "");
     }
-  }, [settings, promptEdited]);
+    if (settings && !configEdited) {
+      setMaxTokens(settings.maxTokens || 120);
+      setTemperature(settings.temperature || 70);
+      setModel(settings.model || "gpt-4o-mini");
+    }
+  }, [settings, promptEdited, configEdited]);
 
   const updateSettingsMutation = useMutation({
     mutationFn: async (data: Partial<AiSettings>) => {
@@ -154,6 +168,11 @@ export default function AIAgentPage() {
   const handleSavePrompt = () => {
     updateSettingsMutation.mutate({ systemPrompt });
     setPromptEdited(false);
+  };
+
+  const handleSaveConfig = () => {
+    updateSettingsMutation.mutate({ maxTokens, temperature, model });
+    setConfigEdited(false);
   };
 
   const handleAddProduct = () => {
@@ -251,6 +270,75 @@ export default function AIAgentPage() {
               <Button onClick={handleSavePrompt} disabled={updateSettingsMutation.isPending} data-testid="button-save-prompt">
                 {updateSettingsMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
                 Guardar Instrucciones
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Configuración del Modelo</CardTitle>
+            <CardDescription>
+              Ajusta los parámetros de la IA (tokens, creatividad, modelo)
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div>
+                <Label htmlFor="maxTokens">Máx. Tokens (respuesta)</Label>
+                <Input
+                  id="maxTokens"
+                  type="number"
+                  min={50}
+                  max={500}
+                  value={maxTokens}
+                  onChange={(e) => {
+                    setMaxTokens(parseInt(e.target.value) || 120);
+                    setConfigEdited(true);
+                  }}
+                  data-testid="input-max-tokens"
+                />
+                <p className="text-xs text-muted-foreground mt-1">50-500. Más tokens = respuestas más largas</p>
+              </div>
+              <div>
+                <Label htmlFor="temperature">Temperatura (%)</Label>
+                <Input
+                  id="temperature"
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={temperature}
+                  onChange={(e) => {
+                    setTemperature(parseInt(e.target.value) || 70);
+                    setConfigEdited(true);
+                  }}
+                  data-testid="input-temperature"
+                />
+                <p className="text-xs text-muted-foreground mt-1">0=preciso, 100=creativo</p>
+              </div>
+              <div>
+                <Label htmlFor="model">Modelo</Label>
+                <select
+                  id="model"
+                  value={model}
+                  onChange={(e) => {
+                    setModel(e.target.value);
+                    setConfigEdited(true);
+                  }}
+                  className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+                  data-testid="select-model"
+                >
+                  <option value="gpt-4o-mini">GPT-4o Mini (rápido, económico)</option>
+                  <option value="gpt-4o">GPT-4o (más inteligente)</option>
+                  <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                </select>
+                <p className="text-xs text-muted-foreground mt-1">Modelo de OpenAI a usar</p>
+              </div>
+            </div>
+            {configEdited && (
+              <Button onClick={handleSaveConfig} disabled={updateSettingsMutation.isPending} data-testid="button-save-config">
+                {updateSettingsMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+                Guardar Configuración
               </Button>
             )}
           </CardContent>

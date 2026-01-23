@@ -46,8 +46,11 @@ The server handles three main responsibilities:
 - **Image Responses**: Can send images via URL using [IMAGEN: url] format
 - **Logging**: All AI interactions logged for debugging (tokens used, success/error status)
 - **Settings Page**: /ai-agent route for enabling/disabling, setting system prompt, and managing products
+- **Configurable Model Settings**:
+  - maxTokens: Adjustable 50-500 (default 120) - controls response length
+  - temperature: Adjustable 0-100 (default 70) - controls creativity (0=precise, 100=creative)
+  - model: Selectable GPT-4o-mini, GPT-4o, or GPT-4 Turbo
 - **Token Optimization**: 
-  - max_tokens: 120
   - Only includes matching products (~400-600 tokens) instead of full catalog
   - Falls back to catalog text field if no products in database
   - Strict response rules: 2-5 lines max, max 2 questions, human tone

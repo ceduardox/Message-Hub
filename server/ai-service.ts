@@ -115,11 +115,16 @@ ${productContext ? `\n=== PRODUCTOS ===\n${productContext}` : ""}`;
       { role: "user", content: userMessage },
     ];
 
+    // Use settings or defaults
+    const modelToUse = settings.model || "gpt-4o-mini";
+    const maxTokensToUse = settings.maxTokens || 120;
+    const temperatureToUse = (settings.temperature || 70) / 100; // Convert 0-100 to 0-1
+
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: modelToUse,
       messages,
-      max_tokens: 120,
-      temperature: 0.7,
+      max_tokens: maxTokensToUse,
+      temperature: temperatureToUse,
     });
 
     const responseText = completion.choices[0]?.message?.content || "";
