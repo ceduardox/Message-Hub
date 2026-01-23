@@ -462,7 +462,7 @@ export async function registerRoutes(
   const aiSettingsUpdateSchema = z.object({
     enabled: z.boolean().optional(),
     systemPrompt: z.string().nullable().optional(),
-    cacheRefreshMinutes: z.number().min(1).max(60).optional(),
+    catalog: z.string().nullable().optional(),
   });
 
   const aiTrainingCreateSchema = z.object({
@@ -475,7 +475,7 @@ export async function registerRoutes(
   app.get("/api/ai/settings", requireAuth, async (req, res) => {
     try {
       const settings = await storage.getAiSettings();
-      res.json(settings || { enabled: false, systemPrompt: null });
+      res.json(settings || { enabled: false, systemPrompt: null, catalog: null });
     } catch (error) {
       console.error("Error fetching AI settings:", error);
       res.status(500).json({ message: "Error fetching AI settings" });
