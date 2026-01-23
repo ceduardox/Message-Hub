@@ -21,14 +21,16 @@ export default function InboxPage() {
   return (
     <div className="h-[100dvh] w-full overflow-hidden bg-background text-foreground flex flex-col md:flex-row">
       {/* Mobile Sidebar (Always visible on mobile if no active chat, hidden if chat active) */}
-      <div className={`md:hidden flex-1 ${activeId ? 'hidden' : 'block'}`}>
-        <ConversationList 
-          conversations={conversations}
-          activeId={activeId}
-          onSelect={setActiveId}
-          isLoading={loadingList}
-        />
-        <div className="p-4 border-t border-border space-y-2">
+      <div className={`md:hidden flex flex-col h-full ${activeId ? 'hidden' : 'flex'}`}>
+        <div className="flex-1 overflow-hidden">
+          <ConversationList 
+            conversations={conversations}
+            activeId={activeId}
+            onSelect={setActiveId}
+            isLoading={loadingList}
+          />
+        </div>
+        <div className="p-4 border-t border-border space-y-2 flex-shrink-0 bg-background">
           <Link href="/ai-agent">
             <Button 
               variant="outline" 
@@ -45,7 +47,7 @@ export default function InboxPage() {
             onClick={() => logout()}
           >
             <LogOut className="mr-2 h-4 w-4" />
-            Sign Out
+            Cerrar Sesión
           </Button>
         </div>
       </div>
