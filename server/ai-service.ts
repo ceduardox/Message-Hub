@@ -6,6 +6,20 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+// Keywords that indicate product/purchase intent (Spanish)
+const CATALOG_KEYWORDS = [
+  "precio", "costo", "cuánto", "cuanto", "producto", "catálogo", "catalogo",
+  "comprar", "pedir", "envío", "envio", "entrega", "ubicación", "ubicacion",
+  "dirección", "direccion", "disponible", "tienen", "hay", "busco", "quiero",
+  "necesito", "promoción", "promocion", "descuento", "oferta", "stock",
+  "venden", "modelo", "talla", "color", "pago", "contraentrega"
+];
+
+function shouldAttachCatalog(userMessage: string): boolean {
+  const lowerMessage = userMessage.toLowerCase();
+  return CATALOG_KEYWORDS.some(keyword => lowerMessage.includes(keyword));
+}
+
 export async function generateAiResponse(
   conversationId: number,
   userMessage: string,
@@ -17,40 +31,50 @@ export async function generateAiResponse(
       return null;
     }
 
-    const trainingData = await storage.getAiTrainingData();
-    
-    const trainingContext = trainingData
-      .map((d) => {
-        if (d.type === "text") {
-          return `[INFO] ${d.title || "Información"}: ${d.content}`;
-        } else if (d.type === "url") {
-          return `[URL] ${d.title || "Recurso"}: ${d.content}`;
-        } else if (d.type === "image_url") {
-          return `[IMAGEN DISPONIBLE] ${d.title || "Imagen"}: ${d.content}`;
-        }
-        return "";
-      })
-      .filter(Boolean)
-      .join("\n");
+    // Only load training data if message shows purchase intent
+    let trainingContextShort = "";
+    if (shouldAttachCatalog(userMessage)) {
+      const trainingData = await storage.getAiTrainingData();
+      trainingContextShort = trainingData
+        .slice(0, 10) // Limit to 10 items max
+        .map((d) => {
+          if (d.type === "text") {
+            // Truncate long content
+            const content = d.content.length > 200 ? d.content.substring(0, 200) + "..." : d.content;
+            return `• ${d.title || "Info"}: ${content}`;
+          } else if (d.type === "image_url") {
+            return `• [IMG] ${d.title || "Imagen"}: ${d.content}`;
+          }
+          return "";
+        })
+        .filter(Boolean)
+        .join("\n");
+    }
 
+    // Get last 6 messages EXCLUDING the current one (which is already in recentMessages)
     const conversationHistory = recentMessages
-      .slice(-10)
+      .slice(-7, -1) // Take 6 messages before the last one
       .map((m) => ({
         role: m.direction === "in" ? "user" : "assistant",
         content: m.text || `[${m.type}]`,
       }));
 
-    const systemPrompt = settings.systemPrompt || `Eres un asistente de ventas amigable y profesional. 
-Tu objetivo es ayudar a los clientes con información sobre productos, precios y promociones.
-Responde de forma concisa y útil. Si no tienes la información, ofrece alternativas.
-Puedes usar las URLs de imágenes proporcionadas para enviar fotos de productos cuando sea relevante.
-Cuando quieras enviar una imagen, incluye la URL en tu respuesta con el formato: [IMAGEN: url_aqui]`;
+    const basePrompt = settings.systemPrompt || `Eres Isabella, asistente de ventas.`;
+    
+    const systemPrompt = `${basePrompt}
+
+=== REGLAS ESTRICTAS ===
+- Responde en 2-5 líneas máximo
+- Máximo 2 preguntas por respuesta
+- No uses listas largas
+- Tono humano y cálido
+- Si el cliente quiere comprar: pide ubicación para envío
+- Menciona contraentrega si aplica
+- Para enviar imagen usa: [IMAGEN: url]
+${trainingContextShort ? `\n=== PRODUCTOS ===\n${trainingContextShort}` : ""}`;
 
     const messages: any[] = [
-      {
-        role: "system",
-        content: `${systemPrompt}\n\n=== INFORMACIÓN DE PRODUCTOS Y SERVICIOS ===\n${trainingContext || "No hay información de entrenamiento aún."}\n\n=== CONTEXTO ===\nEsta es una conversación por WhatsApp. El cliente puede haber conversado antes.`,
-      },
+      { role: "system", content: systemPrompt },
       ...conversationHistory,
       { role: "user", content: userMessage },
     ];
@@ -58,7 +82,7 @@ Cuando quieras enviar una imagen, incluye la URL en tu respuesta con el formato:
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages,
-      max_tokens: 500,
+      max_tokens: 120,
       temperature: 0.7,
     });
 

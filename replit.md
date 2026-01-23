@@ -40,10 +40,15 @@ The server handles three main responsibilities:
 - **AI Provider**: OpenAI GPT-4o-mini via official SDK
 - **Auto-Response**: When enabled, automatically responds to incoming WhatsApp messages
 - **Training Data**: Supports text information, URLs, and image URLs stored in database
-- **Conversation Context**: Reviews last 10 messages to maintain context and recognize returning customers
+- **Conversation Context**: Reviews last 6 messages (optimized from 10 for token efficiency)
 - **Image Responses**: Can send images via URL when included in training data using [IMAGEN: url] format
 - **Logging**: All AI interactions logged for debugging (tokens used, success/error status)
 - **Settings Page**: /ai-agent route for enabling/disabling, setting system prompt, and managing training data
+- **Token Optimization**: 
+  - max_tokens: 120 (reduced from 500)
+  - shouldAttachCatalog: Only sends product info when keywords detected (precio, producto, comprar, etc.)
+  - Duplicate message prevention: Excludes current message from history
+  - Strict response rules: 2-5 lines max, max 2 questions, human tone (Isabella)
 
 ### Authentication
 - Simple username/password authentication against environment variables (ADMIN_USER, ADMIN_PASS)
