@@ -1,23 +1,40 @@
 import OpenAI from "openai";
 import { storage } from "./storage";
-import type { Message } from "@shared/schema";
+import type { Message, Product } from "@shared/schema";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// Keywords that indicate product/purchase intent (Spanish)
-const CATALOG_KEYWORDS = [
-  "precio", "costo", "cuánto", "cuanto", "producto", "catálogo", "catalogo",
-  "comprar", "pedir", "envío", "envio", "entrega", "disponible", "tienen",
-  "hay", "busco", "quiero", "necesito", "promoción", "promocion", "descuento",
-  "oferta", "stock", "venden", "modelo", "talla", "color", "pago", "contraentrega",
-  "berberina", "magnesio", "vitamina", "suplemento", "cápsula", "capsula"
-];
-
-function shouldAttachCatalog(userMessage: string): boolean {
+// Search products by matching name or keywords against user message
+function findMatchingProducts(userMessage: string, products: Product[]): Product[] {
   const lowerMessage = userMessage.toLowerCase();
-  return CATALOG_KEYWORDS.some(keyword => lowerMessage.includes(keyword));
+  
+  return products.filter(product => {
+    // Check product name
+    const nameMatch = product.name.toLowerCase().split(/\s+/).some(word => 
+      word.length > 2 && lowerMessage.includes(word)
+    );
+    
+    // Check keywords
+    const keywordsMatch = product.keywords?.toLowerCase().split(/[,\s]+/).some(keyword => 
+      keyword.length > 2 && lowerMessage.includes(keyword)
+    );
+    
+    return nameMatch || keywordsMatch;
+  });
+}
+
+// Check if message is asking about products in general
+function isProductQuery(userMessage: string): boolean {
+  const generalKeywords = [
+    "precio", "costo", "cuánto", "cuanto", "producto", "catálogo", "catalogo",
+    "comprar", "pedir", "disponible", "tienen", "hay", "busco", "quiero",
+    "necesito", "promoción", "promocion", "descuento", "oferta", "stock",
+    "venden", "qué venden", "que venden", "lista", "opciones"
+  ];
+  const lowerMessage = userMessage.toLowerCase();
+  return generalKeywords.some(keyword => lowerMessage.includes(keyword));
 }
 
 export async function generateAiResponse(
@@ -31,7 +48,28 @@ export async function generateAiResponse(
       return null;
     }
 
-    // Get last 3 messages for context (excluding current)
+    // Get all products
+    const allProducts = await storage.getProducts();
+    
+    // Find products matching user's message
+    const matchingProducts = findMatchingProducts(userMessage, allProducts);
+    
+    // Build product context
+    let productContext = "";
+    
+    if (matchingProducts.length > 0) {
+      // User asked about specific product(s) - include only those
+      productContext = matchingProducts.map(p => 
+        `${p.name} - ${p.price || "Consultar precio"}\n${p.description || ""}\n${p.imageUrl ? `Imagen: ${p.imageUrl}` : ""}`
+      ).join("\n\n");
+    } else if (isProductQuery(userMessage) && allProducts.length > 0) {
+      // General product query - include compact list
+      productContext = "PRODUCTOS DISPONIBLES:\n" + allProducts.map(p => 
+        `• ${p.name} - ${p.price || "Consultar"}`
+      ).join("\n");
+    }
+
+    // Get last 3 messages for context
     const conversationHistory = recentMessages
       .slice(-4, -1)
       .map((m) => ({
@@ -40,15 +78,6 @@ export async function generateAiResponse(
       }));
 
     const instructions = settings.systemPrompt || "Eres un asistente de ventas amigable.";
-    const catalog = settings.catalog || "";
-    
-    // Only include catalog when user asks about products (saves ~1500+ tokens)
-    const includeCatalog = shouldAttachCatalog(userMessage);
-    
-    // Truncate catalog to max 2000 chars to control token usage
-    const truncatedCatalog = catalog.length > 2000 
-      ? catalog.substring(0, 2000) + "\n...(más productos disponibles)"
-      : catalog;
     
     // Build system prompt
     const systemPrompt = `${instructions}
@@ -58,7 +87,7 @@ export async function generateAiResponse(
 - Máximo 2 preguntas por respuesta
 - Tono humano y cálido
 - Para enviar imagen usa: [IMAGEN: url]
-${includeCatalog && truncatedCatalog ? `\n=== CATÁLOGO ===\n${truncatedCatalog}` : ""}`;
+${productContext ? `\n=== PRODUCTOS ===\n${productContext}` : ""}`;
 
     const messages: any[] = [
       { role: "system", content: systemPrompt },

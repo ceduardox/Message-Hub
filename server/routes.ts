@@ -561,5 +561,69 @@ export async function registerRoutes(
     }
   });
 
+  // === PRODUCTS ROUTES ===
+
+  const productSchema = z.object({
+    name: z.string().min(1).max(100),
+    keywords: z.string().max(200).nullable().optional(),
+    description: z.string().nullable().optional(),
+    price: z.string().max(50).nullable().optional(),
+    imageUrl: z.string().nullable().optional(),
+  });
+
+  // Get all products
+  app.get("/api/products", requireAuth, async (req, res) => {
+    try {
+      const products = await storage.getProducts();
+      res.json(products);
+    } catch (error) {
+      console.error("Error fetching products:", error);
+      res.status(500).json({ message: "Error fetching products" });
+    }
+  });
+
+  // Create product
+  app.post("/api/products", requireAuth, async (req, res) => {
+    try {
+      const parsed = productSchema.parse(req.body);
+      const product = await storage.createProduct(parsed);
+      res.json(product);
+    } catch (error: any) {
+      if (error.name === "ZodError") {
+        return res.status(400).json({ message: "Invalid product data", errors: error.errors });
+      }
+      console.error("Error creating product:", error);
+      res.status(500).json({ message: "Error creating product" });
+    }
+  });
+
+  // Update product
+  app.patch("/api/products/:id", requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const parsed = productSchema.partial().parse(req.body);
+      const product = await storage.updateProduct(id, parsed);
+      res.json(product);
+    } catch (error: any) {
+      if (error.name === "ZodError") {
+        return res.status(400).json({ message: "Invalid product data", errors: error.errors });
+      }
+      console.error("Error updating product:", error);
+      res.status(500).json({ message: "Error updating product" });
+    }
+  });
+
+  // Delete product
+  app.delete("/api/products/:id", requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteProduct(id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting product:", error);
+      res.status(500).json({ message: "Error deleting product" });
+    }
+  });
+
   return httpServer;
 }
