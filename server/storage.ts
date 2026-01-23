@@ -2,16 +2,10 @@ import { db } from "./db";
 import {
   conversations,
   messages,
-  labels,
-  quickMessages,
   type Conversation,
   type InsertConversation,
   type Message,
   type InsertMessage,
-  type Label,
-  type InsertLabel,
-  type QuickMessage,
-  type InsertQuickMessage,
 } from "@shared/schema";
 import { eq, desc, asc } from "drizzle-orm";
 
@@ -31,16 +25,6 @@ export interface IStorage {
   createMessage(message: InsertMessage): Promise<Message>;
   getMessageByWaId(waMessageId: string): Promise<Message | undefined>;
   updateMessageStatus(waMessageId: string, status: string): Promise<void>;
-
-  // Labels
-  getLabels(): Promise<Label[]>;
-  createLabel(label: InsertLabel): Promise<Label>;
-  deleteLabel(id: number): Promise<void>;
-
-  // Quick Messages
-  getQuickMessages(): Promise<QuickMessage[]>;
-  createQuickMessage(qm: InsertQuickMessage): Promise<QuickMessage>;
-  deleteQuickMessage(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -102,34 +86,6 @@ export class DatabaseStorage implements IStorage {
       .update(messages)
       .set({ status })
       .where(eq(messages.waMessageId, waMessageId));
-  }
-
-  // Labels
-  async getLabels(): Promise<Label[]> {
-    return await db.select().from(labels);
-  }
-
-  async createLabel(label: InsertLabel): Promise<Label> {
-    const [created] = await db.insert(labels).values(label).returning();
-    return created;
-  }
-
-  async deleteLabel(id: number): Promise<void> {
-    await db.delete(labels).where(eq(labels.id, id));
-  }
-
-  // Quick Messages
-  async getQuickMessages(): Promise<QuickMessage[]> {
-    return await db.select().from(quickMessages);
-  }
-
-  async createQuickMessage(qm: InsertQuickMessage): Promise<QuickMessage> {
-    const [created] = await db.insert(quickMessages).values(qm).returning();
-    return created;
-  }
-
-  async deleteQuickMessage(id: number): Promise<void> {
-    await db.delete(quickMessages).where(eq(quickMessages.id, id));
   }
 }
 

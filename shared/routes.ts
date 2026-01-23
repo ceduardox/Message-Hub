@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { insertConversationSchema, insertMessageSchema, sendMessageSchema, loginSchema, insertLabelSchema, insertQuickMessageSchema, conversations, messages, labels, quickMessages } from "./schema";
+import { insertConversationSchema, insertMessageSchema, sendMessageSchema, loginSchema, conversations, messages } from "./schema";
 
 export const api = {
   auth: {
@@ -69,49 +69,7 @@ export const api = {
       method: "POST" as const,
       path: "/webhook",
     }
-  },
-  labels: {
-    list: {
-      method: "GET" as const,
-      path: "/api/labels",
-      responses: {
-        200: z.array(z.custom<typeof labels.$inferSelect>()),
-      },
-    },
-    create: {
-      method: "POST" as const,
-      path: "/api/labels",
-      input: insertLabelSchema,
-      responses: {
-        200: z.custom<typeof labels.$inferSelect>(),
-      },
-    },
-    delete: {
-      method: "DELETE" as const,
-      path: "/api/labels/:id",
-    },
-  },
-  quickMessages: {
-    list: {
-      method: "GET" as const,
-      path: "/api/quick-messages",
-      responses: {
-        200: z.array(z.custom<typeof quickMessages.$inferSelect>()),
-      },
-    },
-    create: {
-      method: "POST" as const,
-      path: "/api/quick-messages",
-      input: insertQuickMessageSchema,
-      responses: {
-        200: z.custom<typeof quickMessages.$inferSelect>(),
-      },
-    },
-    delete: {
-      method: "DELETE" as const,
-      path: "/api/quick-messages/:id",
-    },
-  },
+  }
 };
 
 export function buildUrl(path: string, params?: Record<string, string | number>): string {

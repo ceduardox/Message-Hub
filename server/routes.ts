@@ -230,7 +230,7 @@ export async function registerRoutes(
   });
 
   app.get(api.conversations.get.path, requireAuth, async (req, res) => {
-    const id = parseInt(req.params.id as string);
+    const id = parseInt(req.params.id);
     const conversation = await storage.getConversation(id);
     if (!conversation) return res.status(404).json({ message: "Conversation not found" });
     
@@ -292,64 +292,6 @@ export async function registerRoutes(
         }
       });
     }
-  });
-
-  // Labels
-  app.get("/api/labels", requireAuth, async (req, res) => {
-    const allLabels = await storage.getLabels();
-    res.json(allLabels);
-  });
-
-  app.post("/api/labels", requireAuth, async (req, res) => {
-    try {
-      const parsed = api.labels.create.input.parse(req.body);
-      const label = await storage.createLabel(parsed);
-      res.json(label);
-    } catch (error) {
-      res.status(400).json({ message: "Invalid label data" });
-    }
-  });
-
-  app.delete("/api/labels/:id", requireAuth, async (req, res) => {
-    await storage.deleteLabel(parseInt(req.params.id));
-    res.json({ success: true });
-  });
-
-  // Quick Messages
-  app.get("/api/quick-messages", requireAuth, async (req, res) => {
-    const qms = await storage.getQuickMessages();
-    res.json(qms);
-  });
-
-  app.post("/api/quick-messages", requireAuth, async (req, res) => {
-    try {
-      const parsed = api.quickMessages.create.input.parse(req.body);
-      const qm = await storage.createQuickMessage(parsed);
-      res.json(qm);
-    } catch (error) {
-      res.status(400).json({ message: "Invalid quick message data" });
-    }
-  });
-
-  app.delete("/api/quick-messages/:id", requireAuth, async (req, res) => {
-    await storage.deleteQuickMessage(parseInt(req.params.id));
-    res.json({ success: true });
-  });
-
-  // Set conversation label
-  app.patch("/api/conversations/:id/label", requireAuth, async (req, res) => {
-    const id = parseInt(req.params.id);
-    const { labelId } = req.body;
-    const updated = await storage.updateConversation(id, { labelId });
-    res.json(updated);
-  });
-
-  // Toggle pin
-  app.patch("/api/conversations/:id/pin", requireAuth, async (req, res) => {
-    const id = parseInt(req.params.id);
-    const { isPinned } = req.body;
-    const updated = await storage.updateConversation(id, { isPinned });
-    res.json(updated);
   });
 
   // Debug endpoint - check configuration
