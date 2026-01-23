@@ -1,0 +1,18 @@
+{
+  "name": "Ryztor Inbox",
+  "short_name": "Ryztor",
+  "description": "WhatsApp Mini Inbox - Gestiona tus mensajes de WhatsApp",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#7c3aed",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
