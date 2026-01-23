@@ -7,6 +7,7 @@ import session from "express-session";
 import MemoryStore from "memorystore";
 import axios from "axios";
 import { generateAiResponse } from "./ai-service";
+import { insertProductSchema } from "@shared/schema";
 
 // Helper to send messages via Graph API
 async function sendToWhatsApp(to: string, type: 'text' | 'image', content: any) {
@@ -563,14 +564,6 @@ export async function registerRoutes(
 
   // === PRODUCTS ROUTES ===
 
-  const productSchema = z.object({
-    name: z.string().min(1).max(100),
-    keywords: z.string().max(200).nullable().optional(),
-    description: z.string().nullable().optional(),
-    price: z.string().max(50).nullable().optional(),
-    imageUrl: z.string().nullable().optional(),
-  });
-
   // Get all products
   app.get("/api/products", requireAuth, async (req, res) => {
     try {
@@ -585,7 +578,7 @@ export async function registerRoutes(
   // Create product
   app.post("/api/products", requireAuth, async (req, res) => {
     try {
-      const parsed = productSchema.parse(req.body);
+      const parsed = insertProductSchema.parse(req.body);
       const product = await storage.createProduct(parsed);
       res.json(product);
     } catch (error: any) {
@@ -597,11 +590,15 @@ export async function registerRoutes(
     }
   });
 
-  // Update product
+  // Update product - require name if provided
   app.patch("/api/products/:id", requireAuth, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-      const parsed = productSchema.partial().parse(req.body);
+      const updateSchema = insertProductSchema.partial().refine(
+        (data) => data.name === undefined || (data.name && data.name.length > 0),
+        { message: "El nombre no puede estar vacío" }
+      );
+      const parsed = updateSchema.parse(req.body);
       const product = await storage.updateProduct(id, parsed);
       res.json(product);
     } catch (error: any) {

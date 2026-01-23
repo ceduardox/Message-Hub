@@ -6,20 +6,32 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+// Normalize text: lowercase and remove accents
+function normalize(text: string): string {
+  return text.toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
 // Search products by matching name or keywords against user message
 function findMatchingProducts(userMessage: string, products: Product[]): Product[] {
-  const lowerMessage = userMessage.toLowerCase();
+  const normalizedMessage = normalize(userMessage);
   
   return products.filter(product => {
-    // Check product name
-    const nameMatch = product.name.toLowerCase().split(/\s+/).some(word => 
-      word.length > 2 && lowerMessage.includes(word)
-    );
+    // Check full product name (normalized)
+    const normalizedName = normalize(product.name);
+    if (normalizedMessage.includes(normalizedName)) {
+      return true;
+    }
     
-    // Check keywords
-    const keywordsMatch = product.keywords?.toLowerCase().split(/[,\s]+/).some(keyword => 
-      keyword.length > 2 && lowerMessage.includes(keyword)
-    );
+    // Check individual words in product name (>2 chars)
+    const nameWords = normalizedName.split(/\s+/).filter(w => w.length > 2);
+    const nameMatch = nameWords.some(word => normalizedMessage.includes(word));
+    
+    // Check keywords (normalized)
+    const keywordsMatch = product.keywords?.split(/[,\s]+/)
+      .filter(k => k.length > 2)
+      .some(keyword => normalizedMessage.includes(normalize(keyword)));
     
     return nameMatch || keywordsMatch;
   });
@@ -54,6 +66,9 @@ export async function generateAiResponse(
     // Find products matching user's message
     const matchingProducts = findMatchingProducts(userMessage, allProducts);
     
+    // Get catalog from settings (fallback for products not in database)
+    const catalog = settings.catalog || "";
+    
     // Build product context
     let productContext = "";
     
@@ -62,11 +77,16 @@ export async function generateAiResponse(
       productContext = matchingProducts.map(p => 
         `${p.name} - ${p.price || "Consultar precio"}\n${p.description || ""}\n${p.imageUrl ? `Imagen: ${p.imageUrl}` : ""}`
       ).join("\n\n");
-    } else if (isProductQuery(userMessage) && allProducts.length > 0) {
-      // General product query - include compact list
-      productContext = "PRODUCTOS DISPONIBLES:\n" + allProducts.map(p => 
-        `• ${p.name} - ${p.price || "Consultar"}`
-      ).join("\n");
+    } else if (isProductQuery(userMessage)) {
+      if (allProducts.length > 0) {
+        // General product query - include compact list from database
+        productContext = "PRODUCTOS DISPONIBLES:\n" + allProducts.map(p => 
+          `• ${p.name} - ${p.price || "Consultar"}`
+        ).join("\n");
+      } else if (catalog) {
+        // Fallback to catalog text if no products in database
+        productContext = catalog.substring(0, 1500);
+      }
     }
 
     // Get last 3 messages for context

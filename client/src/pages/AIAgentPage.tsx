@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { 
@@ -14,7 +16,13 @@ import {
   CheckCircle,
   XCircle,
   RefreshCw,
-  Save
+  Save,
+  Plus,
+  Trash2,
+  Pencil,
+  Package,
+  X,
+  Check
 } from "lucide-react";
 
 interface AiSettings {
@@ -22,6 +30,16 @@ interface AiSettings {
   enabled: boolean;
   systemPrompt: string | null;
   catalog: string | null;
+}
+
+interface Product {
+  id: number;
+  name: string;
+  keywords: string | null;
+  description: string | null;
+  price: string | null;
+  imageUrl: string | null;
+  createdAt: string;
 }
 
 interface AiLog {
@@ -38,12 +56,29 @@ interface AiLog {
 export default function AIAgentPage() {
   const { toast } = useToast();
   const [systemPrompt, setSystemPrompt] = useState("");
-  const [catalog, setCatalog] = useState("");
   const [promptEdited, setPromptEdited] = useState(false);
-  const [catalogEdited, setCatalogEdited] = useState(false);
+  
+  // Product form state
+  const [newName, setNewName] = useState("");
+  const [newKeywords, setNewKeywords] = useState("");
+  const [newDescription, setNewDescription] = useState("");
+  const [newPrice, setNewPrice] = useState("");
+  const [newImageUrl, setNewImageUrl] = useState("");
+  
+  // Edit state
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editKeywords, setEditKeywords] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editPrice, setEditPrice] = useState("");
+  const [editImageUrl, setEditImageUrl] = useState("");
 
   const { data: settings, isLoading: settingsLoading } = useQuery<AiSettings>({
     queryKey: ["/api/ai/settings"],
+  });
+
+  const { data: products = [], isLoading: productsLoading } = useQuery<Product[]>({
+    queryKey: ["/api/products"],
   });
 
   const { data: logs = [], isLoading: logsLoading } = useQuery<AiLog[]>({
@@ -55,10 +90,7 @@ export default function AIAgentPage() {
     if (settings && !promptEdited) {
       setSystemPrompt(settings.systemPrompt || "");
     }
-    if (settings && !catalogEdited) {
-      setCatalog(settings.catalog || "");
-    }
-  }, [settings, promptEdited, catalogEdited]);
+  }, [settings, promptEdited]);
 
   const updateSettingsMutation = useMutation({
     mutationFn: async (data: Partial<AiSettings>) => {
@@ -67,6 +99,42 @@ export default function AIAgentPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/ai/settings"] });
       toast({ title: "Configuración guardada" });
+    },
+  });
+
+  const createProductMutation = useMutation({
+    mutationFn: async (data: Partial<Product>) => {
+      return apiRequest("POST", "/api/products", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+      setNewName("");
+      setNewKeywords("");
+      setNewDescription("");
+      setNewPrice("");
+      setNewImageUrl("");
+      toast({ title: "Producto agregado" });
+    },
+  });
+
+  const updateProductMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: Partial<Product> }) => {
+      return apiRequest("PATCH", `/api/products/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+      setEditingId(null);
+      toast({ title: "Producto actualizado" });
+    },
+  });
+
+  const deleteProductMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return apiRequest("DELETE", `/api/products/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+      toast({ title: "Producto eliminado" });
     },
   });
 
@@ -79,9 +147,41 @@ export default function AIAgentPage() {
     setPromptEdited(false);
   };
 
-  const handleSaveCatalog = () => {
-    updateSettingsMutation.mutate({ catalog });
-    setCatalogEdited(false);
+  const handleAddProduct = () => {
+    if (!newName.trim()) {
+      toast({ title: "El nombre es requerido", variant: "destructive" });
+      return;
+    }
+    createProductMutation.mutate({
+      name: newName,
+      keywords: newKeywords || null,
+      description: newDescription || null,
+      price: newPrice || null,
+      imageUrl: newImageUrl || null,
+    });
+  };
+
+  const startEditing = (product: Product) => {
+    setEditingId(product.id);
+    setEditName(product.name);
+    setEditKeywords(product.keywords || "");
+    setEditDescription(product.description || "");
+    setEditPrice(product.price || "");
+    setEditImageUrl(product.imageUrl || "");
+  };
+
+  const saveEdit = () => {
+    if (!editingId) return;
+    updateProductMutation.mutate({
+      id: editingId,
+      data: {
+        name: editName,
+        keywords: editKeywords || null,
+        description: editDescription || null,
+        price: editPrice || null,
+        imageUrl: editImageUrl || null,
+      },
+    });
   };
 
   if (settingsLoading) {
@@ -149,38 +249,173 @@ export default function AIAgentPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Catálogo de Productos</CardTitle>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              Productos
+            </CardTitle>
             <CardDescription>
-              Escribe toda la información de tus productos: nombres, precios, beneficios, URLs de imágenes
+              Agrega tus productos individualmente. La IA buscará solo el producto que mencione el cliente.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Textarea
-              placeholder={`Ejemplo:
-
-BERBERINA - 280 Bs
-Suplemento natural para control de glucosa
-Dosis: 2 cápsulas al día
-Imagen: https://ejemplo.com/berberina.jpg
-
-CITRATO DE MAGNESIO - 150 Bs
-Ayuda con el estrés y sueño
-Dosis: 1 cápsula antes de dormir
-Imagen: https://ejemplo.com/citrato.jpg`}
-              value={catalog}
-              onChange={(e) => {
-                setCatalog(e.target.value);
-                setCatalogEdited(true);
-              }}
-              rows={12}
-              className="font-mono text-sm"
-              data-testid="textarea-catalog"
-            />
-            {catalogEdited && (
-              <Button onClick={handleSaveCatalog} disabled={updateSettingsMutation.isPending} data-testid="button-save-catalog">
-                {updateSettingsMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-                Guardar Catálogo
+            <div className="grid gap-3 p-4 border rounded-md bg-muted/30">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <Label>Nombre *</Label>
+                  <Input
+                    placeholder="Ej: Berberina"
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    data-testid="input-product-name"
+                  />
+                </div>
+                <div>
+                  <Label>Precio</Label>
+                  <Input
+                    placeholder="Ej: 280 Bs"
+                    value={newPrice}
+                    onChange={(e) => setNewPrice(e.target.value)}
+                    data-testid="input-product-price"
+                  />
+                </div>
+              </div>
+              <div>
+                <Label>Palabras clave (separadas por coma)</Label>
+                <Input
+                  placeholder="Ej: glucosa, azúcar, diabetes"
+                  value={newKeywords}
+                  onChange={(e) => setNewKeywords(e.target.value)}
+                  data-testid="input-product-keywords"
+                />
+              </div>
+              <div>
+                <Label>Descripción</Label>
+                <Textarea
+                  placeholder="Beneficios, dosis, instrucciones..."
+                  value={newDescription}
+                  onChange={(e) => setNewDescription(e.target.value)}
+                  rows={2}
+                  data-testid="textarea-product-description"
+                />
+              </div>
+              <div>
+                <Label>URL de imagen</Label>
+                <Input
+                  placeholder="https://..."
+                  value={newImageUrl}
+                  onChange={(e) => setNewImageUrl(e.target.value)}
+                  data-testid="input-product-image"
+                />
+              </div>
+              <Button onClick={handleAddProduct} disabled={createProductMutation.isPending} data-testid="button-add-product">
+                {createProductMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
+                Agregar Producto
               </Button>
+            </div>
+
+            {productsLoading ? (
+              <div className="flex justify-center py-4">
+                <Loader2 className="h-6 w-6 animate-spin" />
+              </div>
+            ) : products.length > 0 ? (
+              <div className="border rounded-md divide-y">
+                {products.map((product) => (
+                  <div key={product.id} className="p-3" data-testid={`product-item-${product.id}`}>
+                    {editingId === product.id ? (
+                      <div className="space-y-3">
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <Input
+                            placeholder="Nombre"
+                            value={editName}
+                            onChange={(e) => setEditName(e.target.value)}
+                            data-testid={`input-edit-name-${product.id}`}
+                          />
+                          <Input
+                            placeholder="Precio"
+                            value={editPrice}
+                            onChange={(e) => setEditPrice(e.target.value)}
+                            data-testid={`input-edit-price-${product.id}`}
+                          />
+                        </div>
+                        <Input
+                          placeholder="Palabras clave"
+                          value={editKeywords}
+                          onChange={(e) => setEditKeywords(e.target.value)}
+                          data-testid={`input-edit-keywords-${product.id}`}
+                        />
+                        <Textarea
+                          placeholder="Descripción"
+                          value={editDescription}
+                          onChange={(e) => setEditDescription(e.target.value)}
+                          rows={2}
+                          data-testid={`textarea-edit-description-${product.id}`}
+                        />
+                        <Input
+                          placeholder="URL imagen"
+                          value={editImageUrl}
+                          onChange={(e) => setEditImageUrl(e.target.value)}
+                          data-testid={`input-edit-image-${product.id}`}
+                        />
+                        <div className="flex gap-2">
+                          <Button size="sm" onClick={saveEdit} disabled={updateProductMutation.isPending}>
+                            {updateProductMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4 mr-1" />}
+                            Guardar
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => setEditingId(null)}>
+                            <X className="h-4 w-4 mr-1" /> Cancelar
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-start gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-medium">{product.name}</span>
+                            {product.price && (
+                              <span className="text-sm bg-primary/10 text-primary px-2 py-0.5 rounded">
+                                {product.price}
+                              </span>
+                            )}
+                          </div>
+                          {product.keywords && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Palabras clave: {product.keywords}
+                            </p>
+                          )}
+                          {product.description && (
+                            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                              {product.description}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => startEditing(product)}
+                            data-testid={`button-edit-product-${product.id}`}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => deleteProductMutation.mutate(product.id)}
+                            disabled={deleteProductMutation.isPending}
+                            data-testid={`button-delete-product-${product.id}`}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                No hay productos. Agrega tu primer producto arriba.
+              </p>
             )}
           </CardContent>
         </Card>
@@ -190,7 +425,7 @@ Imagen: https://ejemplo.com/citrato.jpg`}
             <div>
               <CardTitle className="text-lg">Logs de IA</CardTitle>
               <CardDescription>
-                Historial de respuestas del agente para depuración
+                Historial de respuestas del agente
               </CardDescription>
             </div>
             <Button 
