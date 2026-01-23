@@ -115,6 +115,9 @@ export default function AIAgentPage() {
       setNewImageUrl("");
       toast({ title: "Producto agregado" });
     },
+    onError: (error: Error) => {
+      toast({ title: "Error al agregar producto", description: error.message, variant: "destructive" });
+    },
   });
 
   const updateProductMutation = useMutation({
@@ -126,6 +129,9 @@ export default function AIAgentPage() {
       setEditingId(null);
       toast({ title: "Producto actualizado" });
     },
+    onError: (error: Error) => {
+      toast({ title: "Error al actualizar producto", description: error.message, variant: "destructive" });
+    },
   });
 
   const deleteProductMutation = useMutation({
@@ -135,6 +141,9 @@ export default function AIAgentPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/products"] });
       toast({ title: "Producto eliminado" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error al eliminar producto", description: error.message, variant: "destructive" });
     },
   });
 
