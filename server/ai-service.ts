@@ -66,25 +66,54 @@ export async function generateAiResponse(
 
     // Get cache refresh setting
     const cacheMinutes = settings.cacheRefreshMinutes || 5;
+    const trainingData = await getCachedTrainingData(cacheMinutes);
+    const lowerMessage = userMessage.toLowerCase();
 
-    // Only load training data if message shows purchase intent
-    let trainingContextShort = "";
-    if (shouldAttachCatalog(userMessage)) {
-      const trainingData = await getCachedTrainingData(cacheMinutes);
-      trainingContextShort = trainingData
-        .slice(0, 10) // Limit to 10 items max
-        .map((d) => {
-          if (d.type === "text") {
-            // Truncate long content
-            const content = d.content.length > 200 ? d.content.substring(0, 200) + "..." : d.content;
-            return `• ${d.title || "Info"}: ${content}`;
-          } else if (d.type === "image_url") {
-            return `• [IMG] ${d.title || "Imagen"}: ${d.content}`;
-          }
-          return "";
-        })
-        .filter(Boolean)
-        .join("\n");
+    // Always include compact product list
+    const compactList = trainingData
+      .filter((d) => d.type === "text")
+      .slice(0, 15)
+      .map((d) => {
+        // Extract just title or first 50 chars
+        const shortContent = d.content.substring(0, 50).split('\n')[0];
+        return `• ${d.title || shortContent}`;
+      })
+      .join("\n");
+
+    // Check if user mentions a specific product name from training data
+    const mentionedProduct = trainingData.find((d) => {
+      if (!d.title) return false;
+      const productName = d.title.toLowerCase();
+      return lowerMessage.includes(productName) || productName.includes(lowerMessage.replace(/[?¿!¡]/g, '').trim());
+    });
+
+    // Build context: compact list always + full details if product mentioned
+    let trainingContextShort = `PRODUCTOS DISPONIBLES:\n${compactList || "No hay productos cargados"}`;
+    
+    if (mentionedProduct) {
+      const content = mentionedProduct.content.length > 300 
+        ? mentionedProduct.content.substring(0, 300) + "..." 
+        : mentionedProduct.content;
+      trainingContextShort += `\n\nDETALLE ${mentionedProduct.title?.toUpperCase()}:\n${content}`;
+      
+      // Find related image
+      const relatedImage = trainingData.find(
+        (d) => d.type === "image_url" && d.title?.toLowerCase().includes(mentionedProduct.title?.toLowerCase() || "")
+      );
+      if (relatedImage) {
+        trainingContextShort += `\n[IMAGEN DISPONIBLE]: ${relatedImage.content}`;
+      }
+    }
+
+    // Also include images list
+    const imagesList = trainingData
+      .filter((d) => d.type === "image_url")
+      .slice(0, 8)
+      .map((d) => `• ${d.title}: ${d.content}`)
+      .join("\n");
+    
+    if (imagesList) {
+      trainingContextShort += `\n\nIMÁGENES DISPONIBLES:\n${imagesList}`;
     }
 
     // Get last 6 messages EXCLUDING the current one (which is already in recentMessages)
