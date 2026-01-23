@@ -20,7 +20,10 @@ import {
   Loader2,
   CheckCircle,
   XCircle,
-  RefreshCw
+  RefreshCw,
+  Pencil,
+  X,
+  Check
 } from "lucide-react";
 import {
   Select,
@@ -68,6 +71,9 @@ export default function AIAgentPage() {
   const [newContent, setNewContent] = useState("");
   const [systemPrompt, setSystemPrompt] = useState("");
   const [promptEdited, setPromptEdited] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editContent, setEditContent] = useState("");
 
   const { data: settings, isLoading: settingsLoading } = useQuery<AiSettings>({
     queryKey: ["/api/ai/settings"],
@@ -128,6 +134,31 @@ export default function AIAgentPage() {
       toast({ title: "Información eliminada" });
     },
   });
+
+  const updateTrainingMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: { title?: string; content?: string } }) => {
+      return apiRequest("PATCH", `/api/ai/training/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/ai/training"] });
+      setEditingId(null);
+      toast({ title: "Información actualizada" });
+    },
+  });
+
+  const startEditing = (item: TrainingData) => {
+    setEditingId(item.id);
+    setEditTitle(item.title || "");
+    setEditContent(item.content);
+  };
+
+  const saveEdit = () => {
+    if (!editingId) return;
+    updateTrainingMutation.mutate({ 
+      id: editingId, 
+      data: { title: editTitle, content: editContent } 
+    });
+  };
 
   const handleToggle = (enabled: boolean) => {
     updateSettingsMutation.mutate({ enabled });
@@ -331,30 +362,67 @@ export default function AIAgentPage() {
             ) : trainingData.length > 0 ? (
               <div className="border rounded-md divide-y">
                 {trainingData.map((item) => (
-                  <div key={item.id} className="p-3 flex items-start gap-3" data-testid={`training-item-${item.id}`}>
-                    <div className="flex-shrink-0 mt-1 text-muted-foreground">
-                      {getTypeIcon(item.type)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-medium bg-secondary px-2 py-0.5 rounded">
-                          {getTypeLabel(item.type)}
-                        </span>
-                        {item.title && <span className="font-medium text-sm">{item.title}</span>}
+                  <div key={item.id} className="p-3" data-testid={`training-item-${item.id}`}>
+                    {editingId === item.id ? (
+                      <div className="space-y-2">
+                        <Input
+                          placeholder="Título"
+                          value={editTitle}
+                          onChange={(e) => setEditTitle(e.target.value)}
+                          data-testid={`input-edit-title-${item.id}`}
+                        />
+                        <Textarea
+                          placeholder="Contenido"
+                          value={editContent}
+                          onChange={(e) => setEditContent(e.target.value)}
+                          rows={3}
+                          data-testid={`textarea-edit-content-${item.id}`}
+                        />
+                        <div className="flex gap-2">
+                          <Button size="sm" onClick={saveEdit} disabled={updateTrainingMutation.isPending}>
+                            {updateTrainingMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4 mr-1" />}
+                            Guardar
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => setEditingId(null)}>
+                            <X className="h-4 w-4 mr-1" /> Cancelar
+                          </Button>
+                        </div>
                       </div>
-                      <p className="text-sm text-muted-foreground mt-1 truncate">
-                        {item.content.substring(0, 100)}{item.content.length > 100 ? "..." : ""}
-                      </p>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => deleteTrainingMutation.mutate(item.id)}
-                      disabled={deleteTrainingMutation.isPending}
-                      data-testid={`button-delete-training-${item.id}`}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
+                    ) : (
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 mt-1 text-muted-foreground">
+                          {getTypeIcon(item.type)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-medium bg-secondary px-2 py-0.5 rounded">
+                              {getTypeLabel(item.type)}
+                            </span>
+                            {item.title && <span className="font-medium text-sm">{item.title}</span>}
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-1 truncate">
+                            {item.content.substring(0, 100)}{item.content.length > 100 ? "..." : ""}
+                          </p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => startEditing(item)}
+                          data-testid={`button-edit-training-${item.id}`}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => deleteTrainingMutation.mutate(item.id)}
+                          disabled={deleteTrainingMutation.isPending}
+                          data-testid={`button-delete-training-${item.id}`}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

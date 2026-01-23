@@ -523,6 +523,21 @@ export async function registerRoutes(
     }
   });
 
+  // Update Training Data
+  app.patch("/api/ai/training/:id", requireAuth, async (req, res) => {
+    try {
+      const parsed = aiTrainingCreateSchema.partial().parse(req.body);
+      const updated = await storage.updateAiTrainingData(parseInt(req.params.id), parsed);
+      res.json(updated);
+    } catch (error: any) {
+      if (error.name === "ZodError") {
+        return res.status(400).json({ message: "Invalid training data", errors: error.errors });
+      }
+      console.error("Error updating training data:", error);
+      res.status(500).json({ message: "Error updating training data" });
+    }
+  });
+
   // Delete Training Data
   app.delete("/api/ai/training/:id", requireAuth, async (req, res) => {
     try {

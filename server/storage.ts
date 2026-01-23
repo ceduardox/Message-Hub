@@ -56,6 +56,7 @@ export interface IStorage {
   updateAiSettings(settings: Partial<InsertAiSettings>): Promise<AiSettings>;
   getAiTrainingData(): Promise<AiTrainingData[]>;
   createAiTrainingData(data: InsertAiTrainingData): Promise<AiTrainingData>;
+  updateAiTrainingData(id: number, data: Partial<InsertAiTrainingData>): Promise<AiTrainingData>;
   deleteAiTrainingData(id: number): Promise<void>;
   getAiLogs(limit?: number): Promise<AiLog[]>;
   createAiLog(log: InsertAiLog): Promise<AiLog>;
@@ -178,6 +179,11 @@ export class DatabaseStorage implements IStorage {
   async createAiTrainingData(data: InsertAiTrainingData): Promise<AiTrainingData> {
     const [created] = await db.insert(aiTrainingData).values(data).returning();
     return created;
+  }
+
+  async updateAiTrainingData(id: number, data: Partial<InsertAiTrainingData>): Promise<AiTrainingData> {
+    const [updated] = await db.update(aiTrainingData).set(data).where(eq(aiTrainingData.id, id)).returning();
+    return updated;
   }
 
   async deleteAiTrainingData(id: number): Promise<void> {
