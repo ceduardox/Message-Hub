@@ -69,46 +69,46 @@ export async function generateAiResponse(
     const trainingData = await getCachedTrainingData(cacheMinutes);
     const lowerMessage = userMessage.toLowerCase();
 
-    // Always include compact product list
-    const compactList = trainingData
+    // Build compact product list with key info (name + price if available)
+    // Let the AI (which is smart) figure out which product the user means
+    const productInfo = trainingData
       .filter((d) => d.type === "text")
       .slice(0, 15)
       .map((d) => {
-        // Extract just title or first 50 chars
-        const shortContent = d.content.substring(0, 50).split('\n')[0];
-        return `• ${d.title || shortContent}`;
+        // Extract price if mentioned in content
+        const priceMatch = d.content.match(/(\d{2,4})\s*(bs|bolivianos|usd|\$)/i);
+        const price = priceMatch ? ` - ${priceMatch[1]} ${priceMatch[2]}` : "";
+        return `• ${d.title || "Producto"}${price}`;
       })
       .join("\n");
 
-    // Check if user mentions a specific product name from training data
-    const mentionedProduct = trainingData.find((d) => {
-      if (!d.title) return false;
-      const productName = d.title.toLowerCase();
-      return lowerMessage.includes(productName) || productName.includes(lowerMessage.replace(/[?¿!¡]/g, '').trim());
-    });
-
-    // Build context: compact list always + full details if product mentioned
-    let trainingContextShort = `PRODUCTOS DISPONIBLES:\n${compactList || "No hay productos cargados"}`;
+    // Build context - let AI be intelligent about matching
+    let trainingContext = `CATÁLOGO DE PRODUCTOS:\n${productInfo || "No hay productos cargados"}`;
     
-    if (mentionedProduct) {
-      const content = mentionedProduct.content.length > 300 
-        ? mentionedProduct.content.substring(0, 300) + "..." 
-        : mentionedProduct.content;
-      trainingContextShort += `\n\nDETALLE ${mentionedProduct.title?.toUpperCase()}:\n${content}`;
-      
-      // Find related image
-      const relatedImage = trainingData.find(
-        (d) => d.type === "image_url" && d.title?.toLowerCase().includes(mentionedProduct.title?.toLowerCase() || "")
-      );
-      if (relatedImage) {
-        trainingContextShort += `\n[IMAGEN DISPONIBLE]: ${relatedImage.content}`;
-      }
+    // Include full product details (compact) so AI has all info to answer
+    const productDetails = trainingData
+      .filter((d) => d.type === "text")
+      .slice(0, 10)
+      .map((d) => {
+        // Trim content to essential info (first 150 chars)
+        const shortContent = d.content.substring(0, 150).replace(/\n/g, ' ');
+        return `${d.title}: ${shortContent}`;
+      })
+      .join("\n");
+    
+    if (productDetails) {
+      trainingContext += `\n\nINFO PRODUCTOS:\n${productDetails}`;
     }
 
-    // Only mention that images exist (don't send all URLs - saves ~200 tokens)
-    const hasImages = trainingData.some((d) => d.type === "image_url");
-    if (hasImages && !mentionedProduct) {
-      trainingContextShort += `\n\n(Hay imágenes disponibles para cada producto)`;
+    // Include image URLs compactly (just product name -> URL)
+    const imageUrls = trainingData
+      .filter((d) => d.type === "image_url")
+      .slice(0, 8)
+      .map((d) => `${d.title}: ${d.content}`)
+      .join("\n");
+    
+    if (imageUrls) {
+      trainingContext += `\n\nIMÁGENES (usa [IMAGEN: url] para enviar):\n${imageUrls}`;
     }
 
     // Get last 3 messages EXCLUDING the current one (reduced from 6 - saves ~150 tokens)
@@ -131,7 +131,7 @@ export async function generateAiResponse(
 - Si el cliente quiere comprar: pide ubicación para envío
 - Menciona contraentrega si aplica
 - Para enviar imagen usa: [IMAGEN: url]
-${trainingContextShort ? `\n=== PRODUCTOS ===\n${trainingContextShort}` : ""}`;
+${trainingContext ? `\n=== PRODUCTOS ===\n${trainingContext}` : ""}`;
 
     const messages: any[] = [
       { role: "system", content: systemPrompt },
