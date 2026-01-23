@@ -22,7 +22,7 @@ async function sendToWhatsApp(to: string, type: 'text' | 'image', content: any) 
     throw new Error("Missing Meta configuration (token or phone ID)");
   }
 
-  const url = `https://graph.facebook.com/v22.0/${phoneId}/messages`;
+  const url = `https://graph.facebook.com/v24.0/${phoneId}/messages`;
   
   const payload: any = {
     messaging_product: "whatsapp",
@@ -307,7 +307,7 @@ export async function registerRoutes(
       if (!token) return res.status(500).send("Meta Token missing");
 
       // 1. Get Media URL
-      const urlResponse = await axios.get(`https://graph.facebook.com/v22.0/${mediaId}`, {
+      const urlResponse = await axios.get(`https://graph.facebook.com/v24.0/${mediaId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
