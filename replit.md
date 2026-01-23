@@ -49,6 +49,10 @@ The server handles three main responsibilities:
   - shouldAttachCatalog: Only sends product info when keywords detected (precio, producto, comprar, etc.)
   - Duplicate message prevention: Excludes current message from history
   - Strict response rules: 2-5 lines max, max 2 questions, human tone (Isabella)
+- **Training Data Cache**: 
+  - In-memory cache to avoid DB queries on every message
+  - Configurable refresh interval (1-60 minutes, default 5)
+  - Manual "Actualizar ahora" button for instant refresh after training data changes
 
 ### Authentication
 - Simple username/password authentication against environment variables (ADMIN_USER, ADMIN_PASS)

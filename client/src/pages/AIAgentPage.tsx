@@ -34,6 +34,12 @@ interface AiSettings {
   id?: number;
   enabled: boolean;
   systemPrompt: string | null;
+  cacheRefreshMinutes?: number;
+}
+
+interface CacheInfo {
+  lastUpdated: number | null;
+  refreshMinutes: number;
 }
 
 interface TrainingData {
@@ -74,6 +80,21 @@ export default function AIAgentPage() {
   const { data: logs = [], isLoading: logsLoading } = useQuery<AiLog[]>({
     queryKey: ["/api/ai/logs"],
     refetchInterval: 10000,
+  });
+
+  const { data: cacheInfo } = useQuery<CacheInfo>({
+    queryKey: ["/api/ai/cache"],
+    refetchInterval: 30000,
+  });
+
+  const refreshCacheMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("POST", "/api/ai/cache/refresh", {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/ai/cache"] });
+      toast({ title: "Cache actualizado" });
+    },
   });
 
   const updateSettingsMutation = useMutation({
@@ -200,6 +221,52 @@ export default function AIAgentPage() {
                 {updateSettingsMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 Guardar Instrucciones
               </Button>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Cache de Datos</CardTitle>
+            <CardDescription>
+              Controla cada cuánto se actualizan los datos de entrenamiento en memoria
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Label>Refrescar cada</Label>
+                <Select 
+                  value={String(settings?.cacheRefreshMinutes || 5)} 
+                  onValueChange={(v) => updateSettingsMutation.mutate({ cacheRefreshMinutes: parseInt(v) })}
+                >
+                  <SelectTrigger className="w-24" data-testid="select-cache-minutes">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">1 min</SelectItem>
+                    <SelectItem value="2">2 min</SelectItem>
+                    <SelectItem value="5">5 min</SelectItem>
+                    <SelectItem value="10">10 min</SelectItem>
+                    <SelectItem value="30">30 min</SelectItem>
+                    <SelectItem value="60">60 min</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button 
+                variant="outline" 
+                onClick={() => refreshCacheMutation.mutate()}
+                disabled={refreshCacheMutation.isPending}
+                data-testid="button-refresh-cache"
+              >
+                {refreshCacheMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+                Actualizar ahora
+              </Button>
+            </div>
+            {cacheInfo?.lastUpdated && (
+              <p className="text-sm text-muted-foreground">
+                Última actualización: {new Date(cacheInfo.lastUpdated).toLocaleTimeString()}
+              </p>
             )}
           </CardContent>
         </Card>

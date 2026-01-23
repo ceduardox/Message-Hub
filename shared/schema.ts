@@ -101,6 +101,7 @@ export const aiSettings = pgTable("ai_settings", {
   id: serial("id").primaryKey(),
   enabled: boolean("enabled").default(false),
   systemPrompt: text("system_prompt"),
+  cacheRefreshMinutes: integer("cache_refresh_minutes").default(5),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 

@@ -20,6 +20,39 @@ function shouldAttachCatalog(userMessage: string): boolean {
   return CATALOG_KEYWORDS.some(keyword => lowerMessage.includes(keyword));
 }
 
+// === TRAINING DATA CACHE ===
+interface TrainingCache {
+  data: any[];
+  timestamp: number;
+  refreshMinutes: number;
+}
+
+let trainingCache: TrainingCache | null = null;
+
+export function getTrainingCacheInfo(): { lastUpdated: number | null; refreshMinutes: number } {
+  return {
+    lastUpdated: trainingCache?.timestamp || null,
+    refreshMinutes: trainingCache?.refreshMinutes || 5,
+  };
+}
+
+export function clearTrainingCache(): void {
+  trainingCache = null;
+}
+
+async function getCachedTrainingData(refreshMinutes: number): Promise<any[]> {
+  const now = Date.now();
+  const maxAge = refreshMinutes * 60 * 1000;
+
+  if (trainingCache && (now - trainingCache.timestamp) < maxAge) {
+    return trainingCache.data;
+  }
+
+  const data = await storage.getAiTrainingData();
+  trainingCache = { data, timestamp: now, refreshMinutes };
+  return data;
+}
+
 export async function generateAiResponse(
   conversationId: number,
   userMessage: string,
@@ -31,10 +64,13 @@ export async function generateAiResponse(
       return null;
     }
 
+    // Get cache refresh setting
+    const cacheMinutes = settings.cacheRefreshMinutes || 5;
+
     // Only load training data if message shows purchase intent
     let trainingContextShort = "";
     if (shouldAttachCatalog(userMessage)) {
-      const trainingData = await storage.getAiTrainingData();
+      const trainingData = await getCachedTrainingData(cacheMinutes);
       trainingContextShort = trainingData
         .slice(0, 10) // Limit to 10 items max
         .map((d) => {
