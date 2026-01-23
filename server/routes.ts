@@ -9,6 +9,40 @@ import axios from "axios";
 import { generateAiResponse } from "./ai-service";
 import { insertProductSchema } from "@shared/schema";
 
+// Send push notification via OneSignal
+async function sendPushNotification(title: string, message: string, data?: Record<string, string>) {
+  const apiKey = process.env.ONESIGNAL_REST_API_KEY;
+  const appId = "07dfe1e4-83b1-4623-b57c-e6e33232d4eb";
+
+  if (!apiKey) {
+    console.log("OneSignal API key not configured, skipping push notification");
+    return;
+  }
+
+  try {
+    await axios.post(
+      "https://onesignal.com/api/v1/notifications",
+      {
+        app_id: appId,
+        included_segments: ["All"],
+        headings: { en: title },
+        contents: { en: message },
+        data: data || {},
+        web_push_topic: `message-${Date.now()}`, // Unique topic prevents grouping
+      },
+      {
+        headers: {
+          Authorization: `Basic ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+    console.log("Push notification sent:", title, message);
+  } catch (error: any) {
+    console.error("Failed to send push notification:", error.response?.data || error.message);
+  }
+}
+
 // Helper to send messages via Graph API
 async function sendToWhatsApp(to: string, type: 'text' | 'image', content: any) {
   const token = process.env.META_ACCESS_TOKEN;
@@ -75,7 +109,7 @@ export async function registerRoutes(
       secret: process.env.SESSION_SECRET || "default_secret",
       resave: false,
       saveUninitialized: false,
-      cookie: { maxAge: 86400000 }, // 24h
+      cookie: { maxAge: 604800000 }, // 7 days
       store: new SessionStore({
         checkPeriod: 86400000,
       }),
@@ -159,7 +193,15 @@ export async function registerRoutes(
               const existing = await storage.getMessageByWaId(msg.id);
               if (existing) continue;
 
-              // 3. Save Message
+              // 3. Send push notification for new incoming message
+              const messagePreview = msg.type === 'text' ? msg.text.body : `[${msg.type}]`;
+              sendPushNotification(
+                name,
+                messagePreview.length > 100 ? messagePreview.substring(0, 100) + "..." : messagePreview,
+                { conversationId: conversation.id.toString(), waId: from }
+              );
+
+              // 4. Save Message
               await storage.createMessage({
                 conversationId: conversation.id,
                 waMessageId: msg.id,

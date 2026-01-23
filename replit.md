@@ -55,9 +55,18 @@ The server handles three main responsibilities:
   - Falls back to catalog text field if no products in database
   - Strict response rules: 2-5 lines max, max 2 questions, human tone
 
+### Push Notifications (OneSignal)
+- **Provider**: OneSignal Web Push SDK v16
+- **App ID**: 07dfe1e4-83b1-4623-b57c-e6e33232d4eb
+- **Trigger**: Sends push notification when new WhatsApp message arrives
+- **Content**: Shows contact name as title, message preview as body
+- **Unique notifications**: Each message creates a separate notification (no grouping)
+- **Service Worker**: OneSignalSDKWorker.js in public folder
+
 ### Authentication
 - Simple username/password authentication against environment variables (ADMIN_USER, ADMIN_PASS)
 - Session-based authentication with express-session
+- Session duration: 7 days (extended from 24h)
 - Protected API routes require active session
 
 ### WhatsApp Integration

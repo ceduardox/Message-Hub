@@ -4,28 +4,24 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/use-auth";
-import { Loader2 } from "lucide-react";
 
 import LoginPage from "@/pages/LoginPage";
 import InboxPage from "@/pages/InboxPage";
 import AIAgentPage from "@/pages/AIAgentPage";
 import NotFound from "@/pages/not-found";
 
-// Protected Route Wrapper
+// Protected Route Wrapper - No loading spinner, goes directly to content or login
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const { user, isLoading } = useAuth();
   const [, setLocation] = useLocation();
 
+  // While loading, render component optimistically (assumes user is logged in)
+  // This avoids showing a loading spinner and lets the chat appear immediately
   if (isLoading) {
-    return (
-      <div className="h-screen w-full flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+    return <Component />;
   }
 
   if (!user) {
-    // Redirect happens in useEffect or we force it here
     setTimeout(() => setLocation("/login"), 0);
     return null;
   }
