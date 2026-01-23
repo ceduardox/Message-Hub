@@ -6,6 +6,7 @@ import { z } from "zod";
 import session from "express-session";
 import MemoryStore from "memorystore";
 import axios from "axios";
+import { generateAiResponse } from "./ai-service";
 
 // Helper to send messages via Graph API
 async function sendToWhatsApp(to: string, type: 'text' | 'image', content: any) {
@@ -170,6 +171,61 @@ export async function registerRoutes(
                 status: "received",
                 rawJson: msg,
               });
+
+              // 4. AI Auto-Response (if enabled)
+              if (msg.type === 'text') {
+                try {
+                  const recentMessages = await storage.getMessages(conversation.id);
+                  const aiResult = await generateAiResponse(
+                    conversation.id,
+                    msg.text.body,
+                    recentMessages
+                  );
+
+                  if (aiResult && aiResult.response) {
+                    // Send text response
+                    const waResponse = await sendToWhatsApp(from, 'text', { text: aiResult.response });
+                    const waMessageId = waResponse.messages[0].id;
+
+                    await storage.createMessage({
+                      conversationId: conversation.id,
+                      waMessageId: waMessageId,
+                      direction: "out",
+                      type: "text",
+                      text: aiResult.response,
+                      timestamp: Math.floor(Date.now() / 1000).toString(),
+                      status: "sent",
+                      rawJson: waResponse,
+                    });
+
+                    await storage.updateConversation(conversation.id, {
+                      lastMessage: aiResult.response,
+                      lastMessageTimestamp: new Date(),
+                    });
+
+                    // Send image if AI included one
+                    if (aiResult.imageUrl) {
+                      const imgResponse = await sendToWhatsApp(from, 'image', { imageUrl: aiResult.imageUrl });
+                      await storage.createMessage({
+                        conversationId: conversation.id,
+                        waMessageId: imgResponse.messages[0].id,
+                        direction: "out",
+                        type: "image",
+                        text: null,
+                        timestamp: Math.floor(Date.now() / 1000).toString(),
+                        status: "sent",
+                        rawJson: imgResponse,
+                      });
+                    }
+
+                    console.log("=== AI RESPONSE SENT ===");
+                    console.log("Response:", aiResult.response);
+                    console.log("Tokens:", aiResult.tokensUsed);
+                  }
+                } catch (aiError) {
+                  console.error("AI Response Error:", aiError);
+                }
+              }
             }
 
             // Handle Statuses (delivered, read)
@@ -397,6 +453,95 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Media fetch error:", error);
       res.status(404).send("Media not found");
+    }
+  });
+
+  // === AI AGENT ROUTES ===
+
+  // Validation schemas for AI routes
+  const aiSettingsUpdateSchema = z.object({
+    enabled: z.boolean().optional(),
+    systemPrompt: z.string().nullable().optional(),
+  });
+
+  const aiTrainingCreateSchema = z.object({
+    type: z.enum(["text", "url", "image_url"]),
+    title: z.string().max(200).nullable().optional(),
+    content: z.string().min(1),
+  });
+
+  // Get AI Settings
+  app.get("/api/ai/settings", requireAuth, async (req, res) => {
+    try {
+      const settings = await storage.getAiSettings();
+      res.json(settings || { enabled: false, systemPrompt: null });
+    } catch (error) {
+      console.error("Error fetching AI settings:", error);
+      res.status(500).json({ message: "Error fetching AI settings" });
+    }
+  });
+
+  // Update AI Settings
+  app.patch("/api/ai/settings", requireAuth, async (req, res) => {
+    try {
+      const parsed = aiSettingsUpdateSchema.parse(req.body);
+      const updated = await storage.updateAiSettings(parsed);
+      res.json(updated);
+    } catch (error: any) {
+      if (error.name === "ZodError") {
+        return res.status(400).json({ message: "Invalid settings data", errors: error.errors });
+      }
+      console.error("Error updating AI settings:", error);
+      res.status(500).json({ message: "Error updating AI settings" });
+    }
+  });
+
+  // Get Training Data
+  app.get("/api/ai/training", requireAuth, async (req, res) => {
+    try {
+      const data = await storage.getAiTrainingData();
+      res.json(data);
+    } catch (error) {
+      console.error("Error fetching training data:", error);
+      res.status(500).json({ message: "Error fetching training data" });
+    }
+  });
+
+  // Add Training Data
+  app.post("/api/ai/training", requireAuth, async (req, res) => {
+    try {
+      const parsed = aiTrainingCreateSchema.parse(req.body);
+      const created = await storage.createAiTrainingData(parsed);
+      res.json(created);
+    } catch (error: any) {
+      if (error.name === "ZodError") {
+        return res.status(400).json({ message: "Invalid training data", errors: error.errors });
+      }
+      console.error("Error creating training data:", error);
+      res.status(500).json({ message: "Error creating training data" });
+    }
+  });
+
+  // Delete Training Data
+  app.delete("/api/ai/training/:id", requireAuth, async (req, res) => {
+    try {
+      await storage.deleteAiTrainingData(parseInt(req.params.id));
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting training data:", error);
+      res.status(500).json({ message: "Error deleting training data" });
+    }
+  });
+
+  // Get AI Logs
+  app.get("/api/ai/logs", requireAuth, async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 50;
+      const logs = await storage.getAiLogs(limit);
+      res.json(logs);
+    } catch (error) {
+      console.error("Error fetching AI logs:", error);
+      res.status(500).json({ message: "Error fetching AI logs" });
     }
   });
 

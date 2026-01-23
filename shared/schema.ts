@@ -94,3 +94,44 @@ export const loginSchema = z.object({
 });
 
 export type LoginRequest = z.infer<typeof loginSchema>;
+
+// === AI AGENT TABLES ===
+
+export const aiSettings = pgTable("ai_settings", {
+  id: serial("id").primaryKey(),
+  enabled: boolean("enabled").default(false),
+  systemPrompt: text("system_prompt"),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const aiTrainingData = pgTable("ai_training_data", {
+  id: serial("id").primaryKey(),
+  type: varchar("type", { length: 20 }).notNull(), // 'text' | 'url' | 'image_url'
+  title: varchar("title", { length: 200 }),
+  content: text("content").notNull(), // The actual text or URL
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const aiLogs = pgTable("ai_logs", {
+  id: serial("id").primaryKey(),
+  conversationId: integer("conversation_id").references(() => conversations.id),
+  userMessage: text("user_message"),
+  aiResponse: text("ai_response"),
+  tokensUsed: integer("tokens_used"),
+  success: boolean("success").default(true),
+  error: text("error"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// AI Schemas
+export const insertAiSettingsSchema = createInsertSchema(aiSettings).omit({ id: true, updatedAt: true });
+export const insertAiTrainingDataSchema = createInsertSchema(aiTrainingData).omit({ id: true, createdAt: true });
+export const insertAiLogSchema = createInsertSchema(aiLogs).omit({ id: true, createdAt: true });
+
+export type AiSettings = typeof aiSettings.$inferSelect;
+export type AiTrainingData = typeof aiTrainingData.$inferSelect;
+export type AiLog = typeof aiLogs.$inferSelect;
+
+export type InsertAiSettings = z.infer<typeof insertAiSettingsSchema>;
+export type InsertAiTrainingData = z.infer<typeof insertAiTrainingDataSchema>;
+export type InsertAiLog = z.infer<typeof insertAiLogSchema>;

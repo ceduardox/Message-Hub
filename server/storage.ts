@@ -4,6 +4,9 @@ import {
   messages,
   labels,
   quickMessages,
+  aiSettings,
+  aiTrainingData,
+  aiLogs,
   type Conversation,
   type InsertConversation,
   type Message,
@@ -12,6 +15,12 @@ import {
   type InsertLabel,
   type QuickMessage,
   type InsertQuickMessage,
+  type AiSettings,
+  type InsertAiSettings,
+  type AiTrainingData,
+  type InsertAiTrainingData,
+  type AiLog,
+  type InsertAiLog,
 } from "@shared/schema";
 import { eq, desc, asc } from "drizzle-orm";
 
@@ -41,6 +50,15 @@ export interface IStorage {
   getQuickMessages(): Promise<QuickMessage[]>;
   createQuickMessage(qm: InsertQuickMessage): Promise<QuickMessage>;
   deleteQuickMessage(id: number): Promise<void>;
+
+  // AI Agent
+  getAiSettings(): Promise<AiSettings | undefined>;
+  updateAiSettings(settings: Partial<InsertAiSettings>): Promise<AiSettings>;
+  getAiTrainingData(): Promise<AiTrainingData[]>;
+  createAiTrainingData(data: InsertAiTrainingData): Promise<AiTrainingData>;
+  deleteAiTrainingData(id: number): Promise<void>;
+  getAiLogs(limit?: number): Promise<AiLog[]>;
+  createAiLog(log: InsertAiLog): Promise<AiLog>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -130,6 +148,49 @@ export class DatabaseStorage implements IStorage {
 
   async deleteQuickMessage(id: number): Promise<void> {
     await db.delete(quickMessages).where(eq(quickMessages.id, id));
+  }
+
+  // AI Agent
+  async getAiSettings(): Promise<AiSettings | undefined> {
+    const [settings] = await db.select().from(aiSettings).limit(1);
+    return settings;
+  }
+
+  async updateAiSettings(settings: Partial<InsertAiSettings>): Promise<AiSettings> {
+    const existing = await this.getAiSettings();
+    if (existing) {
+      const [updated] = await db
+        .update(aiSettings)
+        .set({ ...settings, updatedAt: new Date() })
+        .where(eq(aiSettings.id, existing.id))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db.insert(aiSettings).values(settings).returning();
+      return created;
+    }
+  }
+
+  async getAiTrainingData(): Promise<AiTrainingData[]> {
+    return await db.select().from(aiTrainingData).orderBy(desc(aiTrainingData.createdAt));
+  }
+
+  async createAiTrainingData(data: InsertAiTrainingData): Promise<AiTrainingData> {
+    const [created] = await db.insert(aiTrainingData).values(data).returning();
+    return created;
+  }
+
+  async deleteAiTrainingData(id: number): Promise<void> {
+    await db.delete(aiTrainingData).where(eq(aiTrainingData.id, id));
+  }
+
+  async getAiLogs(limit: number = 50): Promise<AiLog[]> {
+    return await db.select().from(aiLogs).orderBy(desc(aiLogs.createdAt)).limit(limit);
+  }
+
+  async createAiLog(log: InsertAiLog): Promise<AiLog> {
+    const [created] = await db.insert(aiLogs).values(log).returning();
+    return created;
   }
 }
 

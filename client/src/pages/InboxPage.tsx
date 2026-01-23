@@ -4,7 +4,8 @@ import { useConversations, useConversation } from "@/hooks/use-inbox";
 import { ConversationList } from "@/components/ConversationList";
 import { ChatArea } from "@/components/ChatArea";
 import { Button } from "@/components/ui/button";
-import { LogOut, MessageSquareDashed } from "lucide-react";
+import { LogOut, MessageSquareDashed, Bot } from "lucide-react";
+import { Link } from "wouter";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -27,7 +28,17 @@ export default function InboxPage() {
           onSelect={setActiveId}
           isLoading={loadingList}
         />
-        <div className="p-4 border-t border-border">
+        <div className="p-4 border-t border-border space-y-2">
+          <Link href="/ai-agent">
+            <Button 
+              variant="outline" 
+              className="w-full justify-start"
+              data-testid="button-ai-agent-mobile"
+            >
+              <Bot className="mr-2 h-4 w-4" />
+              Agente IA
+            </Button>
+          </Link>
           <Button 
             variant="outline" 
             className="w-full justify-start text-muted-foreground"
@@ -60,14 +71,26 @@ export default function InboxPage() {
                   </div>
                   <span className="text-sm font-medium">{user?.username}</span>
                 </div>
-                <Button 
-                  variant="ghost" 
-                  size="icon"
-                  onClick={() => logout()}
-                  title="Logout"
-                >
-                  <LogOut className="h-4 w-4 text-muted-foreground hover:text-destructive" />
-                </Button>
+                <div className="flex items-center gap-1">
+                  <Link href="/ai-agent">
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      title="Agente IA"
+                      data-testid="button-ai-agent-desktop"
+                    >
+                      <Bot className="h-4 w-4 text-muted-foreground hover:text-primary" />
+                    </Button>
+                  </Link>
+                  <Button 
+                    variant="ghost" 
+                    size="icon"
+                    onClick={() => logout()}
+                    title="Logout"
+                  >
+                    <LogOut className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                  </Button>
+                </div>
               </div>
             </div>
           </ResizablePanel>

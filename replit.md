@@ -33,8 +33,17 @@ The server handles three main responsibilities:
 
 ### Data Storage
 - **Database**: PostgreSQL via Drizzle ORM
-- **Schema**: Four main tables - conversations, messages, labels, quick_messages
+- **Schema**: Seven main tables - conversations, messages, labels, quick_messages, ai_settings, ai_training_data, ai_logs
 - **Migrations**: Drizzle Kit for schema management (`npm run db:push`)
+
+### AI Agent Integration
+- **AI Provider**: OpenAI GPT-4o-mini via official SDK
+- **Auto-Response**: When enabled, automatically responds to incoming WhatsApp messages
+- **Training Data**: Supports text information, URLs, and image URLs stored in database
+- **Conversation Context**: Reviews last 10 messages to maintain context and recognize returning customers
+- **Image Responses**: Can send images via URL when included in training data using [IMAGEN: url] format
+- **Logging**: All AI interactions logged for debugging (tokens used, success/error status)
+- **Settings Page**: /ai-agent route for enabling/disabling, setting system prompt, and managing training data
 
 ### Authentication
 - Simple username/password authentication against environment variables (ADMIN_USER, ADMIN_PASS)

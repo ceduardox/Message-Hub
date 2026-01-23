@@ -8,6 +8,7 @@ import { Loader2 } from "lucide-react";
 
 import LoginPage from "@/pages/LoginPage";
 import InboxPage from "@/pages/InboxPage";
+import AIAgentPage from "@/pages/AIAgentPage";
 import NotFound from "@/pages/not-found";
 
 // Protected Route Wrapper
@@ -36,6 +37,9 @@ function Router() {
   return (
     <Switch>
       <Route path="/login" component={LoginPage} />
+      <Route path="/ai-agent">
+        <ProtectedRoute component={AIAgentPage} />
+      </Route>
       <Route path="/">
         <ProtectedRoute component={InboxPage} />
       </Route>
