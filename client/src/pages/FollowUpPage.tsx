@@ -4,6 +4,7 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { 
   ArrowLeft, 
@@ -65,7 +66,7 @@ export default function FollowUpPage() {
       const conv = conversations.find(c => c.id === conversationId);
       if (!conv) throw new Error("Conversation not found");
       
-      const res = await fetch("/api/send-message", {
+      const res = await fetch("/api/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ to: conv.waId, type: "text", text: message }),
@@ -367,9 +368,16 @@ export default function FollowUpPage() {
 
                   {followUpMessages[conv.id] && (
                     <div className="space-y-2">
-                      <div className="p-3 rounded-md bg-muted text-sm">
-                        {followUpMessages[conv.id]}
-                      </div>
+                      <Textarea
+                        value={followUpMessages[conv.id]}
+                        onChange={(e) => setFollowUpMessages(prev => ({
+                          ...prev,
+                          [conv.id]: e.target.value
+                        }))}
+                        className="min-h-[80px] text-sm"
+                        placeholder="Edita el mensaje antes de enviar..."
+                        data-testid={`textarea-message-${conv.id}`}
+                      />
                       <div className="flex gap-2">
                         <Button
                           size="sm"
@@ -377,7 +385,7 @@ export default function FollowUpPage() {
                             conversationId: conv.id, 
                             message: followUpMessages[conv.id] 
                           })}
-                          disabled={sendMessageMutation.isPending}
+                          disabled={sendMessageMutation.isPending || !followUpMessages[conv.id]?.trim()}
                           data-testid={`button-send-${conv.id}`}
                         >
                           {sendMessageMutation.isPending ? (
