@@ -115,6 +115,8 @@ export const aiSettings = pgTable("ai_settings", {
   maxTokens: integer("max_tokens").default(120),
   temperature: integer("temperature").default(70), // 0-100, divide by 100 for actual value
   model: varchar("model", { length: 50 }).default("gpt-4o-mini"),
+  maxPromptChars: integer("max_prompt_chars").default(2000), // Max chars in system prompt
+  conversationHistory: integer("conversation_history").default(3), // How many previous messages to read
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 

@@ -33,6 +33,8 @@ interface AiSettings {
   maxTokens: number | null;
   temperature: number | null;
   model: string | null;
+  maxPromptChars: number | null;
+  conversationHistory: number | null;
 }
 
 interface Product {
@@ -65,6 +67,8 @@ export default function AIAgentPage() {
   const [maxTokens, setMaxTokens] = useState(120);
   const [temperature, setTemperature] = useState(70);
   const [model, setModel] = useState("gpt-4o-mini");
+  const [maxPromptChars, setMaxPromptChars] = useState(2000);
+  const [conversationHistory, setConversationHistory] = useState(3);
   const [configEdited, setConfigEdited] = useState(false);
   
   // Product form state
@@ -103,6 +107,8 @@ export default function AIAgentPage() {
       setMaxTokens(settings.maxTokens || 120);
       setTemperature(settings.temperature || 70);
       setModel(settings.model || "gpt-4o-mini");
+      setMaxPromptChars(settings.maxPromptChars || 2000);
+      setConversationHistory(settings.conversationHistory || 3);
     }
   }, [settings, promptEdited, configEdited]);
 
@@ -171,7 +177,7 @@ export default function AIAgentPage() {
   };
 
   const handleSaveConfig = () => {
-    updateSettingsMutation.mutate({ maxTokens, temperature, model });
+    updateSettingsMutation.mutate({ maxTokens, temperature, model, maxPromptChars, conversationHistory });
     setConfigEdited(false);
   };
 
@@ -252,20 +258,26 @@ export default function AIAgentPage() {
           <CardHeader>
             <CardTitle className="text-lg">Instrucciones del Agente</CardTitle>
             <CardDescription>
-              Define cómo debe comportarse el agente (nombre, tono, reglas)
+              Define cómo debe comportarse el agente (nombre, tono, reglas). Máximo: {maxPromptChars} caracteres.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Textarea
-              placeholder="Ej: Eres Isabella, asistente de ventas amigable. Responde siempre en español. Si quieren comprar, pide ubicación..."
-              value={systemPrompt}
-              onChange={(e) => {
-                setSystemPrompt(e.target.value);
-                setPromptEdited(true);
-              }}
-              rows={5}
-              data-testid="textarea-system-prompt"
-            />
+            <div className="relative">
+              <Textarea
+                placeholder="Ej: Eres Isabella, asistente de ventas amigable. Responde siempre en español. Si quieren comprar, pide ubicación..."
+                value={systemPrompt}
+                onChange={(e) => {
+                  const newValue = e.target.value.slice(0, maxPromptChars);
+                  setSystemPrompt(newValue);
+                  setPromptEdited(true);
+                }}
+                rows={5}
+                data-testid="textarea-system-prompt"
+              />
+              <div className={`text-xs mt-1 ${systemPrompt.length >= maxPromptChars ? 'text-destructive' : 'text-muted-foreground'}`}>
+                {systemPrompt.length} / {maxPromptChars} caracteres
+              </div>
+            </div>
             {promptEdited && (
               <Button onClick={handleSavePrompt} disabled={updateSettingsMutation.isPending} data-testid="button-save-prompt">
                 {updateSettingsMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
@@ -279,11 +291,11 @@ export default function AIAgentPage() {
           <CardHeader>
             <CardTitle className="text-lg">Configuración del Modelo</CardTitle>
             <CardDescription>
-              Ajusta los parámetros de la IA (tokens, creatividad, modelo)
+              Ajusta los parámetros de la IA (tokens, creatividad, modelo, contexto)
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <div>
                 <Label htmlFor="maxTokens">Máx. Tokens (respuesta)</Label>
                 <Input
@@ -333,6 +345,38 @@ export default function AIAgentPage() {
                   <option value="gpt-4-turbo">GPT-4 Turbo</option>
                 </select>
                 <p className="text-xs text-muted-foreground mt-1">Modelo de OpenAI a usar</p>
+              </div>
+              <div>
+                <Label htmlFor="maxPromptChars">Máx. Caracteres (instrucciones)</Label>
+                <Input
+                  id="maxPromptChars"
+                  type="number"
+                  min={500}
+                  max={10000}
+                  value={maxPromptChars}
+                  onChange={(e) => {
+                    setMaxPromptChars(parseInt(e.target.value) || 2000);
+                    setConfigEdited(true);
+                  }}
+                  data-testid="input-max-prompt-chars"
+                />
+                <p className="text-xs text-muted-foreground mt-1">500-10000. Límite de texto en instrucciones</p>
+              </div>
+              <div>
+                <Label htmlFor="conversationHistory">Mensajes de contexto</Label>
+                <Input
+                  id="conversationHistory"
+                  type="number"
+                  min={1}
+                  max={10}
+                  value={conversationHistory}
+                  onChange={(e) => {
+                    setConversationHistory(parseInt(e.target.value) || 3);
+                    setConfigEdited(true);
+                  }}
+                  data-testid="input-conversation-history"
+                />
+                <p className="text-xs text-muted-foreground mt-1">1-10. Cuántos mensajes previos lee la IA</p>
               </div>
             </div>
             {configEdited && (

@@ -594,6 +594,11 @@ export async function registerRoutes(
     enabled: z.boolean().optional(),
     systemPrompt: z.string().nullable().optional(),
     catalog: z.string().nullable().optional(),
+    maxTokens: z.number().min(50).max(500).optional(),
+    temperature: z.number().min(0).max(100).optional(),
+    model: z.string().optional(),
+    maxPromptChars: z.number().min(500).max(10000).optional(),
+    conversationHistory: z.number().min(1).max(10).optional(),
   });
 
   const aiTrainingCreateSchema = z.object({

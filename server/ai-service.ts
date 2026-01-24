@@ -92,9 +92,10 @@ export async function generateAiResponse(
       }
     }
 
-    // Get last 3 messages for context
+    // Get previous messages for context (configurable, default 3)
+    const historyCount = settings.conversationHistory || 3;
     const conversationHistory = recentMessages
-      .slice(-4, -1)
+      .slice(-(historyCount + 1), -1)
       .map((m) => ({
         role: m.direction === "in" ? "user" : "assistant",
         content: m.text || `[${m.type}]`,

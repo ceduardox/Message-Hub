@@ -50,10 +50,16 @@ The server handles three main responsibilities:
   - maxTokens: Adjustable 50-500 (default 120) - controls response length
   - temperature: Adjustable 0-100 (default 70) - controls creativity (0=precise, 100=creative)
   - model: Selectable GPT-4o-mini, GPT-4o, or GPT-4 Turbo
+  - maxPromptChars: Adjustable 500-10000 (default 2000) - max characters in agent instructions
+  - conversationHistory: Adjustable 1-10 (default 3) - how many previous messages AI reads for context
 - **Token Optimization**: 
   - Only includes matching products (~400-600 tokens) instead of full catalog
   - Falls back to catalog text field if no products in database
   - Strict response rules: 2-5 lines max, max 2 questions, human tone
+- **Smart Context Loading**:
+  - AI first uses instructions/system prompt
+  - Only searches products if user message mentions product-related keywords
+  - Loads only matching products, not entire catalog
 
 ### Push Notifications (OneSignal)
 - **Provider**: OneSignal Web Push SDK v16
