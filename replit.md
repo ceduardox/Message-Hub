@@ -39,6 +39,10 @@ The server handles three main responsibilities:
 ### AI Agent Integration
 - **AI Provider**: OpenAI GPT-4o-mini via official SDK
 - **Auto-Response**: When enabled, automatically responds to incoming WhatsApp messages
+- **Audio Transcription**: Uses OpenAI Whisper to transcribe voice notes, AI responds based on transcription
+  - Downloads audio from WhatsApp, transcribes with whisper-1 model (Spanish)
+  - Shows transcription in chat as "[Audio]: 'transcription text'"
+  - Passes transcription directly to AI for intelligent response
 - **Product Database**: Individual products stored with name, keywords, description, price, image URL
 - **Smart Product Search**: AI searches products by name/keywords, only includes matching products in context
 - **Accent Normalization**: Search handles Spanish accents (berberina = berbérina)
