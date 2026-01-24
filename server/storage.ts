@@ -8,6 +8,7 @@ import {
   aiTrainingData,
   aiLogs,
   products,
+  purchaseAnalyses,
   type Conversation,
   type InsertConversation,
   type Message,
@@ -24,6 +25,8 @@ import {
   type InsertAiLog,
   type Product,
   type InsertProduct,
+  type PurchaseAnalysis,
+  type InsertPurchaseAnalysis,
 } from "@shared/schema";
 import { eq, desc, asc } from "drizzle-orm";
 
@@ -70,6 +73,10 @@ export interface IStorage {
   createProduct(product: InsertProduct): Promise<Product>;
   updateProduct(id: number, product: Partial<InsertProduct>): Promise<Product>;
   deleteProduct(id: number): Promise<void>;
+
+  // Purchase Analysis History
+  getPurchaseAnalyses(conversationId: number): Promise<PurchaseAnalysis[]>;
+  createPurchaseAnalysis(analysis: InsertPurchaseAnalysis): Promise<PurchaseAnalysis>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -231,6 +238,20 @@ export class DatabaseStorage implements IStorage {
 
   async deleteProduct(id: number): Promise<void> {
     await db.delete(products).where(eq(products.id, id));
+  }
+
+  // Purchase Analysis History
+  async getPurchaseAnalyses(conversationId: number): Promise<PurchaseAnalysis[]> {
+    return await db
+      .select()
+      .from(purchaseAnalyses)
+      .where(eq(purchaseAnalyses.conversationId, conversationId))
+      .orderBy(desc(purchaseAnalyses.createdAt));
+  }
+
+  async createPurchaseAnalysis(analysis: InsertPurchaseAnalysis): Promise<PurchaseAnalysis> {
+    const [created] = await db.insert(purchaseAnalyses).values(analysis).returning();
+    return created;
   }
 }
 

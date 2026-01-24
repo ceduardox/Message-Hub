@@ -170,3 +170,17 @@ export const products = pgTable("products", {
 export const insertProductSchema = createInsertSchema(products).omit({ id: true, createdAt: true });
 export type Product = typeof products.$inferSelect;
 export type InsertProduct = z.infer<typeof insertProductSchema>;
+
+// === PURCHASE ANALYSIS HISTORY ===
+
+export const purchaseAnalyses = pgTable("purchase_analyses", {
+  id: serial("id").primaryKey(),
+  conversationId: integer("conversation_id").references(() => conversations.id).notNull(),
+  probability: varchar("probability", { length: 10 }).notNull(), // 'ALTA' | 'MEDIA' | 'BAJA'
+  reasoning: text("reasoning"), // AI's explanation
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertPurchaseAnalysisSchema = createInsertSchema(purchaseAnalyses).omit({ id: true, createdAt: true });
+export type PurchaseAnalysis = typeof purchaseAnalyses.$inferSelect;
+export type InsertPurchaseAnalysis = z.infer<typeof insertPurchaseAnalysisSchema>;

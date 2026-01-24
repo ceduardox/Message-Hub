@@ -668,20 +668,37 @@ Responde en formato: PROBABILIDAD|razón breve (max 20 palabras)`
       const result = response.choices[0]?.message?.content || 'BAJA|Sin información suficiente';
       const [probability, reason] = result.split('|');
       
+      const prob = probability?.trim() || 'BAJA';
+      const reasoning = reason?.trim() || 'Sin información';
+      
       // If high probability, mark for calling
-      if (probability?.trim() === 'ALTA') {
+      if (prob === 'ALTA') {
         await storage.updateConversation(id, { shouldCall: true });
       }
       
+      // Save analysis to history
+      await storage.createPurchaseAnalysis({
+        conversationId: id,
+        probability: prob,
+        reasoning: reasoning,
+      });
+      
       res.json({ 
-        probability: probability?.trim() || 'BAJA', 
-        reason: reason?.trim() || 'Sin información',
-        shouldCall: probability?.trim() === 'ALTA'
+        probability: prob, 
+        reason: reasoning,
+        shouldCall: prob === 'ALTA'
       });
     } catch (error: any) {
       console.error('Error analyzing purchase probability:', error);
       res.json({ probability: 'unknown', reason: error.message });
     }
+  });
+
+  // Get purchase analysis history for a conversation
+  app.get("/api/conversations/:id/purchase-history", requireAuth, async (req, res) => {
+    const id = parseInt(req.params.id);
+    const history = await storage.getPurchaseAnalyses(id);
+    res.json(history);
   });
 
   // Generate follow-up message for a conversation

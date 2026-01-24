@@ -14,7 +14,10 @@ import {
   MessageSquare,
   Loader2,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  History,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react";
 
 interface FollowUpConversation {
@@ -30,6 +33,14 @@ interface FollowUpConversation {
   messageCount: number;
 }
 
+interface PurchaseAnalysis {
+  id: number;
+  conversationId: number;
+  probability: string;
+  reasoning: string | null;
+  createdAt: string;
+}
+
 export default function FollowUpPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -38,6 +49,8 @@ export default function FollowUpPage() {
   const [generating, setGenerating] = useState<number | null>(null);
   const [analysisResults, setAnalysisResults] = useState<Record<number, { probability: string; reason: string }>>({});
   const [followUpMessages, setFollowUpMessages] = useState<Record<number, string>>({});
+  const [expandedHistory, setExpandedHistory] = useState<number | null>(null);
+  const [historyData, setHistoryData] = useState<Record<number, PurchaseAnalysis[]>>({});
 
   const { data: conversations = [], isLoading, refetch } = useQuery<FollowUpConversation[]>({
     queryKey: ["/api/follow-up", timeFilter],
@@ -122,6 +135,23 @@ export default function FollowUpPage() {
       toast({ title: "Error al generar mensaje", variant: "destructive" });
     }
     setGenerating(null);
+  };
+
+  const toggleHistory = async (id: number) => {
+    if (expandedHistory === id) {
+      setExpandedHistory(null);
+    } else {
+      setExpandedHistory(id);
+      if (!historyData[id]) {
+        try {
+          const res = await fetch(`/api/conversations/${id}/purchase-history`);
+          const data = await res.json();
+          setHistoryData(prev => ({ ...prev, [id]: data }));
+        } catch (error) {
+          toast({ title: "Error al cargar historial", variant: "destructive" });
+        }
+      }
+    }
   };
 
   const formatTime = (dateStr: string | null) => {
@@ -275,12 +305,56 @@ export default function FollowUpPage() {
                       {conv.shouldCall ? "Quitar llamar" : "Marcar llamar"}
                     </Button>
 
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => toggleHistory(conv.id)}
+                      data-testid={`button-history-${conv.id}`}
+                    >
+                      <History className="h-4 w-4 mr-2" />
+                      Historial
+                      {expandedHistory === conv.id ? (
+                        <ChevronUp className="h-4 w-4 ml-1" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4 ml-1" />
+                      )}
+                    </Button>
+
                     <Link href="/">
                       <Button variant="ghost" size="sm" data-testid={`button-goto-${conv.id}`}>
                         Ver chat
                       </Button>
                     </Link>
                   </div>
+
+                  {expandedHistory === conv.id && historyData[conv.id] && (
+                    <div className="p-3 rounded-md bg-muted space-y-2">
+                      <div className="flex items-center gap-2 text-sm font-medium">
+                        <History className="h-4 w-4" />
+                        Historial de Análisis
+                      </div>
+                      {historyData[conv.id].length === 0 ? (
+                        <p className="text-sm text-muted-foreground">Sin análisis previos</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {historyData[conv.id].map((analysis) => (
+                            <div 
+                              key={analysis.id} 
+                              className="flex items-center gap-2 text-sm p-2 rounded bg-background"
+                            >
+                              <Badge className={getProbabilityColor(analysis.probability)}>
+                                {analysis.probability}
+                              </Badge>
+                              <span className="flex-1">{analysis.reasoning || "Sin detalle"}</span>
+                              <span className="text-muted-foreground text-xs">
+                                {formatTime(analysis.createdAt)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {analysisResults[conv.id] && (
                     <div className="flex items-center gap-2 p-2 rounded-md bg-muted">
