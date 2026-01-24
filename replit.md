@@ -51,7 +51,7 @@ The server handles three main responsibilities:
   - temperature: Adjustable 0-100 (default 70) - controls creativity (0=precise, 100=creative)
   - model: Selectable GPT-4o-mini, GPT-4o, or GPT-4 Turbo
   - maxPromptChars: Adjustable 500-10000 (default 2000) - max characters in agent instructions
-  - conversationHistory: Adjustable 1-10 (default 3) - how many previous messages AI reads for context
+  - conversationHistory: Adjustable 1-20 (default 3) - how many previous messages AI reads for context
 - **Token Optimization**: 
   - Only includes matching products (~400-600 tokens) instead of full catalog
   - Falls back to catalog text field if no products in database
@@ -84,6 +84,22 @@ The server handles three main responsibilities:
 - **Auto-detection**: AI marks orders as "ready" when it detects complete order info (product, quantity, address)
 - **Manual control**: Dropdown in chat header to change order status
 - **Location Recognition**: Webhook detects location/GPS messages and passes them to AI as delivery address
+
+### AI-to-Human Handoff
+- **AI Disabled Toggle**: Per-conversation aiDisabled field to switch to human mode
+- **Needs Human Attention**: Flag set when AI responds with [NECESITO_HUMANO] marker
+- **Visual Indicators**:
+  - Red border and AlertCircle icon in conversation list when attention needed
+  - Bot/BotOff toggle button in chat header
+  - Clear attention button to dismiss alerts
+
+### Follow-Up & Call Management
+- **Follow-Up Page**: /follow-up route to manage unresponded conversations
+- **Time Filters**: Filter by today, yesterday, before yesterday
+- **Purchase Probability Analysis**: AI analyzes conversation to rate ALTA/MEDIA/BAJA purchase likelihood
+- **Automated Reminders**: AI generates personalized follow-up messages based on conversation history
+- **Should Call Indicator**: Green phone icon for conversations marked as high purchase probability
+- **Manual Send Approval**: User reviews AI-generated message before sending
 
 ### WhatsApp Integration
 - **Webhook Verification**: GET /webhook validates verify_token
