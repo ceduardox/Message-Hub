@@ -8,6 +8,75 @@ import MemoryStore from "memorystore";
 import axios from "axios";
 import { generateAiResponse } from "./ai-service";
 import { insertProductSchema, updateOrderStatusSchema } from "@shared/schema";
+import OpenAI from "openai";
+import fs from "fs";
+import path from "path";
+import os from "os";
+
+// OpenAI client for audio transcription
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+// Download audio from WhatsApp and transcribe with Whisper
+async function transcribeWhatsAppAudio(mediaId: string): Promise<string | null> {
+  const token = process.env.META_ACCESS_TOKEN;
+  const openaiKey = process.env.OPENAI_API_KEY;
+  
+  if (!token) {
+    console.error("[Audio] Missing META_ACCESS_TOKEN");
+    return null;
+  }
+  
+  if (!openaiKey) {
+    console.error("[Audio] Missing OPENAI_API_KEY - skipping transcription");
+    return null;
+  }
+
+  try {
+    // Step 1: Get media URL from WhatsApp
+    console.log("[Audio] Getting media URL for:", mediaId);
+    const mediaResponse = await axios.get(
+      `https://graph.facebook.com/v24.0/${mediaId}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    
+    const mediaUrl = mediaResponse.data.url;
+    console.log("[Audio] Media URL obtained");
+
+    // Step 2: Download the audio file
+    console.log("[Audio] Downloading audio file...");
+    const audioResponse = await axios.get(mediaUrl, {
+      headers: { Authorization: `Bearer ${token}` },
+      responseType: 'arraybuffer'
+    });
+
+    // Step 3: Save to temp file (Whisper needs a file)
+    const tempPath = path.join(os.tmpdir(), `wa_audio_${mediaId}.ogg`);
+    fs.writeFileSync(tempPath, Buffer.from(audioResponse.data));
+    console.log("[Audio] Saved to temp:", tempPath);
+
+    try {
+      // Step 4: Transcribe with OpenAI Whisper
+      console.log("[Audio] Transcribing with Whisper...");
+      const transcription = await openai.audio.transcriptions.create({
+        file: fs.createReadStream(tempPath),
+        model: "whisper-1",
+        language: "es" // Spanish
+      });
+      
+      console.log("[Audio] Transcription:", transcription.text);
+      return transcription.text || null;
+    } finally {
+      // Clean up temp file regardless of success/failure
+      if (fs.existsSync(tempPath)) {
+        fs.unlinkSync(tempPath);
+      }
+    }
+
+  } catch (error: any) {
+    console.error("[Audio] Transcription error:", error.message);
+    return null;
+  }
+}
 
 // Send push notification via OneSignal
 async function sendPushNotification(title: string, message: string, data?: Record<string, string>) {
@@ -232,6 +301,27 @@ export async function registerRoutes(
               } else if (msg.type === 'image') {
                 messageText = '[Imagen]';
                 messageForAi = '[El cliente envió una imagen]';
+              } else if (msg.type === 'audio') {
+                // Handle voice notes and audio messages
+                const audioId = msg.audio?.id;
+                console.log("=== AUDIO MESSAGE RECEIVED ===", { audioId });
+                
+                if (audioId) {
+                  // Transcribe the audio with Whisper
+                  const transcription = await transcribeWhatsAppAudio(audioId);
+                  
+                  if (transcription) {
+                    messageText = `[Audio]: "${transcription}"`;
+                    messageForAi = transcription; // Pass transcription directly to AI
+                    console.log("=== AUDIO TRANSCRIBED ===", transcription);
+                  } else {
+                    messageText = '[Audio - no se pudo transcribir]';
+                    messageForAi = '[El cliente envió un audio que no se pudo transcribir]';
+                  }
+                } else {
+                  messageText = '[Audio]';
+                  messageForAi = '[El cliente envió un audio]';
+                }
               } else {
                 messageText = `[${msg.type}]`;
                 messageForAi = `[El cliente envió un mensaje de tipo: ${msg.type}]`;
@@ -266,15 +356,18 @@ export async function registerRoutes(
                 { conversationId: conversation.id.toString(), waId: from }
               );
 
-              // 5. Save Message
+              // 5. Save Message (include mediaId for images and audio)
+              const mediaId = msg.image?.id || msg.audio?.id || null;
+              const mimeType = msg.image?.mime_type || msg.audio?.mime_type || null;
+              
               await storage.createMessage({
                 conversationId: conversation.id,
                 waMessageId: msg.id,
                 direction: "in",
                 type: msg.type,
                 text: messageText,
-                mediaId: msg.image ? msg.image.id : null,
-                mimeType: msg.image ? msg.image.mime_type : null,
+                mediaId: mediaId,
+                mimeType: mimeType,
                 timestamp: msg.timestamp,
                 status: "received",
                 rawJson: msg,
