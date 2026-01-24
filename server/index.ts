@@ -2,8 +2,12 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
+import path from "path";
 
 const app = express();
+
+// Serve static files from client/public (for Service Workers, manifest, icons)
+app.use(express.static(path.resolve(import.meta.dirname, "..", "client", "public")));
 const httpServer = createServer(app);
 
 declare module "http" {
