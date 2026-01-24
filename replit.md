@@ -97,6 +97,7 @@ The server handles three main responsibilities:
 - **Follow-Up Page**: /follow-up route to manage unresponded conversations
 - **Time Filters**: Filter by today, yesterday, before yesterday
 - **Purchase Probability Analysis**: AI analyzes conversation to rate ALTA/MEDIA/BAJA purchase likelihood
+- **Analysis History**: All analyses saved to purchase_analyses table, viewable via "Historial" button
 - **Automated Reminders**: AI generates personalized follow-up messages based on conversation history
 - **Should Call Indicator**: Green phone icon for conversations marked as high purchase probability
 - **Manual Send Approval**: User reviews AI-generated message before sending
