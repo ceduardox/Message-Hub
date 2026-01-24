@@ -25,6 +25,8 @@ export const conversations = pgTable("conversations", {
   labelId: integer("label_id").references(() => labels.id),
   isPinned: boolean("is_pinned").default(false),
   orderStatus: varchar("order_status", { length: 20 }), // null = no order, 'pending' = in progress, 'ready' = ready for delivery, 'delivered' = completed
+  aiDisabled: boolean("ai_disabled").default(false), // true = human will respond, AI won't auto-reply
+  needsHumanAttention: boolean("needs_human_attention").default(false), // true = AI couldn't respond, needs human
   lastMessage: text("last_message"),
   lastMessageTimestamp: timestamp("last_message_timestamp"),
   updatedAt: timestamp("updated_at").defaultNow(),

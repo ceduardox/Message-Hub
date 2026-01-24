@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Send, Image as ImageIcon, Plus, Check, CheckCheck, MapPin, Bug, Copy, ExternalLink, X, Zap, Tag, Trash2, Package, PackageCheck, Truck, PackageX } from "lucide-react";
+import { Send, Image as ImageIcon, Plus, Check, CheckCheck, MapPin, Bug, Copy, ExternalLink, X, Zap, Tag, Trash2, Package, PackageCheck, Truck, PackageX, Bot, BotOff, AlertCircle } from "lucide-react";
 import type { Conversation, Message, Label, QuickMessage } from "@shared/schema";
 import {
   DropdownMenu,
@@ -98,6 +98,42 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const toggleAiMutation = useMutation({
+    mutationFn: async (aiDisabled: boolean) => {
+      const res = await fetch(`/api/conversations/${conversation.id}/ai-toggle`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ aiDisabled }),
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Error al cambiar estado de IA");
+      }
+      return res.json();
+    },
+    onSuccess: (_, aiDisabled) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
+      toast({ title: aiDisabled ? "IA desactivada - Modo humano" : "IA activada en este chat" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const clearAttentionMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/conversations/${conversation.id}/clear-attention`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
+      toast({ title: "Alerta despejada" });
     },
   });
 
@@ -272,6 +308,35 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* AI Toggle Button */}
+        <Button 
+          variant={conversation.aiDisabled ? "default" : "ghost"} 
+          size="icon" 
+          className={cn(
+            "flex-shrink-0",
+            conversation.aiDisabled && "bg-orange-500 text-white"
+          )}
+          onClick={() => toggleAiMutation.mutate(!conversation.aiDisabled)}
+          title={conversation.aiDisabled ? "IA desactivada - Click para activar" : "IA activa - Click para desactivar"}
+          data-testid="button-ai-toggle"
+        >
+          {conversation.aiDisabled ? <BotOff className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
+        </Button>
+
+        {/* Human Attention Alert */}
+        {conversation.needsHumanAttention && (
+          <Button 
+            variant="default" 
+            size="icon" 
+            className="flex-shrink-0 bg-red-500 text-white"
+            onClick={() => clearAttentionMutation.mutate()}
+            title="La IA no pudo responder - Click para despejar alerta"
+            data-testid="button-clear-attention"
+          >
+            <AlertCircle className="h-4 w-4" />
+          </Button>
+        )}
 
         {/* Order Status Dropdown */}
         <DropdownMenu>

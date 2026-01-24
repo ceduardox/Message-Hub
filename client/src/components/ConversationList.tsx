@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MessageSquare, User, Pin, Filter, Package, PackageCheck, Truck } from "lucide-react";
+import { MessageSquare, User, Pin, Filter, Package, PackageCheck, Truck, AlertCircle } from "lucide-react";
 import type { Conversation, Label } from "@shared/schema";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -153,7 +153,8 @@ export function ConversationList({
                   activeId === conv.id 
                     ? "bg-white dark:bg-card shadow-md border-border ring-1 ring-primary/10" 
                     : "hover:bg-muted/50 border-transparent",
-                  orderConfig && conv.orderStatus === 'ready' && "border-green-300 bg-green-50/50 dark:bg-green-950/20"
+                  orderConfig && conv.orderStatus === 'ready' && "border-green-300 bg-green-50/50 dark:bg-green-950/20",
+                  conv.needsHumanAttention && "border-red-400 bg-red-50/50 dark:bg-red-950/20"
                 )}
                 onClick={() => onSelect(conv.id)}
                 data-testid={`conversation-item-${conv.id}`}
@@ -183,6 +184,11 @@ export function ConversationList({
                       {OrderIcon && (
                         <div className={cn("flex items-center gap-1 flex-shrink-0", orderConfig?.className)} title={orderConfig?.label}>
                           <OrderIcon className="h-4 w-4" />
+                        </div>
+                      )}
+                      {conv.needsHumanAttention && (
+                        <div className="flex items-center gap-1 flex-shrink-0 text-red-500" title="Necesita atención humana">
+                          <AlertCircle className="h-4 w-4" />
                         </div>
                       )}
                     </div>

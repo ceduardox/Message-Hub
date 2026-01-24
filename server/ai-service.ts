@@ -52,11 +52,26 @@ function isProductQuery(userMessage: string): boolean {
   return generalKeywords.some(keyword => lowerMessage.includes(keyword));
 }
 
+// Search for product context in conversation history
+function findProductInHistory(recentMessages: Message[], products: Product[]): Product | null {
+  // Look through recent messages for product mentions
+  for (let i = recentMessages.length - 1; i >= 0; i--) {
+    const msg = recentMessages[i];
+    if (msg.text) {
+      const matches = findMatchingProducts(msg.text, products);
+      if (matches.length === 1) {
+        return matches[0]; // Found a specific product in history
+      }
+    }
+  }
+  return null;
+}
+
 export async function generateAiResponse(
   conversationId: number,
   userMessage: string,
   recentMessages: Message[]
-): Promise<{ response: string; imageUrl?: string; tokensUsed: number; orderReady?: boolean } | null> {
+): Promise<{ response: string; imageUrl?: string; tokensUsed: number; orderReady?: boolean; needsHuman?: boolean } | null> {
   try {
     const settings = await storage.getAiSettings();
     if (!settings?.enabled) {
@@ -66,29 +81,42 @@ export async function generateAiResponse(
     // Get all products
     const allProducts = await storage.getProducts();
     
-    // Find products matching user's message
+    // Find products matching user's current message
     const matchingProducts = findMatchingProducts(userMessage, allProducts);
     
     // Get catalog from settings (fallback for products not in database)
     const catalog = settings.catalog || "";
     
-    // Build product context
+    // SMART PRODUCT SEARCH LOGIC:
+    // 1. First, AI uses instructions/system prompt
+    // 2. If user mentions a product name, load that product info
+    // 3. If asking specific question (like dosage) and no product in current message,
+    //    look in conversation history for which product they're asking about
+    
     let productContext = "";
+    let productInContext: Product | null = null;
     
     if (matchingProducts.length > 0) {
-      // User asked about specific product(s) - include only those
+      // User mentioned specific product(s) - include only those
       productContext = matchingProducts.map(p => 
         `${p.name} - ${p.price || "Consultar precio"}\n${p.description || ""}\n${p.imageUrl ? `Imagen: ${p.imageUrl}` : ""}`
       ).join("\n\n");
-    } else if (isProductQuery(userMessage)) {
-      if (allProducts.length > 0) {
-        // General product query - include compact list from database
-        productContext = "PRODUCTOS DISPONIBLES:\n" + allProducts.map(p => 
-          `• ${p.name} - ${p.price || "Consultar"}`
-        ).join("\n");
-      } else if (catalog) {
-        // Fallback to catalog text if no products in database
-        productContext = catalog.substring(0, 1500);
+      productInContext = matchingProducts[0];
+    } else {
+      // Check if it's a follow-up question about a product mentioned earlier
+      const historyProduct = findProductInHistory(recentMessages, allProducts);
+      if (historyProduct) {
+        productContext = `${historyProduct.name} - ${historyProduct.price || "Consultar precio"}\n${historyProduct.description || ""}\n${historyProduct.imageUrl ? `Imagen: ${historyProduct.imageUrl}` : ""}`;
+        productInContext = historyProduct;
+      } else if (isProductQuery(userMessage)) {
+        // General product query without specific product - show list
+        if (allProducts.length > 0) {
+          productContext = "PRODUCTOS DISPONIBLES:\n" + allProducts.map(p => 
+            `• ${p.name} - ${p.price || "Consultar"}`
+          ).join("\n");
+        } else if (catalog) {
+          productContext = catalog.substring(0, 1500);
+        }
       }
     }
 
@@ -113,6 +141,7 @@ export async function generateAiResponse(
 - Para enviar imagen usa: [IMAGEN: url]
 - IMPORTANTE: Cuando el cliente confirme el pedido con TODOS los datos (producto, cantidad, dirección/ubicación), escribe [PEDIDO_LISTO] al final de tu respuesta para marcar que hay un pedido listo para entregar.
 - Un pedido está listo cuando tienes: producto, cantidad, y dirección de entrega (ubicación GPS o dirección escrita)
+- Si NO puedes responder la pregunta con la información disponible, escribe exactamente [NECESITO_HUMANO] y no respondas nada más.
 ${productContext ? `\n=== PRODUCTOS ===\n${productContext}` : ""}`;
 
     const messages: any[] = [
@@ -153,6 +182,13 @@ ${productContext ? `\n=== PRODUCTOS ===\n${productContext}` : ""}`;
       console.log("=== ORDER READY DETECTED ===", { conversationId });
     }
 
+    // Check if AI needs human help
+    const needsHuman = cleanResponse.includes("[NECESITO_HUMANO]");
+    if (needsHuman) {
+      cleanResponse = cleanResponse.replace(/\[NECESITO_HUMANO\]/gi, "").trim();
+      console.log("=== NEEDS HUMAN ATTENTION ===", { conversationId });
+    }
+
     await storage.createAiLog({
       conversationId,
       userMessage,
@@ -161,7 +197,7 @@ ${productContext ? `\n=== PRODUCTOS ===\n${productContext}` : ""}`;
       success: true,
     });
 
-    return { response: cleanResponse, imageUrl, tokensUsed, orderReady };
+    return { response: needsHuman ? "" : cleanResponse, imageUrl: needsHuman ? undefined : imageUrl, tokensUsed, orderReady, needsHuman };
   } catch (error: any) {
     console.error("AI Error:", error);
     

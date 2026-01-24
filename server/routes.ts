@@ -280,8 +280,8 @@ export async function registerRoutes(
                 rawJson: msg,
               });
 
-              // 5. AI Auto-Response (if enabled) - now works with location too
-              if (messageForAi) {
+              // 5. AI Auto-Response (if enabled and not disabled for this chat)
+              if (messageForAi && !conversation.aiDisabled) {
                 try {
                   const recentMessages = await storage.getMessages(conversation.id);
                   const aiResult = await generateAiResponse(
@@ -290,7 +290,14 @@ export async function registerRoutes(
                     recentMessages
                   );
 
-                  if (aiResult && aiResult.response) {
+                  // Handle case where AI needs human help
+                  if (aiResult && aiResult.needsHuman) {
+                    await storage.updateConversation(conversation.id, { needsHumanAttention: true });
+                    console.log("=== AI NEEDS HUMAN - MARKED FOR ATTENTION ===", conversation.id);
+                  } else if (aiResult && aiResult.response) {
+                    // Clear human attention flag if AI can respond
+                    await storage.updateConversation(conversation.id, { needsHumanAttention: false });
+                    
                     // Send text response
                     const waResponse = await sendToWhatsApp(from, 'text', { text: aiResult.response });
                     const waMessageId = waResponse.messages[0].id;
@@ -536,6 +543,26 @@ export async function registerRoutes(
     }
     
     const updated = await storage.updateConversation(id, { orderStatus: parsed.data.orderStatus });
+    res.json(updated);
+  });
+
+  // Toggle AI for a specific conversation
+  app.patch("/api/conversations/:id/ai-toggle", requireAuth, async (req, res) => {
+    const id = parseInt(req.params.id);
+    const { aiDisabled } = req.body;
+    
+    if (typeof aiDisabled !== 'boolean') {
+      return res.status(400).json({ error: "aiDisabled must be a boolean" });
+    }
+    
+    const updated = await storage.updateConversation(id, { aiDisabled });
+    res.json(updated);
+  });
+
+  // Clear human attention flag
+  app.patch("/api/conversations/:id/clear-attention", requireAuth, async (req, res) => {
+    const id = parseInt(req.params.id);
+    const updated = await storage.updateConversation(id, { needsHumanAttention: false });
     res.json(updated);
   });
 
