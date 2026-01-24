@@ -17,7 +17,7 @@ import os from "os";
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // Download audio from WhatsApp and transcribe with Whisper
-async function transcribeWhatsAppAudio(mediaId: string): Promise<string | null> {
+async function transcribeWhatsAppAudio(mediaId: string, mimeType?: string): Promise<string | null> {
   const token = process.env.META_ACCESS_TOKEN;
   const openaiKey = process.env.OPENAI_API_KEY;
   
@@ -31,16 +31,30 @@ async function transcribeWhatsAppAudio(mediaId: string): Promise<string | null> 
     return null;
   }
 
+  // Determine file extension from mime type
+  let extension = ".ogg";
+  if (mimeType) {
+    if (mimeType.includes("opus")) extension = ".opus";
+    else if (mimeType.includes("ogg")) extension = ".ogg";
+    else if (mimeType.includes("mp3") || mimeType.includes("mpeg")) extension = ".mp3";
+    else if (mimeType.includes("mp4") || mimeType.includes("m4a")) extension = ".m4a";
+    else if (mimeType.includes("wav")) extension = ".wav";
+    else if (mimeType.includes("webm")) extension = ".webm";
+  }
+
+  let tempPath: string | null = null;
+
   try {
     // Step 1: Get media URL from WhatsApp
-    console.log("[Audio] Getting media URL for:", mediaId);
+    console.log("[Audio] Getting media URL for:", mediaId, "mimeType:", mimeType);
     const mediaResponse = await axios.get(
       `https://graph.facebook.com/v24.0/${mediaId}`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
     
     const mediaUrl = mediaResponse.data.url;
-    console.log("[Audio] Media URL obtained");
+    const mediaMimeType = mediaResponse.data.mime_type || mimeType;
+    console.log("[Audio] Media URL obtained, mime:", mediaMimeType);
 
     // Step 2: Download the audio file
     console.log("[Audio] Downloading audio file...");
@@ -49,32 +63,45 @@ async function transcribeWhatsAppAudio(mediaId: string): Promise<string | null> 
       responseType: 'arraybuffer'
     });
 
+    const audioSize = audioResponse.data.byteLength;
+    console.log("[Audio] Downloaded, size:", audioSize, "bytes");
+
+    if (audioSize < 100) {
+      console.error("[Audio] Audio file too small, likely invalid");
+      return null;
+    }
+
     // Step 3: Save to temp file (Whisper needs a file)
-    const tempPath = path.join(os.tmpdir(), `wa_audio_${mediaId}.ogg`);
+    tempPath = path.join(os.tmpdir(), `wa_audio_${mediaId}${extension}`);
     fs.writeFileSync(tempPath, Buffer.from(audioResponse.data));
     console.log("[Audio] Saved to temp:", tempPath);
 
-    try {
-      // Step 4: Transcribe with OpenAI Whisper
-      console.log("[Audio] Transcribing with Whisper...");
-      const transcription = await openai.audio.transcriptions.create({
-        file: fs.createReadStream(tempPath),
-        model: "whisper-1",
-        language: "es" // Spanish
-      });
-      
-      console.log("[Audio] Transcription:", transcription.text);
-      return transcription.text || null;
-    } finally {
-      // Clean up temp file regardless of success/failure
-      if (fs.existsSync(tempPath)) {
-        fs.unlinkSync(tempPath);
-      }
-    }
+    // Step 4: Transcribe with OpenAI Whisper
+    console.log("[Audio] Transcribing with Whisper...");
+    const transcription = await openai.audio.transcriptions.create({
+      file: fs.createReadStream(tempPath),
+      model: "whisper-1",
+      language: "es" // Spanish
+    });
+    
+    console.log("[Audio] Transcription result:", transcription.text);
+    return transcription.text || null;
 
   } catch (error: any) {
     console.error("[Audio] Transcription error:", error.message);
+    if (error.response?.data) {
+      console.error("[Audio] Error details:", JSON.stringify(error.response.data));
+    }
     return null;
+  } finally {
+    // Clean up temp file regardless of success/failure
+    if (tempPath && fs.existsSync(tempPath)) {
+      try {
+        fs.unlinkSync(tempPath);
+      } catch (e) {
+        console.error("[Audio] Failed to clean temp file:", e);
+      }
+    }
   }
 }
 
@@ -304,11 +331,12 @@ export async function registerRoutes(
               } else if (msg.type === 'audio') {
                 // Handle voice notes and audio messages
                 const audioId = msg.audio?.id;
-                console.log("=== AUDIO MESSAGE RECEIVED ===", { audioId });
+                const audioMimeType = msg.audio?.mime_type;
+                console.log("=== AUDIO MESSAGE RECEIVED ===", { audioId, mimeType: audioMimeType });
                 
                 if (audioId) {
                   // Transcribe the audio with Whisper
-                  const transcription = await transcribeWhatsAppAudio(audioId);
+                  const transcription = await transcribeWhatsAppAudio(audioId, audioMimeType);
                   
                   if (transcription) {
                     messageText = `[Audio]: "${transcription}"`;
