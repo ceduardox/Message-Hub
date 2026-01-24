@@ -3,11 +3,37 @@ import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import path from "path";
+import { fileURLToPath } from "url";
 
 const app = express();
 
+// Get directory path safely for both dev and production
+function getPublicPath(): string {
+  try {
+    // Development: use import.meta for ESM
+    if (import.meta.dirname) {
+      return path.resolve(import.meta.dirname, "..", "client", "public");
+    }
+  } catch (e) {
+    // Ignore
+  }
+  
+  try {
+    // Alternative: use import.meta.url
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+    return path.resolve(__dirname, "..", "client", "public");
+  } catch (e) {
+    // Fallback: relative to cwd
+    return path.resolve(process.cwd(), "client", "public");
+  }
+}
+
 // Serve static files from client/public (for Service Workers, manifest, icons)
-app.use(express.static(path.resolve(import.meta.dirname, "..", "client", "public")));
+// Only in development - production uses dist/public via serveStatic
+if (process.env.NODE_ENV !== "production") {
+  app.use(express.static(getPublicPath()));
+}
 const httpServer = createServer(app);
 
 declare module "http" {
