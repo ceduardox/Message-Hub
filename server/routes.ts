@@ -566,6 +566,172 @@ export async function registerRoutes(
     res.json(updated);
   });
 
+  // Toggle should call (purchase probability indicator)
+  app.patch("/api/conversations/:id/should-call", requireAuth, async (req, res) => {
+    const id = parseInt(req.params.id);
+    const { shouldCall } = req.body;
+    const updated = await storage.updateConversation(id, { shouldCall: !!shouldCall });
+    res.json(updated);
+  });
+
+  // Get follow-up conversations (those where we sent last message and customer didn't respond)
+  app.get("/api/follow-up", requireAuth, async (req, res) => {
+    const { timeFilter } = req.query; // 'today', 'yesterday', 'before_yesterday'
+    const conversations = await storage.getConversations();
+    
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+    const beforeYesterday = new Date(today.getTime() - 48 * 60 * 60 * 1000);
+    
+    // Filter conversations where:
+    // 1. We sent the last message (direction = out)
+    // 2. Customer hasn't responded for the specified time period
+    const filtered = [];
+    
+    for (const conv of conversations) {
+      const messages = await storage.getMessages(conv.id);
+      if (messages.length === 0) continue;
+      
+      const lastMsg = messages[messages.length - 1];
+      if (lastMsg.direction !== 'out') continue; // Skip if customer sent last message
+      
+      const lastMsgTime = lastMsg.createdAt ? new Date(lastMsg.createdAt) : null;
+      if (!lastMsgTime) continue;
+      
+      let include = false;
+      if (timeFilter === 'today') {
+        include = lastMsgTime >= today;
+      } else if (timeFilter === 'yesterday') {
+        include = lastMsgTime >= yesterday && lastMsgTime < today;
+      } else if (timeFilter === 'before_yesterday') {
+        include = lastMsgTime >= beforeYesterday && lastMsgTime < yesterday;
+      } else {
+        include = true; // No filter, return all
+      }
+      
+      if (include) {
+        filtered.push({
+          ...conv,
+          lastOutboundMessage: lastMsg,
+          messageCount: messages.length
+        });
+      }
+    }
+    
+    res.json(filtered);
+  });
+
+  // Analyze purchase probability for a conversation
+  app.post("/api/conversations/:id/analyze-purchase", requireAuth, async (req, res) => {
+    const id = parseInt(req.params.id);
+    const conversation = await storage.getConversation(id);
+    if (!conversation) {
+      return res.status(404).json({ error: "Conversation not found" });
+    }
+    
+    const messages = await storage.getMessages(id);
+    const settings = await storage.getAiSettings();
+    
+    if (!settings?.enabled || !process.env.OPENAI_API_KEY) {
+      return res.json({ probability: 'unknown', reason: 'AI not configured' });
+    }
+    
+    // Build conversation context for analysis
+    const recentMessages = messages.slice(-10).map(m => 
+      `${m.direction === 'in' ? 'Cliente' : 'Tú'}: ${m.text || '[media]'}`
+    ).join('\n');
+    
+    try {
+      const { OpenAI } = await import('openai');
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      
+      const response = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        max_tokens: 100,
+        messages: [
+          {
+            role: 'system',
+            content: `Analiza esta conversación y responde SOLO con uno de estos: ALTA, MEDIA, BAJA.
+ALTA = cliente mostró interés claro en comprar, pidió precios, preguntó por disponibilidad
+MEDIA = cliente tiene interés pero no ha decidido, hizo preguntas generales
+BAJA = solo preguntas informativas, sin intención clara de compra
+Responde en formato: PROBABILIDAD|razón breve (max 20 palabras)`
+          },
+          {
+            role: 'user',
+            content: recentMessages
+          }
+        ]
+      });
+      
+      const result = response.choices[0]?.message?.content || 'BAJA|Sin información suficiente';
+      const [probability, reason] = result.split('|');
+      
+      // If high probability, mark for calling
+      if (probability?.trim() === 'ALTA') {
+        await storage.updateConversation(id, { shouldCall: true });
+      }
+      
+      res.json({ 
+        probability: probability?.trim() || 'BAJA', 
+        reason: reason?.trim() || 'Sin información',
+        shouldCall: probability?.trim() === 'ALTA'
+      });
+    } catch (error: any) {
+      console.error('Error analyzing purchase probability:', error);
+      res.json({ probability: 'unknown', reason: error.message });
+    }
+  });
+
+  // Generate follow-up message for a conversation
+  app.post("/api/conversations/:id/generate-followup", requireAuth, async (req, res) => {
+    const id = parseInt(req.params.id);
+    const conversation = await storage.getConversation(id);
+    if (!conversation) {
+      return res.status(404).json({ error: "Conversation not found" });
+    }
+    
+    const messages = await storage.getMessages(id);
+    const settings = await storage.getAiSettings();
+    
+    if (!settings?.enabled || !process.env.OPENAI_API_KEY) {
+      return res.json({ message: '¡Hola! ¿Cómo estás? Me gustaría saber si tienes alguna pregunta.' });
+    }
+    
+    const recentMessages = messages.slice(-6).map(m => 
+      `${m.direction === 'in' ? 'Cliente' : 'Tú'}: ${m.text || '[media]'}`
+    ).join('\n');
+    
+    try {
+      const { OpenAI } = await import('openai');
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      
+      const response = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        max_tokens: 80,
+        messages: [
+          {
+            role: 'system',
+            content: `Genera un mensaje de seguimiento amigable y corto (máximo 2 líneas) para retomar contacto con este cliente. 
+El mensaje debe ser natural, no invasivo, y relacionado con la conversación anterior.
+NO uses saludos formales. Sé directo y amigable.`
+          },
+          {
+            role: 'user',
+            content: `Conversación:\n${recentMessages}\n\nGenera un mensaje de seguimiento:`
+          }
+        ]
+      });
+      
+      const message = response.choices[0]?.message?.content || '¡Hola! ¿Tienes alguna pregunta?';
+      res.json({ message: message.trim() });
+    } catch (error: any) {
+      console.error('Error generating follow-up:', error);
+      res.json({ message: '¡Hola! ¿Cómo estás? Me gustaría saber si tienes alguna pregunta.' });
+    }
+  });
+
   // Debug endpoint - check configuration
   app.get("/api/debug", requireAuth, async (req, res) => {
     const config = {

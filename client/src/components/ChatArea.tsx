@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Send, Image as ImageIcon, Plus, Check, CheckCheck, MapPin, Bug, Copy, ExternalLink, X, Zap, Tag, Trash2, Package, PackageCheck, Truck, PackageX, Bot, BotOff, AlertCircle } from "lucide-react";
+import { Send, Image as ImageIcon, Plus, Check, CheckCheck, MapPin, Bug, Copy, ExternalLink, X, Zap, Tag, Trash2, Package, PackageCheck, Truck, PackageX, Bot, BotOff, AlertCircle, Phone } from "lucide-react";
 import type { Conversation, Message, Label, QuickMessage } from "@shared/schema";
 import {
   DropdownMenu,
@@ -134,6 +134,21 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
       toast({ title: "Alerta despejada" });
+    },
+  });
+
+  const toggleShouldCallMutation = useMutation({
+    mutationFn: async (shouldCall: boolean) => {
+      const res = await fetch(`/api/conversations/${conversation.id}/should-call`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ shouldCall }),
+      });
+      return res.json();
+    },
+    onSuccess: (_, shouldCall) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
+      toast({ title: shouldCall ? "Marcado para llamar" : "Desmarcado" });
     },
   });
 
@@ -337,6 +352,21 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
             <AlertCircle className="h-4 w-4" />
           </Button>
         )}
+
+        {/* Should Call Toggle */}
+        <Button 
+          variant={conversation.shouldCall ? "default" : "ghost"} 
+          size="icon" 
+          className={cn(
+            "flex-shrink-0",
+            conversation.shouldCall && "bg-green-500 text-white"
+          )}
+          onClick={() => toggleShouldCallMutation.mutate(!conversation.shouldCall)}
+          title={conversation.shouldCall ? "Marcado para llamar - Click para quitar" : "Click para marcar para llamar"}
+          data-testid="button-should-call"
+        >
+          <Phone className="h-4 w-4" />
+        </Button>
 
         {/* Order Status Dropdown */}
         <DropdownMenu>

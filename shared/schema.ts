@@ -27,6 +27,7 @@ export const conversations = pgTable("conversations", {
   orderStatus: varchar("order_status", { length: 20 }), // null = no order, 'pending' = in progress, 'ready' = ready for delivery, 'delivered' = completed
   aiDisabled: boolean("ai_disabled").default(false), // true = human will respond, AI won't auto-reply
   needsHumanAttention: boolean("needs_human_attention").default(false), // true = AI couldn't respond, needs human
+  shouldCall: boolean("should_call").default(false), // true = AI detected high purchase probability, should call
   lastMessage: text("last_message"),
   lastMessageTimestamp: timestamp("last_message_timestamp"),
   updatedAt: timestamp("updated_at").defaultNow(),

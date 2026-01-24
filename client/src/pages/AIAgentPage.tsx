@@ -368,7 +368,7 @@ export default function AIAgentPage() {
                   id="conversationHistory"
                   type="number"
                   min={1}
-                  max={10}
+                  max={20}
                   value={conversationHistory}
                   onChange={(e) => {
                     setConversationHistory(parseInt(e.target.value) || 3);
@@ -376,7 +376,7 @@ export default function AIAgentPage() {
                   }}
                   data-testid="input-conversation-history"
                 />
-                <p className="text-xs text-muted-foreground mt-1">1-10. Cuántos mensajes previos lee la IA</p>
+                <p className="text-xs text-muted-foreground mt-1">1-20. Cuántos mensajes previos lee la IA</p>
               </div>
             </div>
             {configEdited && (

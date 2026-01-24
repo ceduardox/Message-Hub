@@ -5,7 +5,7 @@ import { ConversationList } from "@/components/ConversationList";
 import { ChatArea } from "@/components/ChatArea";
 import { NotificationBell } from "@/components/NotificationBell";
 import { Button } from "@/components/ui/button";
-import { LogOut, MessageSquareDashed, Bot } from "lucide-react";
+import { LogOut, MessageSquareDashed, Bot, ClipboardList } from "lucide-react";
 import { Link } from "wouter";
 import {
   ResizableHandle,
@@ -44,6 +44,16 @@ export default function InboxPage() {
             >
               <Bot className="mr-2 h-4 w-4" />
               Agente IA
+            </Button>
+          </Link>
+          <Link href="/follow-up">
+            <Button 
+              variant="outline" 
+              className="w-full justify-start"
+              data-testid="button-follow-up-mobile"
+            >
+              <ClipboardList className="mr-2 h-4 w-4" />
+              Seguimiento
             </Button>
           </Link>
           <Button 
@@ -88,6 +98,16 @@ export default function InboxPage() {
                       data-testid="button-ai-agent-desktop"
                     >
                       <Bot className="h-4 w-4 text-muted-foreground hover:text-primary" />
+                    </Button>
+                  </Link>
+                  <Link href="/follow-up">
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      title="Seguimiento"
+                      data-testid="button-follow-up-desktop"
+                    >
+                      <ClipboardList className="h-4 w-4 text-muted-foreground hover:text-primary" />
                     </Button>
                   </Link>
                   <Button 

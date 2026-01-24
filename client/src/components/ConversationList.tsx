@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MessageSquare, User, Pin, Filter, Package, PackageCheck, Truck, AlertCircle } from "lucide-react";
+import { MessageSquare, User, Pin, Filter, Package, PackageCheck, Truck, AlertCircle, Phone } from "lucide-react";
 import type { Conversation, Label } from "@shared/schema";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -189,6 +189,11 @@ export function ConversationList({
                       {conv.needsHumanAttention && (
                         <div className="flex items-center gap-1 flex-shrink-0 text-red-500" title="Necesita atención humana">
                           <AlertCircle className="h-4 w-4" />
+                        </div>
+                      )}
+                      {conv.shouldCall && (
+                        <div className="flex items-center gap-1 flex-shrink-0 text-green-600" title="Probabilidad alta de compra - Llamar">
+                          <Phone className="h-4 w-4" />
                         </div>
                       )}
                     </div>
