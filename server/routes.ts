@@ -13,24 +13,33 @@ import fs from "fs";
 import path from "path";
 import os from "os";
 
+// Debug log storage for production troubleshooting
+const audioDebugLogs: Array<{ timestamp: string; step: string; data: any }> = [];
+function logAudioDebug(step: string, data: any) {
+  const entry = { timestamp: new Date().toISOString(), step, data };
+  audioDebugLogs.push(entry);
+  if (audioDebugLogs.length > 50) audioDebugLogs.shift(); // Keep last 50 entries
+  console.log(`[Audio] ${step}:`, JSON.stringify(data));
+}
+
 // Download audio from WhatsApp and transcribe with Whisper
 async function transcribeWhatsAppAudio(mediaId: string, mimeType?: string): Promise<string | null> {
   const token = process.env.META_ACCESS_TOKEN;
   const openaiKey = process.env.OPENAI_API_KEY;
   
-  console.log("[Audio] Starting transcription, API key available:", !!openaiKey, "Token available:", !!token);
+  logAudioDebug("START", { mediaId, mimeType, hasToken: !!token, hasOpenAI: !!openaiKey });
   
   if (!token) {
-    console.error("[Audio] Missing META_ACCESS_TOKEN");
+    logAudioDebug("ERROR", { reason: "Missing META_ACCESS_TOKEN" });
     return null;
   }
   
   if (!openaiKey) {
-    console.error("[Audio] Missing OPENAI_API_KEY - skipping transcription");
+    logAudioDebug("ERROR", { reason: "Missing OPENAI_API_KEY" });
     return null;
   }
   
-  // Create OpenAI client with current API key (in case it was updated)
+  // Create OpenAI client with current API key
   const openai = new OpenAI({ apiKey: openaiKey });
 
   // Determine file extension from mime type
@@ -48,7 +57,7 @@ async function transcribeWhatsAppAudio(mediaId: string, mimeType?: string): Prom
 
   try {
     // Step 1: Get media URL from WhatsApp
-    console.log("[Audio] Getting media URL for:", mediaId, "mimeType:", mimeType);
+    logAudioDebug("STEP1_GET_URL", { mediaId });
     const mediaResponse = await axios.get(
       `https://graph.facebook.com/v24.0/${mediaId}`,
       { headers: { Authorization: `Bearer ${token}` } }
@@ -56,52 +65,53 @@ async function transcribeWhatsAppAudio(mediaId: string, mimeType?: string): Prom
     
     const mediaUrl = mediaResponse.data.url;
     const mediaMimeType = mediaResponse.data.mime_type || mimeType;
-    console.log("[Audio] Media URL obtained, mime:", mediaMimeType);
+    logAudioDebug("STEP1_SUCCESS", { hasUrl: !!mediaUrl, mime: mediaMimeType });
 
     // Step 2: Download the audio file
-    console.log("[Audio] Downloading audio file...");
+    logAudioDebug("STEP2_DOWNLOAD", { urlPrefix: mediaUrl?.substring(0, 50) });
     const audioResponse = await axios.get(mediaUrl, {
       headers: { Authorization: `Bearer ${token}` },
       responseType: 'arraybuffer'
     });
 
     const audioSize = audioResponse.data.byteLength;
-    console.log("[Audio] Downloaded, size:", audioSize, "bytes");
+    logAudioDebug("STEP2_SUCCESS", { size: audioSize });
 
     if (audioSize < 100) {
-      console.error("[Audio] Audio file too small, likely invalid");
+      logAudioDebug("ERROR", { reason: "File too small", size: audioSize });
       return null;
     }
 
-    // Step 3: Save to temp file (Whisper needs a file)
+    // Step 3: Save to temp file
     tempPath = path.join(os.tmpdir(), `wa_audio_${mediaId}${extension}`);
     fs.writeFileSync(tempPath, Buffer.from(audioResponse.data));
-    console.log("[Audio] Saved to temp:", tempPath);
+    logAudioDebug("STEP3_SAVED", { path: tempPath, extension });
 
     // Step 4: Transcribe with OpenAI Whisper
-    console.log("[Audio] Transcribing with Whisper...");
+    logAudioDebug("STEP4_TRANSCRIBE", { model: "whisper-1" });
     const transcription = await openai.audio.transcriptions.create({
       file: fs.createReadStream(tempPath),
       model: "whisper-1",
-      language: "es" // Spanish
+      language: "es"
     });
     
-    console.log("[Audio] Transcription result:", transcription.text);
+    logAudioDebug("STEP4_SUCCESS", { text: transcription.text });
     return transcription.text || null;
 
   } catch (error: any) {
-    console.error("[Audio] Transcription error:", error.message);
-    if (error.response?.data) {
-      console.error("[Audio] Error details:", JSON.stringify(error.response.data));
-    }
+    logAudioDebug("ERROR", { 
+      message: error.message, 
+      status: error.response?.status,
+      data: error.response?.data 
+    });
     return null;
   } finally {
-    // Clean up temp file regardless of success/failure
     if (tempPath && fs.existsSync(tempPath)) {
       try {
         fs.unlinkSync(tempPath);
-      } catch (e) {
-        console.error("[Audio] Failed to clean temp file:", e);
+        logAudioDebug("CLEANUP", { deleted: tempPath });
+      } catch (e: any) {
+        logAudioDebug("CLEANUP_ERROR", { error: e.message });
       }
     }
   }
@@ -248,7 +258,11 @@ export async function registerRoutes(
     })
   );
 
-  // === DIAGNOSTIC ENDPOINT (Public) ===
+  // === DIAGNOSTIC ENDPOINTS (Public) ===
+  app.get("/api/audio-logs", (req, res) => {
+    res.json({ logs: audioDebugLogs, count: audioDebugLogs.length });
+  });
+
   app.get("/api/test-whisper", async (req, res) => {
     try {
       const openaiKey = process.env.OPENAI_API_KEY;
