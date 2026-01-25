@@ -43,14 +43,16 @@ async function transcribeWhatsAppAudio(mediaId: string, mimeType?: string): Prom
   const openai = new OpenAI({ apiKey: openaiKey });
 
   // Determine file extension from mime type
+  // Note: OpenAI Whisper accepts: flac, m4a, mp3, mp4, mpeg, mpga, oga, ogg, wav, webm
+  // WhatsApp sends "audio/ogg; codecs=opus" - must use .ogg extension (not .opus)
   let extension = ".ogg";
   if (mimeType) {
-    if (mimeType.includes("opus")) extension = ".opus";
-    else if (mimeType.includes("ogg")) extension = ".ogg";
+    if (mimeType.includes("ogg") || mimeType.includes("opus")) extension = ".ogg";
     else if (mimeType.includes("mp3") || mimeType.includes("mpeg")) extension = ".mp3";
     else if (mimeType.includes("mp4") || mimeType.includes("m4a")) extension = ".m4a";
     else if (mimeType.includes("wav")) extension = ".wav";
     else if (mimeType.includes("webm")) extension = ".webm";
+    else if (mimeType.includes("flac")) extension = ".flac";
   }
 
   let tempPath: string | null = null;
