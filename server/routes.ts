@@ -248,6 +248,35 @@ export async function registerRoutes(
     })
   );
 
+  // === DIAGNOSTIC ENDPOINT (Public) ===
+  app.get("/api/test-whisper", async (req, res) => {
+    try {
+      const openaiKey = process.env.OPENAI_API_KEY;
+      if (!openaiKey) {
+        return res.json({ error: "OPENAI_API_KEY not configured", keyAvailable: false });
+      }
+      
+      const openai = new OpenAI({ apiKey: openaiKey });
+      
+      // Try to list models to verify the key works
+      const models = await openai.models.list();
+      const audioModels = models.data.filter(m => 
+        m.id.includes('whisper') || m.id.includes('transcribe') || m.id.includes('tts')
+      );
+      
+      return res.json({
+        keyAvailable: true,
+        keyPrefix: openaiKey.substring(0, 12) + "...",
+        audioModelsAvailable: audioModels.map(m => m.id),
+        totalModels: models.data.length,
+        hasWhisper: audioModels.some(m => m.id.includes('whisper')),
+        hasTranscribe: audioModels.some(m => m.id.includes('transcribe'))
+      });
+    } catch (error: any) {
+      return res.json({ error: error.message, keyAvailable: !!process.env.OPENAI_API_KEY });
+    }
+  });
+
   // === WEBHOOK (Public) ===
   
   // Verification
