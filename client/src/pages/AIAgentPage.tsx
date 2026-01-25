@@ -35,6 +35,7 @@ interface AiSettings {
   model: string | null;
   maxPromptChars: number | null;
   conversationHistory: number | null;
+  audioResponseEnabled: boolean | null;
 }
 
 interface Product {
@@ -69,6 +70,7 @@ export default function AIAgentPage() {
   const [model, setModel] = useState("gpt-4o-mini");
   const [maxPromptChars, setMaxPromptChars] = useState(2000);
   const [conversationHistory, setConversationHistory] = useState(3);
+  const [audioResponseEnabled, setAudioResponseEnabled] = useState(false);
   const [configEdited, setConfigEdited] = useState(false);
   
   // Product form state
@@ -109,6 +111,7 @@ export default function AIAgentPage() {
       setModel(settings.model || "gpt-4o-mini");
       setMaxPromptChars(settings.maxPromptChars || 2000);
       setConversationHistory(settings.conversationHistory || 3);
+      setAudioResponseEnabled(settings.audioResponseEnabled || false);
     }
   }, [settings, promptEdited, configEdited]);
 
@@ -177,7 +180,7 @@ export default function AIAgentPage() {
   };
 
   const handleSaveConfig = () => {
-    updateSettingsMutation.mutate({ maxTokens, temperature, model, maxPromptChars, conversationHistory });
+    updateSettingsMutation.mutate({ maxTokens, temperature, model, maxPromptChars, conversationHistory, audioResponseEnabled });
     setConfigEdited(false);
   };
 
@@ -379,6 +382,25 @@ export default function AIAgentPage() {
                 <p className="text-xs text-muted-foreground mt-1">1-20. Cuántos mensajes previos lee la IA</p>
               </div>
             </div>
+            
+            <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/50">
+              <div className="space-y-1">
+                <Label htmlFor="audioResponse">Responder con Audio</Label>
+                <p className="text-xs text-muted-foreground">
+                  Cuando el cliente envía un audio, la IA responde también con audio
+                </p>
+              </div>
+              <Switch
+                id="audioResponse"
+                checked={audioResponseEnabled}
+                onCheckedChange={(checked) => {
+                  setAudioResponseEnabled(checked);
+                  setConfigEdited(true);
+                }}
+                data-testid="switch-audio-response"
+              />
+            </div>
+            
             {configEdited && (
               <Button onClick={handleSaveConfig} disabled={updateSettingsMutation.isPending} data-testid="button-save-config">
                 {updateSettingsMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}

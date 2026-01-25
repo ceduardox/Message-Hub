@@ -120,6 +120,7 @@ export const aiSettings = pgTable("ai_settings", {
   model: varchar("model", { length: 50 }).default("gpt-4o-mini"),
   maxPromptChars: integer("max_prompt_chars").default(2000), // Max chars in system prompt
   conversationHistory: integer("conversation_history").default(3), // How many previous messages to read
+  audioResponseEnabled: boolean("audio_response_enabled").default(false), // Respond with audio when client sends audio
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 

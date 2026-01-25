@@ -119,6 +119,95 @@ async function transcribeWhatsAppAudio(mediaId: string, mimeType?: string): Prom
   }
 }
 
+// Generate audio response using OpenAI TTS and send via WhatsApp
+async function sendAudioResponse(phoneNumber: string, text: string): Promise<boolean> {
+  const openaiKey = process.env.OPENAI_API_KEY;
+  const token = process.env.META_ACCESS_TOKEN;
+  const phoneNumberId = process.env.WA_PHONE_NUMBER_ID;
+  
+  if (!openaiKey || !token || !phoneNumberId) {
+    console.log("[TTS] Missing credentials");
+    return false;
+  }
+  
+  let tempPath: string | null = null;
+  
+  try {
+    // Step 1: Generate audio with OpenAI TTS
+    console.log("[TTS] Generating audio for:", text.substring(0, 50) + "...");
+    const openai = new OpenAI({ apiKey: openaiKey });
+    
+    const audioResponse = await openai.audio.speech.create({
+      model: "tts-1",
+      voice: "nova", // Female voice, good for Spanish
+      input: text,
+      response_format: "opus" // WhatsApp prefers opus
+    });
+    
+    // Step 2: Save to temp file
+    const audioBuffer = Buffer.from(await audioResponse.arrayBuffer());
+    tempPath = path.join(os.tmpdir(), `tts_${Date.now()}.opus`);
+    fs.writeFileSync(tempPath, audioBuffer);
+    console.log("[TTS] Audio saved:", audioBuffer.length, "bytes");
+    
+    // Step 3: Upload to WhatsApp Media
+    const FormData = (await import('form-data')).default;
+    const formData = new FormData();
+    formData.append('file', fs.createReadStream(tempPath), {
+      filename: 'audio.opus',
+      contentType: 'audio/ogg; codecs=opus'
+    });
+    formData.append('messaging_product', 'whatsapp');
+    formData.append('type', 'audio/ogg; codecs=opus');
+    
+    const uploadResponse = await axios.post(
+      `https://graph.facebook.com/v24.0/${phoneNumberId}/media`,
+      formData,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          ...formData.getHeaders()
+        }
+      }
+    );
+    
+    const mediaId = uploadResponse.data.id;
+    console.log("[TTS] Media uploaded, ID:", mediaId);
+    
+    // Step 4: Send audio message
+    const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber.slice(1) : phoneNumber;
+    await axios.post(
+      `https://graph.facebook.com/v24.0/${phoneNumberId}/messages`,
+      {
+        messaging_product: "whatsapp",
+        to: formattedPhone,
+        type: "audio",
+        audio: { id: mediaId }
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json"
+        }
+      }
+    );
+    
+    console.log("[TTS] Audio message sent successfully");
+    return true;
+    
+  } catch (error: any) {
+    console.error("[TTS] Error:", error.message);
+    if (error.response?.data) {
+      console.error("[TTS] Details:", JSON.stringify(error.response.data));
+    }
+    return false;
+  } finally {
+    if (tempPath && fs.existsSync(tempPath)) {
+      try { fs.unlinkSync(tempPath); } catch (e) {}
+    }
+  }
+}
+
 // Send push notification via OneSignal
 async function sendPushNotification(title: string, message: string, data?: Record<string, string>) {
   const apiKey = process.env.ONESIGNAL_REST_API_KEY;
@@ -352,6 +441,7 @@ export async function registerRoutes(
               // 1. Build message text FIRST (handle different types including location)
               let messageText: string | null = null;
               let messageForAi: string | null = null;
+              let wasAudioMessage = false; // Track if client sent audio
               
               if (msg.type === 'text') {
                 messageText = msg.text.body;
@@ -377,6 +467,7 @@ export async function registerRoutes(
                 messageForAi = '[El cliente envió una imagen]';
               } else if (msg.type === 'audio') {
                 // Handle voice notes and audio messages
+                wasAudioMessage = true;
                 const audioId = msg.audio?.id;
                 const audioMimeType = msg.audio?.mime_type;
                 console.log("=== AUDIO MESSAGE RECEIVED ===", { audioId, mimeType: audioMimeType });
@@ -466,9 +557,32 @@ export async function registerRoutes(
                     // Clear human attention flag if AI can respond
                     await storage.updateConversation(conversation.id, { needsHumanAttention: false });
                     
-                    // Send text response
-                    const waResponse = await sendToWhatsApp(from, 'text', { text: aiResult.response });
-                    const waMessageId = waResponse.messages[0].id;
+                    // Check if we should respond with audio
+                    const settings = await storage.getAiSettings();
+                    const shouldSendAudio = wasAudioMessage && settings?.audioResponseEnabled;
+                    
+                    let waResponse: any;
+                    let waMessageId: string;
+                    
+                    if (shouldSendAudio) {
+                      // Send audio response
+                      console.log("=== SENDING AUDIO RESPONSE ===");
+                      const audioSent = await sendAudioResponse(from, aiResult.response);
+                      if (audioSent) {
+                        // For audio, we won't have a waMessageId, use a generated one
+                        waMessageId = `audio_${Date.now()}`;
+                        waResponse = { messages: [{ id: waMessageId }] };
+                      } else {
+                        // Fallback to text if audio fails
+                        console.log("=== AUDIO FAILED, FALLING BACK TO TEXT ===");
+                        waResponse = await sendToWhatsApp(from, 'text', { text: aiResult.response });
+                        waMessageId = waResponse.messages[0].id;
+                      }
+                    } else {
+                      // Send text response
+                      waResponse = await sendToWhatsApp(from, 'text', { text: aiResult.response });
+                      waMessageId = waResponse.messages[0].id;
+                    }
 
                     await storage.createMessage({
                       conversationId: conversation.id,
