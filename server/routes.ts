@@ -1091,6 +1091,7 @@ NO uses saludos formales. Sé directo y amigable.`
     model: z.string().optional(),
     maxPromptChars: z.number().min(500).max(10000).optional(),
     conversationHistory: z.number().min(1).max(10).optional(),
+    audioResponseEnabled: z.boolean().optional(),
   });
 
   const aiTrainingCreateSchema = z.object({
