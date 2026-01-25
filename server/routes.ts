@@ -13,13 +13,12 @@ import fs from "fs";
 import path from "path";
 import os from "os";
 
-// OpenAI client for audio transcription
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
 // Download audio from WhatsApp and transcribe with Whisper
 async function transcribeWhatsAppAudio(mediaId: string, mimeType?: string): Promise<string | null> {
   const token = process.env.META_ACCESS_TOKEN;
   const openaiKey = process.env.OPENAI_API_KEY;
+  
+  console.log("[Audio] Starting transcription, API key available:", !!openaiKey, "Token available:", !!token);
   
   if (!token) {
     console.error("[Audio] Missing META_ACCESS_TOKEN");
@@ -30,6 +29,9 @@ async function transcribeWhatsAppAudio(mediaId: string, mimeType?: string): Prom
     console.error("[Audio] Missing OPENAI_API_KEY - skipping transcription");
     return null;
   }
+  
+  // Create OpenAI client with current API key (in case it was updated)
+  const openai = new OpenAI({ apiKey: openaiKey });
 
   // Determine file extension from mime type
   let extension = ".ogg";
