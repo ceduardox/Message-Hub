@@ -132,6 +132,8 @@ export default function AIAgentPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/ai/settings"] });
       toast({ title: "Configuración guardada" });
+      setConfigEdited(false);
+      setPromptEdited(false);
     },
     onError: (error: Error) => {
       toast({ title: "Error al guardar", description: error.message, variant: "destructive" });
@@ -189,12 +191,11 @@ export default function AIAgentPage() {
 
   const handleSavePrompt = () => {
     updateSettingsMutation.mutate({ systemPrompt });
-    setPromptEdited(false);
   };
 
   const handleSaveConfig = () => {
+    console.log("Saving config:", { maxTokens, temperature, model, maxPromptChars, conversationHistory });
     updateSettingsMutation.mutate({ maxTokens, temperature, model, maxPromptChars, conversationHistory, audioResponseEnabled, audioVoice, ttsSpeed, ttsInstructions: ttsInstructions || null });
-    setConfigEdited(false);
   };
 
   const handleAddProduct = () => {
