@@ -365,7 +365,7 @@ export default function AIAgentPage() {
                   id="maxPromptChars"
                   type="number"
                   min={500}
-                  max={10000}
+                  max={20000}
                   value={maxPromptChars}
                   onChange={(e) => {
                     setMaxPromptChars(parseInt(e.target.value) || 2000);
@@ -373,7 +373,7 @@ export default function AIAgentPage() {
                   }}
                   data-testid="input-max-prompt-chars"
                 />
-                <p className="text-xs text-muted-foreground mt-1">500-10000. Límite de texto en instrucciones</p>
+                <p className="text-xs text-muted-foreground mt-1">500-20000. Límite de texto en instrucciones</p>
               </div>
               <div>
                 <Label htmlFor="conversationHistory">Mensajes de contexto</Label>
