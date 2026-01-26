@@ -559,6 +559,11 @@ export async function registerRoutes(
                     
                     // Check if we should respond with audio
                     const settings = await storage.getAiSettings();
+                    console.log("=== AUDIO CHECK ===", {
+                      wasAudioMessage,
+                      audioResponseEnabled: settings?.audioResponseEnabled,
+                      audioVoice: settings?.audioVoice
+                    });
                     const shouldSendAudio = wasAudioMessage && settings?.audioResponseEnabled;
                     
                     let waResponse: any;
