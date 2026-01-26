@@ -38,6 +38,8 @@ interface AiSettings {
   conversationHistory: number | null;
   audioResponseEnabled: boolean | null;
   audioVoice: string | null;
+  ttsSpeed: number | null;
+  ttsInstructions: string | null;
 }
 
 interface Product {
@@ -74,6 +76,8 @@ export default function AIAgentPage() {
   const [conversationHistory, setConversationHistory] = useState(3);
   const [audioResponseEnabled, setAudioResponseEnabled] = useState(false);
   const [audioVoice, setAudioVoice] = useState("nova");
+  const [ttsSpeed, setTtsSpeed] = useState(100);
+  const [ttsInstructions, setTtsInstructions] = useState("");
   const [configEdited, setConfigEdited] = useState(false);
   
   // Product form state
@@ -116,6 +120,8 @@ export default function AIAgentPage() {
       setConversationHistory(settings.conversationHistory || 3);
       setAudioResponseEnabled(settings.audioResponseEnabled || false);
       setAudioVoice(settings.audioVoice || "nova");
+      setTtsSpeed(settings.ttsSpeed || 100);
+      setTtsInstructions(settings.ttsInstructions || "");
     }
   }, [settings, promptEdited, configEdited]);
 
@@ -184,7 +190,7 @@ export default function AIAgentPage() {
   };
 
   const handleSaveConfig = () => {
-    updateSettingsMutation.mutate({ maxTokens, temperature, model, maxPromptChars, conversationHistory, audioResponseEnabled, audioVoice });
+    updateSettingsMutation.mutate({ maxTokens, temperature, model, maxPromptChars, conversationHistory, audioResponseEnabled, audioVoice, ttsSpeed, ttsInstructions: ttsInstructions || null });
     setConfigEdited(false);
   };
 
@@ -445,6 +451,49 @@ export default function AIAgentPage() {
                       <div className={`text-xs ${voice.realistic ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"}`}>{voice.desc}</div>
                     </button>
                   ))}
+                </div>
+                
+                <div className="grid gap-4 sm:grid-cols-2 mt-4 pt-4 border-t">
+                  <div>
+                    <Label htmlFor="ttsSpeed">Velocidad de habla</Label>
+                    <div className="flex items-center gap-3">
+                      <Input
+                        id="ttsSpeed"
+                        type="range"
+                        min={50}
+                        max={200}
+                        step={5}
+                        value={ttsSpeed}
+                        onChange={(e) => {
+                          setTtsSpeed(parseInt(e.target.value));
+                          setConfigEdited(true);
+                        }}
+                        className="flex-1"
+                        data-testid="input-tts-speed"
+                      />
+                      <span className="text-sm font-medium w-14 text-center">{(ttsSpeed / 100).toFixed(2)}x</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">0.5x (lento) - 2.0x (rápido)</p>
+                  </div>
+                  
+                  {["ash", "ballad", "sage", "verse", "marin", "cedar"].includes(audioVoice) && (
+                    <div className="sm:col-span-2">
+                      <Label htmlFor="ttsInstructions">Instrucciones de tono (solo voces realistas)</Label>
+                      <Textarea
+                        id="ttsInstructions"
+                        placeholder="Ej: Habla con entusiasmo y calidez, como un vendedor amable"
+                        value={ttsInstructions}
+                        onChange={(e) => {
+                          setTtsInstructions(e.target.value);
+                          setConfigEdited(true);
+                        }}
+                        rows={2}
+                        className="mt-1"
+                        data-testid="textarea-tts-instructions"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">Describe cómo quieres que suene la voz (tono, emoción, estilo)</p>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

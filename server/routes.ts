@@ -119,8 +119,14 @@ async function transcribeWhatsAppAudio(mediaId: string, mimeType?: string): Prom
   }
 }
 
+// TTS options interface
+interface TtsOptions {
+  speed?: number; // 0.25 - 4.0, default 1.0
+  instructions?: string | null; // Only for realistic voices
+}
+
 // Generate audio response using OpenAI TTS and send via WhatsApp
-async function sendAudioResponse(phoneNumber: string, text: string, voice: string = "nova"): Promise<boolean> {
+async function sendAudioResponse(phoneNumber: string, text: string, voice: string = "nova", options: TtsOptions = {}): Promise<boolean> {
   const openaiKey = process.env.OPENAI_API_KEY;
   const token = process.env.META_ACCESS_TOKEN;
   const phoneNumberId = process.env.WA_PHONE_NUMBER_ID;
@@ -142,14 +148,27 @@ async function sendAudioResponse(phoneNumber: string, text: string, voice: strin
     const isRealisticVoice = realisticVoices.includes(voice.toLowerCase());
     const ttsModel = isRealisticVoice ? "gpt-4o-mini-tts" : "tts-1";
     
-    console.log("[TTS] Using model:", ttsModel, "for voice:", voice);
+    // Speed: default 1.0, range 0.25-4.0
+    const speed = options.speed ? Math.max(0.25, Math.min(4.0, options.speed)) : 1.0;
     
-    const audioResponse = await openai.audio.speech.create({
+    console.log("[TTS] Using model:", ttsModel, "for voice:", voice, "speed:", speed);
+    
+    // Build TTS request - instructions only work with realistic voices
+    const ttsRequest: any = {
       model: ttsModel,
       voice: voice as any,
       input: text,
-      response_format: "opus" // WhatsApp prefers opus
-    });
+      response_format: "opus", // WhatsApp prefers opus
+      speed: speed
+    };
+    
+    // Add instructions only for realistic voices (gpt-4o-mini-tts model)
+    if (isRealisticVoice && options.instructions) {
+      ttsRequest.instructions = options.instructions;
+      console.log("[TTS] Using instructions:", options.instructions.substring(0, 50) + "...");
+    }
+    
+    const audioResponse = await openai.audio.speech.create(ttsRequest);
     
     // Step 2: Save to temp file
     const audioBuffer = Buffer.from(await audioResponse.arrayBuffer());
@@ -590,18 +609,20 @@ export async function registerRoutes(
                     if (shouldSendAudio) {
                       // Send audio response
                       const selectedVoice = settings?.audioVoice || "nova";
-                      console.log("=== SENDING AUDIO RESPONSE with voice:", selectedVoice, "===");
+                      const ttsSpeed = settings?.ttsSpeed ? settings.ttsSpeed / 100 : 1.0; // Convert from 25-400 to 0.25-4.0
+                      const ttsInstructions = settings?.ttsInstructions || null;
+                      console.log("=== SENDING AUDIO RESPONSE with voice:", selectedVoice, "speed:", ttsSpeed, "===");
                       
                       // Log TTS attempt
                       await storage.createAiLog({
                         conversationId: conversation.id,
-                        userMessage: `TTS_ATTEMPT: voice=${selectedVoice}`,
+                        userMessage: `TTS_ATTEMPT: voice=${selectedVoice}, speed=${ttsSpeed}`,
                         aiResponse: aiResult.response.substring(0, 100),
                         tokensUsed: 0,
                         success: true,
                       });
                       
-                      const audioSent = await sendAudioResponse(from, aiResult.response, selectedVoice);
+                      const audioSent = await sendAudioResponse(from, aiResult.response, selectedVoice, { speed: ttsSpeed, instructions: ttsInstructions });
                       if (audioSent) {
                         // For audio, we won't have a waMessageId, use a generated one
                         waMessageId = `audio_${Date.now()}`;
