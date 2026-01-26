@@ -160,12 +160,14 @@ export function KanbanView({ conversations, isLoading, daysToShow, onLoadMore, m
   const { data: activeConversation } = useConversation(activeId);
 
   const humano = conversations.filter(c => c.needsHumanAttention);
+  const entregados = conversations.filter(c => c.orderStatus === "delivered" && !c.needsHumanAttention);
+  const listos = conversations.filter(c => c.orderStatus === "ready" && !c.needsHumanAttention);
+  const llamar = conversations.filter(c => 
+    c.shouldCall && !c.needsHumanAttention && c.orderStatus !== "ready" && c.orderStatus !== "delivered"
+  );
   const nuevos = conversations.filter(c => 
     !c.orderStatus && !c.shouldCall && !c.needsHumanAttention
   );
-  const llamar = conversations.filter(c => c.shouldCall && !c.needsHumanAttention);
-  const listos = conversations.filter(c => c.orderStatus === "ready" && !c.needsHumanAttention);
-  const entregados = conversations.filter(c => c.orderStatus === "delivered" && !c.needsHumanAttention);
 
   if (isLoading) {
     return (
