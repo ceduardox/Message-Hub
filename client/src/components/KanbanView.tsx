@@ -2,10 +2,9 @@ import { useState } from "react";
 import type { Conversation } from "@shared/schema";
 import { useConversation } from "@/hooks/use-inbox";
 import { ChatArea } from "./ChatArea";
-import { Phone, ChevronDown } from "lucide-react";
+import { Phone, Clock, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 
 interface KanbanViewProps {
   conversations: Conversation[];
@@ -20,8 +19,7 @@ interface ColumnProps {
   items: Conversation[];
   activeId: number | null;
   onSelect: (id: number) => void;
-  badgeColor?: string;
-  badgeText?: string;
+  columnType: "humano" | "nuevo" | "llamar" | "listo" | "entregado";
 }
 
 function getInitials(name: string): string {
@@ -33,103 +31,112 @@ function getInitials(name: string): string {
   return name.slice(0, 2).toUpperCase();
 }
 
-function getAvatarColor(name: string): string {
-  const colors = [
-    "bg-red-500", "bg-green-500", "bg-blue-500", "bg-purple-500",
-    "bg-orange-500", "bg-pink-500", "bg-teal-500", "bg-indigo-500"
-  ];
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return colors[Math.abs(hash) % colors.length];
-}
-
 function formatDate(timestamp: Date | string | null): string {
   if (!timestamp) return "";
   const date = new Date(timestamp);
   const now = new Date();
   const isToday = date.toDateString() === now.toDateString();
   
+  const timeStr = date.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
+  
   if (isToday) {
-    return date.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
+    return `Hoy, ${timeStr}`;
   }
-  return date.toLocaleDateString('es', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  
+  const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+  return `${monthNames[date.getMonth()]} ${date.getDate()}, ${timeStr}`;
 }
 
 function KanbanCard({ 
   conv, 
   isActive, 
-  onSelect, 
-  badgeColor, 
-  badgeText 
+  onSelect,
+  columnType
 }: { 
   conv: Conversation; 
   isActive: boolean; 
   onSelect: () => void;
-  badgeColor?: string;
-  badgeText?: string;
+  columnType: "humano" | "nuevo" | "llamar" | "listo" | "entregado";
 }) {
   const name = conv.contactName || conv.waId;
+  
+  const getBadgeConfig = () => {
+    switch (columnType) {
+      case "humano":
+        return { text: "Interacción Humana", bgColor: "bg-emerald-100", textColor: "text-emerald-700", dotColor: "bg-emerald-500" };
+      case "llamar":
+        return { text: "test principal", bgColor: "bg-emerald-100", textColor: "text-emerald-700", dotColor: "bg-emerald-500" };
+      case "listo":
+        return { text: "Listo", bgColor: "bg-blue-100", textColor: "text-blue-700", dotColor: "bg-blue-500" };
+      case "entregado":
+        return { text: "Entregado", bgColor: "bg-gray-100", textColor: "text-gray-600", dotColor: "bg-gray-500" };
+      default:
+        return null;
+    }
+  };
+  
+  const badge = getBadgeConfig();
+  const showPhone = conv.shouldCall || columnType === "llamar";
   
   return (
     <div
       onClick={onSelect}
       className={cn(
-        "bg-white rounded-xl p-4 shadow-sm border cursor-pointer transition-all",
-        "hover:shadow-md",
-        isActive ? "ring-2 ring-primary shadow-md" : "border-gray-100"
+        "bg-white rounded-xl p-4 shadow-sm cursor-pointer transition-all",
+        "hover:shadow-md border border-gray-100",
+        isActive && "ring-2 ring-primary shadow-md"
       )}
       data-testid={`kanban-card-${conv.id}`}
     >
       <div className="flex items-start gap-3">
-        <div className={cn(
-          "w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm flex-shrink-0",
-          getAvatarColor(name)
-        )}>
+        <div className="w-11 h-11 rounded-full bg-red-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
           {getInitials(name)}
         </div>
         
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
-            <span className="font-semibold text-sm text-gray-900 truncate">
+            <span className="font-semibold text-gray-900 truncate">
               {name}
             </span>
-            {conv.shouldCall && (
-              <Phone className="h-4 w-4 text-green-500 flex-shrink-0" />
+            {showPhone && (
+              <Phone className="h-5 w-5 text-emerald-500 flex-shrink-0" fill="currentColor" />
             )}
           </div>
           
-          {badgeText && (
-            <Badge 
-              variant="secondary" 
-              className={cn("mt-1 text-xs font-normal", badgeColor)}
-            >
-              {badgeText}
-            </Badge>
+          {badge && (
+            <div className={cn(
+              "inline-flex items-center gap-1.5 mt-1.5 px-2 py-0.5 rounded-full text-xs font-medium",
+              badge.bgColor, badge.textColor
+            )}>
+              <span className={cn("w-1.5 h-1.5 rounded-full", badge.dotColor)} />
+              {badge.text}
+            </div>
           )}
           
-          <p className="text-xs text-gray-500 mt-1 truncate">
-            {conv.lastMessage || "Sin mensajes"}
-          </p>
+          {columnType === "nuevo" && conv.lastMessage && (
+            <p className="text-sm text-gray-700 mt-2 line-clamp-2">
+              {conv.lastMessage}
+            </p>
+          )}
           
-          <p className="text-xs text-gray-400 mt-1">
-            {formatDate(conv.lastMessageTimestamp)}
-          </p>
+          <div className="flex items-center gap-1 mt-2 text-xs text-gray-400">
+            {columnType === "nuevo" && <Clock className="h-3 w-3" />}
+            <span>{formatDate(conv.lastMessageTimestamp)}</span>
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-function KanbanColumn({ title, items, activeId, onSelect, badgeColor, badgeText }: ColumnProps) {
+function KanbanColumn({ title, items, activeId, onSelect, columnType }: ColumnProps) {
   return (
-    <div className="flex flex-col h-full min-w-0 flex-1">
-      <div className="flex items-center gap-2 px-3 py-3 border-b bg-gray-50/80">
-        <span className="font-medium text-gray-700">{title}</span>
+    <div className="flex flex-col h-full min-w-0 flex-1 bg-gray-50">
+      <div className="flex items-center gap-2 px-4 py-3 bg-white border-b border-gray-100">
+        <span className="font-medium text-gray-800">{title}</span>
         <span className="text-sm text-gray-400">{items.length}</span>
       </div>
-      <div className="flex-1 overflow-y-auto p-3 space-y-3 bg-gray-50/50">
+      <div className="flex-1 overflow-y-auto p-3 space-y-3">
         {items.length === 0 ? (
           <p className="text-sm text-gray-400 text-center py-8">Sin conversaciones</p>
         ) : (
@@ -139,8 +146,7 @@ function KanbanColumn({ title, items, activeId, onSelect, badgeColor, badgeText 
               conv={conv}
               isActive={activeId === conv.id}
               onSelect={() => onSelect(conv.id)}
-              badgeColor={badgeColor}
-              badgeText={badgeText}
+              columnType={columnType}
             />
           ))
         )}
@@ -170,51 +176,48 @@ export function KanbanView({ conversations, isLoading, daysToShow, onLoadMore, m
   }
 
   return (
-    <div className="h-full flex flex-col w-full">
+    <div className="h-full flex flex-col w-full bg-gray-100">
       <div className="flex-1 flex min-h-0">
-        <div className="flex-1 grid grid-cols-5 gap-px bg-gray-200 min-h-0 overflow-hidden">
+        <div className="flex-1 grid grid-cols-5 gap-px min-h-0 overflow-hidden">
           <KanbanColumn
             title="Interacción Humana"
             items={humano}
             activeId={activeId}
             onSelect={setActiveId}
-            badgeColor="bg-green-100 text-green-700"
-            badgeText="Interacción Humana"
+            columnType="humano"
           />
           <KanbanColumn
-            title="Esperando Confirmación"
+            title="Esperando Confirmaci."
             items={nuevos}
             activeId={activeId}
             onSelect={setActiveId}
+            columnType="nuevo"
           />
           <KanbanColumn
             title="Llamar"
             items={llamar}
             activeId={activeId}
             onSelect={setActiveId}
-            badgeColor="bg-blue-100 text-blue-700"
-            badgeText="Llamar"
+            columnType="llamar"
           />
           <KanbanColumn
             title="Listo para Enviar"
             items={listos}
             activeId={activeId}
             onSelect={setActiveId}
-            badgeColor="bg-purple-100 text-purple-700"
-            badgeText="Listo"
+            columnType="listo"
           />
           <KanbanColumn
             title="Enviados y Entregados"
             items={entregados}
             activeId={activeId}
             onSelect={setActiveId}
-            badgeColor="bg-gray-100 text-gray-600"
-            badgeText="Entregado"
+            columnType="entregado"
           />
         </div>
 
         {activeId && activeConversation ? (
-          <div className="w-[500px] border-l border-border flex-shrink-0 bg-white">
+          <div className="w-[500px] border-l border-gray-200 flex-shrink-0 bg-white">
             <ChatArea
               conversation={activeConversation.conversation}
               messages={activeConversation.messages}
