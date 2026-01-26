@@ -559,11 +559,22 @@ export async function registerRoutes(
                     
                     // Check if we should respond with audio
                     const settings = await storage.getAiSettings();
-                    console.log("=== AUDIO CHECK ===", {
+                    const audioDebugInfo = {
                       wasAudioMessage,
                       audioResponseEnabled: settings?.audioResponseEnabled,
                       audioVoice: settings?.audioVoice
+                    };
+                    console.log("=== AUDIO CHECK ===", audioDebugInfo);
+                    
+                    // Log to database for production debugging
+                    await storage.createAiLog({
+                      conversationId: conversation.id,
+                      userMessage: `AUDIO_DEBUG: ${JSON.stringify(audioDebugInfo)}`,
+                      aiResponse: `wasAudio=${wasAudioMessage}, enabled=${settings?.audioResponseEnabled}, voice=${settings?.audioVoice}`,
+                      tokensUsed: 0,
+                      success: true,
                     });
+                    
                     const shouldSendAudio = wasAudioMessage && settings?.audioResponseEnabled;
                     
                     let waResponse: any;
@@ -573,14 +584,41 @@ export async function registerRoutes(
                       // Send audio response
                       const selectedVoice = settings?.audioVoice || "nova";
                       console.log("=== SENDING AUDIO RESPONSE with voice:", selectedVoice, "===");
+                      
+                      // Log TTS attempt
+                      await storage.createAiLog({
+                        conversationId: conversation.id,
+                        userMessage: `TTS_ATTEMPT: voice=${selectedVoice}`,
+                        aiResponse: aiResult.response.substring(0, 100),
+                        tokensUsed: 0,
+                        success: true,
+                      });
+                      
                       const audioSent = await sendAudioResponse(from, aiResult.response, selectedVoice);
                       if (audioSent) {
                         // For audio, we won't have a waMessageId, use a generated one
                         waMessageId = `audio_${Date.now()}`;
                         waResponse = { messages: [{ id: waMessageId }] };
+                        
+                        await storage.createAiLog({
+                          conversationId: conversation.id,
+                          userMessage: `TTS_SUCCESS`,
+                          aiResponse: `Audio sent with voice ${selectedVoice}`,
+                          tokensUsed: 0,
+                          success: true,
+                        });
                       } else {
                         // Fallback to text if audio fails
                         console.log("=== AUDIO FAILED, FALLING BACK TO TEXT ===");
+                        
+                        await storage.createAiLog({
+                          conversationId: conversation.id,
+                          userMessage: `TTS_FAILED`,
+                          aiResponse: `Fallback to text`,
+                          tokensUsed: 0,
+                          success: false,
+                        });
+                        
                         waResponse = await sendToWhatsApp(from, 'text', { text: aiResult.response });
                         waMessageId = waResponse.messages[0].id;
                       }
