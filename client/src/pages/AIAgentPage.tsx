@@ -715,7 +715,7 @@ export default function AIAgentPage() {
                       <span className="text-xs text-muted-foreground">
                         {new Date(log.createdAt).toLocaleString()}
                       </span>
-                      {log.tokensUsed && (
+                      {log.tokensUsed !== null && log.tokensUsed !== undefined && (
                         <span className="text-xs bg-secondary px-1.5 py-0.5 rounded">
                           {log.tokensUsed} tokens
                         </span>
