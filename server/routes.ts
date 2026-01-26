@@ -1162,9 +1162,11 @@ NO uses saludos formales. Sé directo y amigable.`
     temperature: z.number().min(0).max(100).optional(),
     model: z.string().optional(),
     maxPromptChars: z.number().min(500).max(10000).optional(),
-    conversationHistory: z.number().min(1).max(10).optional(),
+    conversationHistory: z.number().min(1).max(20).optional(),
     audioResponseEnabled: z.boolean().optional(),
     audioVoice: z.string().optional(),
+    ttsSpeed: z.number().min(25).max(400).optional(), // 25-400, divide by 100 for 0.25-4.0
+    ttsInstructions: z.string().nullable().optional(),
   });
 
   const aiTrainingCreateSchema = z.object({
