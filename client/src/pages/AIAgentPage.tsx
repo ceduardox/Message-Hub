@@ -133,6 +133,9 @@ export default function AIAgentPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/ai/settings"] });
       toast({ title: "Configuración guardada" });
     },
+    onError: (error: Error) => {
+      toast({ title: "Error al guardar", description: error.message, variant: "destructive" });
+    },
   });
 
   const createProductMutation = useMutation({
