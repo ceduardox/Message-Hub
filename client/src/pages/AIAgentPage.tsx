@@ -406,31 +406,46 @@ export default function AIAgentPage() {
             </div>
             
             {audioResponseEnabled && (
-              <div className="space-y-2">
-                <Label htmlFor="audioVoice">Voz de Audio</Label>
-                <Select
-                  value={audioVoice}
-                  onValueChange={(value) => {
-                    setAudioVoice(value);
-                    setConfigEdited(true);
-                  }}
-                >
-                  <SelectTrigger data-testid="select-audio-voice">
-                    <SelectValue placeholder="Seleccionar voz" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="nova">Nova (Femenina)</SelectItem>
-                    <SelectItem value="alloy">Alloy (Neutral)</SelectItem>
-                    <SelectItem value="echo">Echo (Masculina)</SelectItem>
-                    <SelectItem value="shimmer">Shimmer (Femenina suave)</SelectItem>
-                    <SelectItem value="coral">Coral (Realtime - Natural)</SelectItem>
-                    <SelectItem value="sage">Sage (Realtime - Calmada)</SelectItem>
-                    <SelectItem value="ash">Ash (Realtime - Masculina)</SelectItem>
-                    <SelectItem value="ballad">Ballad (Realtime - Expresiva)</SelectItem>
-                    <SelectItem value="verse">Verse (Realtime - Dinámica)</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">Las voces "Realtime" son más naturales y expresivas</p>
+              <div className="space-y-3">
+                <Label htmlFor="audioVoice" className="font-medium">Voz de Audio</Label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {[
+                    { value: "nova", label: "Nova", desc: "Femenina" },
+                    { value: "alloy", label: "Alloy", desc: "Neutral" },
+                    { value: "echo", label: "Echo", desc: "Masculina" },
+                    { value: "shimmer", label: "Shimmer", desc: "Suave" },
+                    { value: "coral", label: "Coral", desc: "Natural" },
+                    { value: "sage", label: "Sage", desc: "Calmada" },
+                    { value: "ash", label: "Ash", desc: "Masculina+" },
+                    { value: "ballad", label: "Ballad", desc: "Expresiva" },
+                    { value: "verse", label: "Verse", desc: "Dinámica" },
+                    { value: "fable", label: "Fable", desc: "Narrativa" },
+                    { value: "onyx", label: "Onyx", desc: "Profunda" },
+                    { value: "maple", label: "Maple", desc: "Realista" },
+                    { value: "sol", label: "Sol", desc: "Brillante" },
+                    { value: "juniper", label: "Juniper", desc: "Clara" },
+                    { value: "ember", label: "Ember", desc: "Cálida" },
+                  ].map((voice) => (
+                    <button
+                      key={voice.value}
+                      type="button"
+                      onClick={() => {
+                        setAudioVoice(voice.value);
+                        setConfigEdited(true);
+                      }}
+                      className={`p-3 rounded-lg border-2 text-left transition-all ${
+                        audioVoice === voice.value
+                          ? "border-primary bg-primary/10 shadow-md"
+                          : "border-border bg-card hover:border-primary/50 hover:bg-muted"
+                      }`}
+                      data-testid={`voice-${voice.value}`}
+                    >
+                      <div className="font-semibold text-sm">{voice.label}</div>
+                      <div className="text-xs text-muted-foreground">{voice.desc}</div>
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">Selecciona la voz que usará la IA para responder con audio</p>
               </div>
             )}
             
