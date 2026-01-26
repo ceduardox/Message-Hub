@@ -120,7 +120,7 @@ async function transcribeWhatsAppAudio(mediaId: string, mimeType?: string): Prom
 }
 
 // Generate audio response using OpenAI TTS and send via WhatsApp
-async function sendAudioResponse(phoneNumber: string, text: string): Promise<boolean> {
+async function sendAudioResponse(phoneNumber: string, text: string, voice: string = "nova"): Promise<boolean> {
   const openaiKey = process.env.OPENAI_API_KEY;
   const token = process.env.META_ACCESS_TOKEN;
   const phoneNumberId = process.env.WA_PHONE_NUMBER_ID;
@@ -139,7 +139,7 @@ async function sendAudioResponse(phoneNumber: string, text: string): Promise<boo
     
     const audioResponse = await openai.audio.speech.create({
       model: "tts-1",
-      voice: "nova", // Female voice, good for Spanish
+      voice: voice as any,
       input: text,
       response_format: "opus" // WhatsApp prefers opus
     });
@@ -566,8 +566,9 @@ export async function registerRoutes(
                     
                     if (shouldSendAudio) {
                       // Send audio response
-                      console.log("=== SENDING AUDIO RESPONSE ===");
-                      const audioSent = await sendAudioResponse(from, aiResult.response);
+                      const selectedVoice = settings?.audioVoice || "nova";
+                      console.log("=== SENDING AUDIO RESPONSE with voice:", selectedVoice, "===");
+                      const audioSent = await sendAudioResponse(from, aiResult.response, selectedVoice);
                       if (audioSent) {
                         // For audio, we won't have a waMessageId, use a generated one
                         waMessageId = `audio_${Date.now()}`;
@@ -1092,6 +1093,7 @@ NO uses saludos formales. Sé directo y amigable.`
     maxPromptChars: z.number().min(500).max(10000).optional(),
     conversationHistory: z.number().min(1).max(10).optional(),
     audioResponseEnabled: z.boolean().optional(),
+    audioVoice: z.string().optional(),
   });
 
   const aiTrainingCreateSchema = z.object({

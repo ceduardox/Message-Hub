@@ -7,6 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { 
@@ -36,6 +37,7 @@ interface AiSettings {
   maxPromptChars: number | null;
   conversationHistory: number | null;
   audioResponseEnabled: boolean | null;
+  audioVoice: string | null;
 }
 
 interface Product {
@@ -71,6 +73,7 @@ export default function AIAgentPage() {
   const [maxPromptChars, setMaxPromptChars] = useState(2000);
   const [conversationHistory, setConversationHistory] = useState(3);
   const [audioResponseEnabled, setAudioResponseEnabled] = useState(false);
+  const [audioVoice, setAudioVoice] = useState("nova");
   const [configEdited, setConfigEdited] = useState(false);
   
   // Product form state
@@ -112,6 +115,7 @@ export default function AIAgentPage() {
       setMaxPromptChars(settings.maxPromptChars || 2000);
       setConversationHistory(settings.conversationHistory || 3);
       setAudioResponseEnabled(settings.audioResponseEnabled || false);
+      setAudioVoice(settings.audioVoice || "nova");
     }
   }, [settings, promptEdited, configEdited]);
 
@@ -180,7 +184,7 @@ export default function AIAgentPage() {
   };
 
   const handleSaveConfig = () => {
-    updateSettingsMutation.mutate({ maxTokens, temperature, model, maxPromptChars, conversationHistory, audioResponseEnabled });
+    updateSettingsMutation.mutate({ maxTokens, temperature, model, maxPromptChars, conversationHistory, audioResponseEnabled, audioVoice });
     setConfigEdited(false);
   };
 
@@ -400,6 +404,35 @@ export default function AIAgentPage() {
                 data-testid="switch-audio-response"
               />
             </div>
+            
+            {audioResponseEnabled && (
+              <div className="space-y-2">
+                <Label htmlFor="audioVoice">Voz de Audio</Label>
+                <Select
+                  value={audioVoice}
+                  onValueChange={(value) => {
+                    setAudioVoice(value);
+                    setConfigEdited(true);
+                  }}
+                >
+                  <SelectTrigger data-testid="select-audio-voice">
+                    <SelectValue placeholder="Seleccionar voz" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="nova">Nova (Femenina)</SelectItem>
+                    <SelectItem value="alloy">Alloy (Neutral)</SelectItem>
+                    <SelectItem value="echo">Echo (Masculina)</SelectItem>
+                    <SelectItem value="shimmer">Shimmer (Femenina suave)</SelectItem>
+                    <SelectItem value="coral">Coral (Realtime - Natural)</SelectItem>
+                    <SelectItem value="sage">Sage (Realtime - Calmada)</SelectItem>
+                    <SelectItem value="ash">Ash (Realtime - Masculina)</SelectItem>
+                    <SelectItem value="ballad">Ballad (Realtime - Expresiva)</SelectItem>
+                    <SelectItem value="verse">Verse (Realtime - Dinámica)</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">Las voces "Realtime" son más naturales y expresivas</p>
+              </div>
+            )}
             
             {configEdited && (
               <Button onClick={handleSaveConfig} disabled={updateSettingsMutation.isPending} data-testid="button-save-config">

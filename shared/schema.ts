@@ -121,6 +121,7 @@ export const aiSettings = pgTable("ai_settings", {
   maxPromptChars: integer("max_prompt_chars").default(2000), // Max chars in system prompt
   conversationHistory: integer("conversation_history").default(3), // How many previous messages to read
   audioResponseEnabled: boolean("audio_response_enabled").default(false), // Respond with audio when client sends audio
+  audioVoice: varchar("audio_voice", { length: 20 }).default("nova"), // TTS voice: nova, alloy, echo, shimmer, coral, sage, ash, ballad, verse
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
