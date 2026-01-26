@@ -1193,7 +1193,7 @@ NO uses saludos formales. Sé directo y amigable.`
     maxTokens: z.number().min(50).max(500).optional(),
     temperature: z.number().min(0).max(100).optional(),
     model: z.string().optional(),
-    maxPromptChars: z.number().min(500).max(10000).optional(),
+    maxPromptChars: z.number().min(500).max(20000).optional(),
     conversationHistory: z.number().min(1).max(20).optional(),
     audioResponseEnabled: z.boolean().optional(),
     audioVoice: z.string().optional(),
