@@ -408,21 +408,22 @@ export default function AIAgentPage() {
             {audioResponseEnabled && (
               <div className="space-y-3">
                 <Label htmlFor="audioVoice" className="font-medium">Voz de Audio</Label>
+                <p className="text-xs text-muted-foreground">Voces realistas usan modelo avanzado (mayor calidad y costo)</p>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {[
-                    { value: "marin", label: "Marin", desc: "Ultra realista" },
-                    { value: "cedar", label: "Cedar", desc: "Ultra realista" },
-                    { value: "coral", label: "Coral", desc: "Natural" },
-                    { value: "sage", label: "Sage", desc: "Calmada" },
-                    { value: "ash", label: "Ash", desc: "Masculina" },
-                    { value: "ballad", label: "Ballad", desc: "Expresiva" },
-                    { value: "verse", label: "Verse", desc: "Dinámica" },
-                    { value: "nova", label: "Nova", desc: "Femenina" },
-                    { value: "alloy", label: "Alloy", desc: "Neutral" },
-                    { value: "echo", label: "Echo", desc: "Masculina" },
-                    { value: "shimmer", label: "Shimmer", desc: "Suave" },
-                    { value: "fable", label: "Fable", desc: "Narrativa" },
-                    { value: "onyx", label: "Onyx", desc: "Profunda" },
+                    { value: "marin", label: "Marin", desc: "Realista", realistic: true },
+                    { value: "cedar", label: "Cedar", desc: "Realista", realistic: true },
+                    { value: "ash", label: "Ash", desc: "Realista", realistic: true },
+                    { value: "ballad", label: "Ballad", desc: "Realista", realistic: true },
+                    { value: "sage", label: "Sage", desc: "Realista", realistic: true },
+                    { value: "verse", label: "Verse", desc: "Realista", realistic: true },
+                    { value: "coral", label: "Coral", desc: "Básica", realistic: false },
+                    { value: "nova", label: "Nova", desc: "Básica", realistic: false },
+                    { value: "alloy", label: "Alloy", desc: "Básica", realistic: false },
+                    { value: "echo", label: "Echo", desc: "Básica", realistic: false },
+                    { value: "shimmer", label: "Shimmer", desc: "Básica", realistic: false },
+                    { value: "fable", label: "Fable", desc: "Básica", realistic: false },
+                    { value: "onyx", label: "Onyx", desc: "Básica", realistic: false },
                   ].map((voice) => (
                     <button
                       key={voice.value}
@@ -434,16 +435,17 @@ export default function AIAgentPage() {
                       className={`p-3 rounded-lg border-2 text-left transition-all ${
                         audioVoice === voice.value
                           ? "border-primary bg-primary/10 shadow-md"
-                          : "border-border bg-card hover:border-primary/50 hover:bg-muted"
+                          : voice.realistic 
+                            ? "border-amber-500/50 bg-amber-500/5 hover:border-amber-500 hover:bg-amber-500/10"
+                            : "border-border bg-card hover:border-primary/50 hover:bg-muted"
                       }`}
                       data-testid={`voice-${voice.value}`}
                     >
                       <div className="font-semibold text-sm">{voice.label}</div>
-                      <div className="text-xs text-muted-foreground">{voice.desc}</div>
+                      <div className={`text-xs ${voice.realistic ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"}`}>{voice.desc}</div>
                     </button>
                   ))}
                 </div>
-                <p className="text-xs text-muted-foreground">Selecciona la voz que usará la IA para responder con audio</p>
               </div>
             )}
             

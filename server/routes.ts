@@ -137,8 +137,15 @@ async function sendAudioResponse(phoneNumber: string, text: string, voice: strin
     console.log("[TTS] Generating audio for:", text.substring(0, 50) + "...");
     const openai = new OpenAI({ apiKey: openaiKey });
     
+    // Realistic voices require gpt-4o-mini-tts model, basic voices use tts-1
+    const realisticVoices = ["ash", "ballad", "sage", "verse", "marin", "cedar"];
+    const isRealisticVoice = realisticVoices.includes(voice.toLowerCase());
+    const ttsModel = isRealisticVoice ? "gpt-4o-mini-tts" : "tts-1";
+    
+    console.log("[TTS] Using model:", ttsModel, "for voice:", voice);
+    
     const audioResponse = await openai.audio.speech.create({
-      model: "tts-1",
+      model: ttsModel,
       voice: voice as any,
       input: text,
       response_format: "opus" // WhatsApp prefers opus
