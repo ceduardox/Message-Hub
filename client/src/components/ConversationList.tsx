@@ -112,7 +112,7 @@ export function ConversationList({
                 {filterLabelId ? getLabelById(filterLabelId)?.name : "Filtrar"}
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44 bg-popover border shadow-lg">
+            <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => setFilterLabelId(null)}>
                 Todos
               </DropdownMenuItem>

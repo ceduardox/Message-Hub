@@ -283,7 +283,7 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
                 <Tag className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48 bg-popover border shadow-lg">
+            <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => setLabelMutation.mutate(null)}>
                 Sin etiqueta
               </DropdownMenuItem>
@@ -388,7 +388,7 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
                <Package className="h-4 w-4" />}
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-52 bg-popover border shadow-lg">
+          <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={() => setOrderStatusMutation.mutate(null)}>
               <PackageX className="h-4 w-4 mr-2 text-muted-foreground" />
               Sin pedido
@@ -513,7 +513,7 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
                 <Plus className="h-5 w-5" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-52 bg-popover border shadow-lg">
+            <DropdownMenuContent align="start">
               <DropdownMenuItem onClick={() => setShowImageInput(!showImageInput)}>
                 <ImageIcon className="h-4 w-4 mr-2 text-purple-500" /> Imagen (URL)
               </DropdownMenuItem>
@@ -531,7 +531,7 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
                   <Zap className="h-5 w-5" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-56 max-h-64 overflow-y-auto bg-popover border shadow-lg">
+              <DropdownMenuContent align="start">
                 {quickMessagesData.length === 0 && (
                   <div className="px-2 py-4 text-center text-xs text-muted-foreground">Sin mensajes rápidos</div>
                 )}
