@@ -410,21 +410,19 @@ export default function AIAgentPage() {
                 <Label htmlFor="audioVoice" className="font-medium">Voz de Audio</Label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {[
+                    { value: "marin", label: "Marin", desc: "Ultra realista" },
+                    { value: "cedar", label: "Cedar", desc: "Ultra realista" },
+                    { value: "coral", label: "Coral", desc: "Natural" },
+                    { value: "sage", label: "Sage", desc: "Calmada" },
+                    { value: "ash", label: "Ash", desc: "Masculina" },
+                    { value: "ballad", label: "Ballad", desc: "Expresiva" },
+                    { value: "verse", label: "Verse", desc: "Dinámica" },
                     { value: "nova", label: "Nova", desc: "Femenina" },
                     { value: "alloy", label: "Alloy", desc: "Neutral" },
                     { value: "echo", label: "Echo", desc: "Masculina" },
                     { value: "shimmer", label: "Shimmer", desc: "Suave" },
-                    { value: "coral", label: "Coral", desc: "Natural" },
-                    { value: "sage", label: "Sage", desc: "Calmada" },
-                    { value: "ash", label: "Ash", desc: "Masculina+" },
-                    { value: "ballad", label: "Ballad", desc: "Expresiva" },
-                    { value: "verse", label: "Verse", desc: "Dinámica" },
                     { value: "fable", label: "Fable", desc: "Narrativa" },
                     { value: "onyx", label: "Onyx", desc: "Profunda" },
-                    { value: "maple", label: "Maple", desc: "Realista" },
-                    { value: "sol", label: "Sol", desc: "Brillante" },
-                    { value: "juniper", label: "Juniper", desc: "Clara" },
-                    { value: "ember", label: "Ember", desc: "Cálida" },
                   ].map((voice) => (
                     <button
                       key={voice.value}
