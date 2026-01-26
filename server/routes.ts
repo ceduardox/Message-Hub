@@ -468,6 +468,7 @@ export async function registerRoutes(
               let messageText: string | null = null;
               let messageForAi: string | null = null;
               let wasAudioMessage = false; // Track if client sent audio
+              let imageBase64ForAi: string | undefined = undefined; // For vision analysis
               
               if (msg.type === 'text') {
                 messageText = msg.text.body;
@@ -490,7 +491,33 @@ export async function registerRoutes(
                 console.log("=== LOCATION RECEIVED ===", { lat, lon, locName, locAddress });
               } else if (msg.type === 'image') {
                 messageText = '[Imagen]';
-                messageForAi = '[El cliente envió una imagen]';
+                const imageId = msg.image?.id;
+                
+                if (imageId) {
+                  try {
+                    // Download image from WhatsApp and convert to base64 for vision
+                    const token = process.env.META_ACCESS_TOKEN;
+                    const mediaResponse = await axios.get(
+                      `https://graph.facebook.com/v24.0/${imageId}`,
+                      { headers: { Authorization: `Bearer ${token}` } }
+                    );
+                    const mediaUrl = mediaResponse.data.url;
+                    
+                    const imageResponse = await axios.get(mediaUrl, {
+                      headers: { Authorization: `Bearer ${token}` },
+                      responseType: 'arraybuffer'
+                    });
+                    
+                    imageBase64ForAi = Buffer.from(imageResponse.data).toString('base64');
+                    messageForAi = 'El cliente envió esta imagen. Analiza qué producto muestra y responde.';
+                    console.log("=== IMAGE DOWNLOADED FOR VISION ===", { imageId, size: imageResponse.data.byteLength });
+                  } catch (imgError) {
+                    console.error("Error downloading image for vision:", imgError);
+                    messageForAi = '[El cliente envió una imagen que no se pudo analizar]';
+                  }
+                } else {
+                  messageForAi = '[El cliente envió una imagen]';
+                }
               } else if (msg.type === 'audio') {
                 // Handle voice notes and audio messages
                 wasAudioMessage = true;
@@ -572,7 +599,8 @@ export async function registerRoutes(
                   const aiResult = await generateAiResponse(
                     conversation.id,
                     messageForAi,
-                    recentMessages
+                    recentMessages,
+                    imageBase64ForAi
                   );
 
                   // Handle case where AI needs human help

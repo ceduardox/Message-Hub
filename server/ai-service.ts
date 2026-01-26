@@ -70,7 +70,8 @@ function findProductInHistory(recentMessages: Message[], products: Product[]): P
 export async function generateAiResponse(
   conversationId: number,
   userMessage: string,
-  recentMessages: Message[]
+  recentMessages: Message[],
+  imageBase64?: string // Optional: base64 encoded image for vision analysis
 ): Promise<{ response: string; imageUrl?: string; tokensUsed: number; orderReady?: boolean; needsHuman?: boolean } | null> {
   try {
     const settings = await storage.getAiSettings();
@@ -144,10 +145,26 @@ export async function generateAiResponse(
 - Si NO puedes responder la pregunta con la información disponible, escribe exactamente [NECESITO_HUMANO] y no respondas nada más.
 ${productContext ? `\n=== PRODUCTOS ===\n${productContext}` : ""}`;
 
+    // Build user message content - with or without image
+    let userContent: any = userMessage;
+    if (imageBase64) {
+      // Vision format: array with text and image
+      userContent = [
+        { type: "text", text: userMessage || "El cliente envió esta imagen. Analízala y responde." },
+        { 
+          type: "image_url", 
+          image_url: { 
+            url: `data:image/jpeg;base64,${imageBase64}`,
+            detail: "low" // Use low detail to save tokens
+          } 
+        }
+      ];
+    }
+
     const messages: any[] = [
       { role: "system", content: systemPrompt },
       ...conversationHistory,
-      { role: "user", content: userMessage },
+      { role: "user", content: userContent },
     ];
 
     // Use settings or defaults
