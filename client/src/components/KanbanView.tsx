@@ -82,7 +82,7 @@ export function KanbanView({ conversations, isLoading, daysToShow, onLoadMore, m
   );
   const llamar = conversations.filter(c => c.shouldCall && !c.needsHumanAttention);
   const listos = conversations.filter(c => c.orderStatus === "ready" && !c.needsHumanAttention);
-  const entregados = conversations.filter(c => c.orderStatus === "delivered");
+  const entregados = conversations.filter(c => c.orderStatus === "delivered" && !c.needsHumanAttention);
 
   if (isLoading) {
     return (
