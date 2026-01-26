@@ -613,12 +613,16 @@ export async function registerRoutes(
                       const ttsInstructions = settings?.ttsInstructions || null;
                       console.log("=== SENDING AUDIO RESPONSE with voice:", selectedVoice, "speed:", ttsSpeed, "===");
                       
+                      // Estimate TTS tokens (OpenAI charges per character, ~4 chars = 1 token)
+                      const ttsChars = aiResult.response.length;
+                      const estimatedTtsTokens = Math.ceil(ttsChars / 4);
+                      
                       // Log TTS attempt
                       await storage.createAiLog({
                         conversationId: conversation.id,
                         userMessage: `TTS_ATTEMPT: voice=${selectedVoice}, speed=${ttsSpeed}`,
                         aiResponse: aiResult.response.substring(0, 100),
-                        tokensUsed: 0,
+                        tokensUsed: estimatedTtsTokens,
                         success: true,
                       });
                       
@@ -630,9 +634,9 @@ export async function registerRoutes(
                         
                         await storage.createAiLog({
                           conversationId: conversation.id,
-                          userMessage: `TTS_SUCCESS`,
+                          userMessage: `TTS_SUCCESS: ${ttsChars} chars`,
                           aiResponse: `Audio sent with voice ${selectedVoice}`,
-                          tokensUsed: 0,
+                          tokensUsed: estimatedTtsTokens,
                           success: true,
                         });
                       } else {
