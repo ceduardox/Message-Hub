@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Send, Image as ImageIcon, Plus, Check, CheckCheck, MapPin, Bug, Copy, ExternalLink, X, Zap, Tag, Trash2, Package, PackageCheck, Truck, PackageX, Bot, BotOff, AlertCircle, Phone } from "lucide-react";
+import { Send, Image as ImageIcon, Plus, Check, CheckCheck, MapPin, Bug, Copy, ExternalLink, X, Zap, Tag, Trash2, Package, PackageCheck, Truck, PackageX, Bot, BotOff, AlertCircle, Phone, Lightbulb, Loader2 } from "lucide-react";
 import type { Conversation, Message, Label, QuickMessage } from "@shared/schema";
 import {
   DropdownMenu,
@@ -50,6 +50,10 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
   const [newQmName, setNewQmName] = useState("");
   const [newQmText, setNewQmText] = useState("");
   const [newQmImageUrl, setNewQmImageUrl] = useState("");
+  const [showLearnModal, setShowLearnModal] = useState(false);
+  const [learnFocus, setLearnFocus] = useState("");
+  const [learnMessageCount, setLearnMessageCount] = useState(10);
+  const [suggestedRule, setSuggestedRule] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const { mutate: sendMessage, isPending } = useSendMessage();
   const { toast } = useToast();
@@ -120,6 +124,50 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const learnMutation = useMutation({
+    mutationFn: async ({ focus, messageCount }: { focus: string; messageCount: number }) => {
+      const res = await fetch(`/api/ai/learn`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ conversationId: conversation.id, focus, messageCount }),
+      });
+      if (!res.ok) throw new Error("Error al analizar");
+      return res.json();
+    },
+    onSuccess: (data) => {
+      setSuggestedRule(data.suggestedRule);
+    },
+    onError: () => {
+      toast({ title: "Error al analizar conversación", variant: "destructive" });
+    },
+  });
+
+  const saveRuleMutation = useMutation({
+    mutationFn: async (rule: string) => {
+      const res = await fetch(`/api/ai/rules`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          rule, 
+          learnedFrom: learnFocus || "Análisis general",
+          conversationId: conversation.id 
+        }),
+      });
+      if (!res.ok) throw new Error("Error al guardar");
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Regla guardada correctamente" });
+      setShowLearnModal(false);
+      setSuggestedRule("");
+      setLearnFocus("");
+      queryClient.invalidateQueries({ queryKey: ["/api/ai/rules"] });
+    },
+    onError: () => {
+      toast({ title: "Error al guardar regla", variant: "destructive" });
     },
   });
 
@@ -367,6 +415,95 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
         >
           <Phone className="h-4 w-4" />
         </Button>
+
+        {/* Learn Button */}
+        <Dialog open={showLearnModal} onOpenChange={setShowLearnModal}>
+          <DialogTrigger asChild>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="flex-shrink-0"
+              title="Aprender de esta conversación"
+              data-testid="button-learn"
+            >
+              <Lightbulb className="h-4 w-4" />
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Aprender de esta conversación</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium">¿Qué quieres que aprenda?</label>
+                <Input
+                  placeholder="Ej: Cómo evité un reclamo, cómo cerré la venta..."
+                  value={learnFocus}
+                  onChange={(e) => setLearnFocus(e.target.value)}
+                  data-testid="input-learn-focus"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Mensajes a analizar: {learnMessageCount}</label>
+                <input
+                  type="range"
+                  min={5}
+                  max={50}
+                  value={learnMessageCount}
+                  onChange={(e) => setLearnMessageCount(parseInt(e.target.value))}
+                  className="w-full"
+                  data-testid="slider-message-count"
+                />
+              </div>
+              {!suggestedRule && (
+                <Button 
+                  onClick={() => learnMutation.mutate({ focus: learnFocus, messageCount: learnMessageCount })}
+                  disabled={learnMutation.isPending}
+                  className="w-full"
+                  data-testid="button-analyze"
+                >
+                  {learnMutation.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      Analizando...
+                    </>
+                  ) : (
+                    "Analizar conversación"
+                  )}
+                </Button>
+              )}
+              {suggestedRule && (
+                <div className="space-y-3">
+                  <label className="text-sm font-medium">Regla sugerida (puedes editarla):</label>
+                  <Textarea
+                    value={suggestedRule}
+                    onChange={(e) => setSuggestedRule(e.target.value)}
+                    rows={3}
+                    data-testid="textarea-suggested-rule"
+                  />
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setSuggestedRule("")}
+                      className="flex-1"
+                      data-testid="button-retry"
+                    >
+                      Reintentar
+                    </Button>
+                    <Button 
+                      onClick={() => saveRuleMutation.mutate(suggestedRule)}
+                      disabled={saveRuleMutation.isPending || !suggestedRule.trim()}
+                      className="flex-1"
+                      data-testid="button-save-rule"
+                    >
+                      {saveRuleMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Guardar regla"}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Order Status Dropdown */}
         <DropdownMenu>
