@@ -97,6 +97,25 @@ The server handles three main responsibilities:
   - Bot/BotOff toggle button in chat header
   - Clear attention button to dismiss alerts
 
+### AI Learning System
+- **Learn from Conversations**: Users can analyze conversations and extract sales strategies as rules
+- **Learn Button**: Lightbulb icon in chat header opens modal to:
+  - Enter focus/topic for what to learn (e.g., "how I closed the sale")
+  - Select number of messages to analyze (5-50 via slider)
+  - AI generates suggested rule, user can edit before saving
+- **Learned Rules Table**: Stores rules with id, rule text, learnedFrom, conversationId, isActive, createdAt
+- **Rules Management**: /ai-agent page shows all learned rules with:
+  - Toggle to enable/disable each rule
+  - Edit and delete buttons
+  - Origin and creation date display
+- **AI Integration**: Active learned rules are automatically included in the AI system prompt
+- **Endpoints**:
+  - POST /api/ai/learn - analyzes conversation and returns suggested rule
+  - GET /api/ai/rules - list all learned rules
+  - POST /api/ai/rules - save new rule
+  - PATCH /api/ai/rules/:id - update rule text or isActive status
+  - DELETE /api/ai/rules/:id - delete rule
+
 ### Follow-Up & Call Management
 - **Follow-Up Page**: /follow-up route to manage unresponded conversations
 - **Time Filters**: Filter by today, yesterday, before yesterday
