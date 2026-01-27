@@ -2,9 +2,24 @@ import { useState } from "react";
 import type { Conversation } from "@shared/schema";
 import { useConversation } from "@/hooks/use-inbox";
 import { ChatArea } from "./ChatArea";
-import { Phone, Clock, ChevronDown } from "lucide-react";
+import { Phone, Clock, ChevronDown, AlertCircle, Truck, CheckCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+
+// CSS animation keyframes added via style tag
+const pulseAnimation = `
+@keyframes pulse-urgent {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+@keyframes ring-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+  70% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+.animate-pulse-urgent { animation: pulse-urgent 1.5s ease-in-out infinite; }
+.animate-ring-pulse { animation: ring-pulse 1.5s ease-in-out infinite; }
+`;
 
 interface KanbanViewProps {
   conversations: Conversation[];
@@ -63,33 +78,64 @@ function KanbanCard({
   const getBadgeConfig = () => {
     switch (columnType) {
       case "humano":
-        return { text: "Interacción Humana", bgColor: "bg-emerald-100", textColor: "text-emerald-700", dotColor: "bg-emerald-500" };
+        return { text: "Urgente", bgColor: "bg-red-100", textColor: "text-red-700", dotColor: "bg-red-500" };
       case "llamar":
-        return { text: "test principal", bgColor: "bg-emerald-100", textColor: "text-emerald-700", dotColor: "bg-emerald-500" };
+        return { text: "Llamar", bgColor: "bg-emerald-100", textColor: "text-emerald-700", dotColor: "bg-emerald-500" };
       case "listo":
-        return { text: "Listo", bgColor: "bg-blue-100", textColor: "text-blue-700", dotColor: "bg-blue-500" };
+        return { text: "Listo para entregar", bgColor: "bg-blue-100", textColor: "text-blue-700", dotColor: "bg-blue-500" };
       case "entregado":
         return { text: "Entregado", bgColor: "bg-gray-100", textColor: "text-gray-600", dotColor: "bg-gray-500" };
       default:
         return null;
     }
   };
+
+  const getCardStyle = () => {
+    switch (columnType) {
+      case "humano":
+        return "border-l-4 border-l-red-500 bg-red-50/50";
+      case "llamar":
+        return "border-l-4 border-l-emerald-500 bg-emerald-50/50";
+      case "listo":
+        return "border-l-4 border-l-blue-500 bg-blue-50/50";
+      case "entregado":
+        return "border-l-4 border-l-gray-400 bg-gray-50/50";
+      default:
+        return "bg-white";
+    }
+  };
+
+  const getAvatarColor = () => {
+    switch (columnType) {
+      case "humano": return "bg-red-500";
+      case "llamar": return "bg-emerald-500";
+      case "listo": return "bg-blue-500";
+      case "entregado": return "bg-gray-500";
+      default: return "bg-primary";
+    }
+  };
   
   const badge = getBadgeConfig();
   const showPhone = conv.shouldCall || columnType === "llamar";
+  const isUrgent = columnType === "humano";
   
   return (
     <div
       onClick={onSelect}
       className={cn(
-        "bg-white rounded-xl p-4 shadow-sm cursor-pointer transition-all",
+        "rounded-xl p-4 shadow-sm cursor-pointer transition-all",
         "hover:shadow-md border border-gray-100",
-        isActive && "ring-2 ring-primary shadow-md"
+        getCardStyle(),
+        isActive && "ring-2 ring-primary shadow-md",
+        isUrgent && "animate-ring-pulse"
       )}
       data-testid={`kanban-card-${conv.id}`}
     >
       <div className="flex items-start gap-3">
-        <div className="w-11 h-11 rounded-full bg-red-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+        <div className={cn(
+          "w-11 h-11 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0",
+          getAvatarColor()
+        )}>
           {getInitials(name)}
         </div>
         
@@ -98,9 +144,20 @@ function KanbanCard({
             <span className="font-semibold text-gray-900 truncate">
               {name}
             </span>
-            {showPhone && (
-              <Phone className="h-5 w-5 text-emerald-500 flex-shrink-0" fill="currentColor" />
-            )}
+            <div className="flex items-center gap-1">
+              {isUrgent && (
+                <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0 animate-pulse-urgent" />
+              )}
+              {showPhone && (
+                <Phone className="h-5 w-5 text-emerald-500 flex-shrink-0 animate-pulse-urgent" fill="currentColor" />
+              )}
+              {columnType === "listo" && (
+                <CheckCircle className="h-5 w-5 text-blue-500 flex-shrink-0" />
+              )}
+              {columnType === "entregado" && (
+                <Truck className="h-5 w-5 text-gray-500 flex-shrink-0" />
+              )}
+            </div>
           </div>
           
           {badge && (
@@ -130,11 +187,65 @@ function KanbanCard({
 }
 
 function KanbanColumn({ title, items, activeId, onSelect, columnType }: ColumnProps) {
+  const getColumnHeaderStyle = () => {
+    switch (columnType) {
+      case "humano":
+        return "bg-red-500 text-white";
+      case "llamar":
+        return "bg-emerald-500 text-white";
+      case "listo":
+        return "bg-blue-500 text-white";
+      case "entregado":
+        return "bg-gray-500 text-white";
+      default:
+        return "bg-white text-gray-800";
+    }
+  };
+
+  const getColumnBgStyle = () => {
+    switch (columnType) {
+      case "humano":
+        return "bg-red-50";
+      case "llamar":
+        return "bg-emerald-50";
+      case "listo":
+        return "bg-blue-50";
+      case "entregado":
+        return "bg-gray-100";
+      default:
+        return "bg-gray-50";
+    }
+  };
+
+  const getColumnIcon = () => {
+    switch (columnType) {
+      case "humano":
+        return <AlertCircle className="h-4 w-4" />;
+      case "llamar":
+        return <Phone className="h-4 w-4" />;
+      case "listo":
+        return <CheckCircle className="h-4 w-4" />;
+      case "entregado":
+        return <Truck className="h-4 w-4" />;
+      default:
+        return <Clock className="h-4 w-4" />;
+    }
+  };
+
   return (
-    <div className="flex flex-col h-full min-w-0 flex-1 bg-gray-50">
-      <div className="flex items-center gap-2 px-4 py-3 bg-white border-b border-gray-100">
-        <span className="font-medium text-gray-800">{title}</span>
-        <span className="text-sm text-gray-400">{items.length}</span>
+    <div className={cn("flex flex-col h-full min-w-0 flex-1", getColumnBgStyle())}>
+      <div className={cn(
+        "flex items-center gap-2 px-4 py-3 border-b",
+        getColumnHeaderStyle()
+      )}>
+        {getColumnIcon()}
+        <span className="font-medium">{title}</span>
+        <span className={cn(
+          "text-sm px-2 py-0.5 rounded-full",
+          columnType === "nuevo" ? "bg-gray-200 text-gray-700" : "bg-white/20"
+        )}>
+          {items.length}
+        </span>
       </div>
       <div className="flex-1 overflow-y-auto p-3 space-y-3">
         {items.length === 0 ? (
@@ -179,6 +290,7 @@ export function KanbanView({ conversations, isLoading, daysToShow, onLoadMore, m
 
   return (
     <div className="h-full flex flex-col w-full bg-gray-100">
+      <style dangerouslySetInnerHTML={{ __html: pulseAnimation }} />
       <div className="flex-1 flex min-h-0">
         <div className="flex-1 grid grid-cols-5 gap-px min-h-0 overflow-hidden">
           <KanbanColumn
