@@ -25,6 +25,8 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { Slider } from "@/components/ui/slider";
 
 interface ChatAreaProps {
   conversation: Conversation;
@@ -129,15 +131,14 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
 
   const learnMutation = useMutation({
     mutationFn: async ({ focus, messageCount }: { focus: string; messageCount: number }) => {
-      const res = await fetch(`/api/ai/learn`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ conversationId: conversation.id, focus, messageCount }),
+      const clampedCount = Math.min(50, Math.max(5, messageCount));
+      return apiRequest("POST", "/api/ai/learn", { 
+        conversationId: conversation.id, 
+        focus: focus || "", 
+        messageCount: clampedCount 
       });
-      if (!res.ok) throw new Error("Error al analizar");
-      return res.json();
     },
-    onSuccess: (data) => {
+    onSuccess: (data: { suggestedRule: string }) => {
       setSuggestedRule(data.suggestedRule);
     },
     onError: () => {
@@ -147,17 +148,11 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
 
   const saveRuleMutation = useMutation({
     mutationFn: async (rule: string) => {
-      const res = await fetch(`/api/ai/rules`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          rule, 
-          learnedFrom: learnFocus || "Análisis general",
-          conversationId: conversation.id 
-        }),
+      return apiRequest("POST", "/api/ai/rules", { 
+        rule, 
+        learnedFrom: learnFocus || "Análisis general",
+        conversationId: conversation.id 
       });
-      if (!res.ok) throw new Error("Error al guardar");
-      return res.json();
     },
     onSuccess: () => {
       toast({ title: "Regla guardada correctamente" });
@@ -445,13 +440,13 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
               </div>
               <div>
                 <label className="text-sm font-medium">Mensajes a analizar: {learnMessageCount}</label>
-                <input
-                  type="range"
+                <Slider
                   min={5}
                   max={50}
-                  value={learnMessageCount}
-                  onChange={(e) => setLearnMessageCount(parseInt(e.target.value))}
-                  className="w-full"
+                  step={1}
+                  value={[learnMessageCount]}
+                  onValueChange={(value) => setLearnMessageCount(value[0])}
+                  className="w-full mt-2"
                   data-testid="slider-message-count"
                 />
               </div>
