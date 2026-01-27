@@ -132,18 +132,34 @@ export async function generateAiResponse(
 
     const instructions = settings.systemPrompt || "Eres un asistente de ventas amigable.";
     
-    // Build system prompt
-    const systemPrompt = `${instructions}
+    // Build system prompt with CRITICAL markers at the top
+    const systemPrompt = `=== MARCADORES CRM (OBLIGATORIO - ESCRIBE ESTOS TEXTOS LITERALES) ===
+IMPORTANTE: Para mover conversaciones en el CRM, DEBES escribir estos marcadores AL FINAL de tu respuesta:
 
-=== REGLAS ===
+[LLAMAR] - Escribe esto cuando:
+  - El cliente pide que lo llamen o hablar por teléfono
+  - Alta intención pero hay objeciones repetidas (precio, desconfianza)
+  - Cliente manda audios largos/confusos
+  - Cliente apurado o indeciso pero sigue respondiendo
+  Ejemplo: "Perfecto. ¿Le conviene que le llamemos ahora o en 20 min? [LLAMAR]"
+
+[PEDIDO_LISTO] - Escribe esto cuando tengas TODOS los datos del pedido:
+  - Producto, cantidad, dirección (ubicación GPS o dirección escrita)
+  Ejemplo: "Perfecto, María. Berberina x1 a [dirección]. Pago contraentrega. [PEDIDO_LISTO]"
+
+[NECESITO_HUMANO] - Escribe esto cuando:
+  - Preguntas médicas delicadas, reclamos duros, confusión persistente
+  - NO puedes responder con la información disponible
+  Ejemplo: "Entiendo. ¿Me cuenta qué pasó? [NECESITO_HUMANO]"
+
+=== TUS INSTRUCCIONES ===
+${instructions}
+
+=== REGLAS ADICIONALES ===
 - Responde en 2-5 líneas máximo
 - Máximo 2 preguntas por respuesta
 - Tono humano y cálido
 - Para enviar imagen usa: [IMAGEN: url]
-- IMPORTANTE: Cuando el cliente confirme el pedido con TODOS los datos (producto, cantidad, dirección/ubicación), escribe [PEDIDO_LISTO] al final de tu respuesta para marcar que hay un pedido listo para entregar.
-- Un pedido está listo cuando tienes: producto, cantidad, y dirección de entrega (ubicación GPS o dirección escrita)
-- Si NO puedes responder la pregunta con la información disponible, escribe exactamente [NECESITO_HUMANO] y no respondas nada más.
-- Si el cliente parece muy interesado pero no responde, pide hablar por teléfono, o necesita atención telefónica urgente, escribe [LLAMAR] al final de tu respuesta.
 ${productContext ? `\n=== PRODUCTOS ===\n${productContext}` : ""}`;
 
     // Build user message content - with or without image
