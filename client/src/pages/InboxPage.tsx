@@ -1,8 +1,6 @@
 import { useState, useMemo } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { useConversations, useConversation } from "@/hooks/use-inbox";
-import { ConversationList } from "@/components/ConversationList";
-import { ChatArea } from "@/components/ChatArea";
+import { useConversations } from "@/hooks/use-inbox";
 import { NotificationBell } from "@/components/NotificationBell";
 import { KanbanView } from "@/components/KanbanView";
 import { Button } from "@/components/ui/button";
@@ -11,12 +9,10 @@ import { Link } from "wouter";
 
 export default function InboxPage() {
   const { logout, user } = useAuth();
-  const [activeId, setActiveId] = useState<number | null>(null);
   const [daysToShow, setDaysToShow] = useState(1);
   const maxDays = 3;
   
   const { data: conversations = [], isLoading: loadingList } = useConversations();
-  const { data: activeConversation } = useConversation(activeId);
 
   const filteredConversations = useMemo(() => {
     const now = new Date();
@@ -60,8 +56,8 @@ export default function InboxPage() {
         </div>
       </div>
 
-      {/* Desktop Kanban View */}
-      <div className="hidden md:flex flex-1 min-h-0">
+      {/* Kanban View - responsive para móvil y desktop */}
+      <div className="flex flex-1 min-h-0">
         <KanbanView
           conversations={filteredConversations}
           isLoading={loadingList}
@@ -69,59 +65,6 @@ export default function InboxPage() {
           onLoadMore={handleLoadMore}
           maxDays={maxDays}
         />
-      </div>
-
-      {/* Mobile: Lista de conversaciones (vista original) */}
-      <div className={`md:hidden flex flex-col h-full ${activeId ? 'hidden' : 'flex'}`}>
-        <div className="flex-1 overflow-hidden">
-          <ConversationList 
-            conversations={filteredConversations}
-            activeId={activeId}
-            onSelect={setActiveId}
-            isLoading={loadingList}
-          />
-        </div>
-        <div className="p-4 border-t border-border space-y-2 flex-shrink-0 bg-background">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium">{user?.username}</span>
-            <NotificationBell />
-          </div>
-          <Link href="/ai-agent">
-            <Button variant="outline" className="w-full justify-start" data-testid="button-ai-agent-mobile">
-              <Bot className="mr-2 h-4 w-4" />
-              Agente IA
-            </Button>
-          </Link>
-          <Link href="/follow-up">
-            <Button variant="outline" className="w-full justify-start" data-testid="button-follow-up-mobile">
-              <ClipboardList className="mr-2 h-4 w-4" />
-              Seguimiento
-            </Button>
-          </Link>
-          <Button variant="outline" className="w-full justify-start text-muted-foreground" onClick={() => logout()}>
-            <LogOut className="mr-2 h-4 w-4" />
-            Cerrar Sesión
-          </Button>
-        </div>
-      </div>
-
-      {/* Mobile Chat View */}
-      <div className={`md:hidden flex flex-col h-full ${activeId ? 'flex' : 'hidden'}`}>
-        {activeId && activeConversation && (
-          <>
-            <div className="p-2 bg-white border-b border-border flex items-center flex-shrink-0">
-              <Button variant="ghost" size="sm" onClick={() => setActiveId(null)}>
-                ← Volver
-              </Button>
-            </div>
-            <div className="flex-1 min-h-0">
-              <ChatArea 
-                conversation={activeConversation.conversation} 
-                messages={activeConversation.messages} 
-              />
-            </div>
-          </>
-        )}
       </div>
     </div>
   );
