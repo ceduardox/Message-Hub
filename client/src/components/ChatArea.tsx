@@ -132,11 +132,12 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
   const learnMutation = useMutation({
     mutationFn: async ({ focus, messageCount }: { focus: string; messageCount: number }) => {
       const clampedCount = Math.min(50, Math.max(5, messageCount));
-      return apiRequest("POST", "/api/ai/learn", { 
+      const res = await apiRequest("POST", "/api/ai/learn", { 
         conversationId: conversation.id, 
         focus: focus || "", 
         messageCount: clampedCount 
       });
+      return res.json();
     },
     onSuccess: (data: { suggestedRule: string }) => {
       setSuggestedRule(data.suggestedRule);
@@ -148,11 +149,12 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
 
   const saveRuleMutation = useMutation({
     mutationFn: async (rule: string) => {
-      return apiRequest("POST", "/api/ai/rules", { 
+      const res = await apiRequest("POST", "/api/ai/rules", { 
         rule, 
         learnedFrom: learnFocus || "Análisis general",
         conversationId: conversation.id 
       });
+      return res.json();
     },
     onSuccess: () => {
       toast({ title: "Regla guardada correctamente" });
