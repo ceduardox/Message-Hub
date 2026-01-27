@@ -9,6 +9,7 @@ import {
   aiLogs,
   products,
   purchaseAnalyses,
+  learnedRules,
   type Conversation,
   type InsertConversation,
   type Message,
@@ -27,6 +28,8 @@ import {
   type InsertProduct,
   type PurchaseAnalysis,
   type InsertPurchaseAnalysis,
+  type LearnedRule,
+  type InsertLearnedRule,
 } from "@shared/schema";
 import { eq, desc, asc } from "drizzle-orm";
 
@@ -77,6 +80,13 @@ export interface IStorage {
   // Purchase Analysis History
   getPurchaseAnalyses(conversationId: number): Promise<PurchaseAnalysis[]>;
   createPurchaseAnalysis(analysis: InsertPurchaseAnalysis): Promise<PurchaseAnalysis>;
+
+  // Learned Rules
+  getLearnedRules(): Promise<LearnedRule[]>;
+  getActiveLearnedRules(): Promise<LearnedRule[]>;
+  createLearnedRule(rule: InsertLearnedRule): Promise<LearnedRule>;
+  updateLearnedRule(id: number, rule: Partial<InsertLearnedRule>): Promise<LearnedRule>;
+  deleteLearnedRule(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -252,6 +262,29 @@ export class DatabaseStorage implements IStorage {
   async createPurchaseAnalysis(analysis: InsertPurchaseAnalysis): Promise<PurchaseAnalysis> {
     const [created] = await db.insert(purchaseAnalyses).values(analysis).returning();
     return created;
+  }
+
+  // Learned Rules
+  async getLearnedRules(): Promise<LearnedRule[]> {
+    return await db.select().from(learnedRules).orderBy(desc(learnedRules.createdAt));
+  }
+
+  async getActiveLearnedRules(): Promise<LearnedRule[]> {
+    return await db.select().from(learnedRules).where(eq(learnedRules.isActive, true)).orderBy(desc(learnedRules.createdAt));
+  }
+
+  async createLearnedRule(rule: InsertLearnedRule): Promise<LearnedRule> {
+    const [created] = await db.insert(learnedRules).values(rule).returning();
+    return created;
+  }
+
+  async updateLearnedRule(id: number, rule: Partial<InsertLearnedRule>): Promise<LearnedRule> {
+    const [updated] = await db.update(learnedRules).set(rule).where(eq(learnedRules.id, id)).returning();
+    return updated;
+  }
+
+  async deleteLearnedRule(id: number): Promise<void> {
+    await db.delete(learnedRules).where(eq(learnedRules.id, id));
   }
 }
 

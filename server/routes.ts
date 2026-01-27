@@ -1303,6 +1303,127 @@ NO uses saludos formales. Sé directo y amigable.`
     }
   });
 
+  // === LEARNED RULES ROUTES ===
+
+  // Get all learned rules
+  app.get("/api/ai/rules", requireAuth, async (req, res) => {
+    try {
+      const rules = await storage.getLearnedRules();
+      res.json(rules);
+    } catch (error) {
+      console.error("Error fetching learned rules:", error);
+      res.status(500).json({ message: "Error fetching learned rules" });
+    }
+  });
+
+  // Create learned rule
+  app.post("/api/ai/rules", requireAuth, async (req, res) => {
+    try {
+      const { rule, learnedFrom, conversationId } = req.body;
+      if (!rule) {
+        return res.status(400).json({ message: "La regla es requerida" });
+      }
+      const created = await storage.createLearnedRule({
+        rule,
+        learnedFrom: learnedFrom || null,
+        conversationId: conversationId || null,
+        isActive: true,
+      });
+      res.json(created);
+    } catch (error) {
+      console.error("Error creating learned rule:", error);
+      res.status(500).json({ message: "Error creating learned rule" });
+    }
+  });
+
+  // Update learned rule
+  app.patch("/api/ai/rules/:id", requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { rule, isActive } = req.body;
+      const updated = await storage.updateLearnedRule(id, { rule, isActive });
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating learned rule:", error);
+      res.status(500).json({ message: "Error updating learned rule" });
+    }
+  });
+
+  // Delete learned rule
+  app.delete("/api/ai/rules/:id", requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteLearnedRule(id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting learned rule:", error);
+      res.status(500).json({ message: "Error deleting learned rule" });
+    }
+  });
+
+  // Learn from conversation - AI analyzes and suggests a rule
+  app.post("/api/ai/learn", requireAuth, async (req, res) => {
+    try {
+      const { conversationId, focus, messageCount } = req.body;
+      
+      if (!conversationId) {
+        return res.status(400).json({ message: "conversationId es requerido" });
+      }
+
+      const conversation = await storage.getConversation(conversationId);
+      if (!conversation) {
+        return res.status(404).json({ message: "Conversación no encontrada" });
+      }
+
+      const messages = await storage.getMessages(conversationId);
+      const recentMessages = messages.slice(-(messageCount || 10));
+
+      if (recentMessages.length === 0) {
+        return res.status(400).json({ message: "No hay mensajes para analizar" });
+      }
+
+      const conversationText = recentMessages.map(m => 
+        `${m.direction === 'in' ? 'Cliente' : 'Agente'}: ${m.text || `[${m.type}]`}`
+      ).join('\n');
+
+      const focusPrompt = focus 
+        ? `Enfócate específicamente en: ${focus}`
+        : 'Identifica la lección o estrategia más importante';
+
+      const prompt = `Analiza esta conversación de ventas por WhatsApp y extrae UNA regla o estrategia que se pueda aplicar en futuras conversaciones.
+
+${focusPrompt}
+
+CONVERSACIÓN:
+${conversationText}
+
+Responde SOLO con la regla/estrategia en formato: "Cuando [situación], entonces [acción/respuesta]"
+Máximo 2 líneas. Sé específico y práctico.`;
+
+      const openai = new (await import('openai')).default({
+        apiKey: process.env.OPENAI_API_KEY,
+      });
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [{ role: "user", content: prompt }],
+        max_tokens: 150,
+        temperature: 0.3,
+      });
+
+      const suggestedRule = completion.choices[0]?.message?.content?.trim() || "";
+
+      res.json({
+        suggestedRule,
+        tokensUsed: completion.usage?.total_tokens || 0,
+        conversationId,
+      });
+    } catch (error: any) {
+      console.error("Error learning from conversation:", error);
+      res.status(500).json({ message: error.message || "Error al analizar conversación" });
+    }
+  });
+
   // === PRODUCTS ROUTES ===
 
   // Get all products
