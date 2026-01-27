@@ -132,6 +132,12 @@ export async function generateAiResponse(
 
     const instructions = settings.systemPrompt || "Eres un asistente de ventas amigable.";
     
+    // Get active learned rules
+    const learnedRules = await storage.getActiveLearnedRules();
+    const learnedRulesContext = learnedRules.length > 0 
+      ? "\n=== REGLAS APRENDIDAS ===\n" + learnedRules.map(r => `- ${r.rule}`).join("\n")
+      : "";
+    
     // Build system prompt
     const systemPrompt = `${instructions}
 
@@ -144,6 +150,7 @@ export async function generateAiResponse(
 - Un pedido está listo cuando tienes: producto, cantidad, y dirección de entrega (ubicación GPS o dirección escrita)
 - Si NO puedes responder la pregunta con la información disponible, escribe exactamente [NECESITO_HUMANO] y no respondas nada más.
 - Si el cliente pide que lo llamen, menciona llamada telefónica, o detectas que una llamada cerraría la venta (NEUROVENTA), escribe [LLAMAR] al final. Recuerda: ya tienes su número de WhatsApp, NO le pidas número.
+${learnedRulesContext}
 ${productContext ? `\n=== PRODUCTOS ===\n${productContext}` : ""}`;
 
     // Build user message content - with or without image
