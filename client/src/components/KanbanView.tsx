@@ -266,8 +266,19 @@ function KanbanColumn({ title, items, activeId, onSelect, columnType }: ColumnPr
   );
 }
 
+type TabType = "humano" | "nuevo" | "llamar" | "listo" | "entregado";
+
+const tabConfig: { key: TabType; label: string; shortLabel: string; icon: typeof AlertCircle }[] = [
+  { key: "humano", label: "Interacción Humana", shortLabel: "Humano", icon: AlertCircle },
+  { key: "nuevo", label: "Esperando Confirmaci.", shortLabel: "Nuevos", icon: Clock },
+  { key: "llamar", label: "Llamar", shortLabel: "Llamar", icon: Phone },
+  { key: "listo", label: "Listo para Enviar", shortLabel: "Listo", icon: CheckCircle },
+  { key: "entregado", label: "Enviados y Entregados", shortLabel: "Enviado", icon: Truck },
+];
+
 export function KanbanView({ conversations, isLoading, daysToShow, onLoadMore, maxDays }: KanbanViewProps) {
   const [activeId, setActiveId] = useState<number | null>(null);
+  const [mobileTab, setMobileTab] = useState<TabType>("humano");
   const { data: activeConversation } = useConversation(activeId);
 
   const humano = conversations.filter(c => c.needsHumanAttention);
@@ -280,6 +291,25 @@ export function KanbanView({ conversations, isLoading, daysToShow, onLoadMore, m
     !c.orderStatus && !c.shouldCall && !c.needsHumanAttention
   );
 
+  const columnData: Record<TabType, { items: Conversation[]; title: string }> = {
+    humano: { items: humano, title: "Interacción Humana" },
+    nuevo: { items: nuevos, title: "Esperando Confirmaci." },
+    llamar: { items: llamar, title: "Llamar" },
+    listo: { items: listos, title: "Listo para Enviar" },
+    entregado: { items: entregados, title: "Enviados y Entregados" },
+  };
+
+  const getTabColor = (tab: TabType, isActive: boolean) => {
+    const colors: Record<TabType, string> = {
+      humano: isActive ? "bg-red-500 text-white" : "text-red-600",
+      nuevo: isActive ? "bg-gray-600 text-white" : "text-gray-600",
+      llamar: isActive ? "bg-emerald-500 text-white" : "text-emerald-600",
+      listo: isActive ? "bg-blue-500 text-white" : "text-blue-600",
+      entregado: isActive ? "bg-gray-500 text-white" : "text-gray-500",
+    };
+    return colors[tab];
+  };
+
   if (isLoading) {
     return (
       <div className="h-full flex items-center justify-center">
@@ -291,7 +321,66 @@ export function KanbanView({ conversations, isLoading, daysToShow, onLoadMore, m
   return (
     <div className="h-full flex flex-col w-full bg-gray-100">
       <style dangerouslySetInnerHTML={{ __html: pulseAnimation }} />
-      <div className="flex-1 flex min-h-0">
+      
+      {/* Mobile: Tab bar */}
+      <div className="md:hidden flex overflow-x-auto bg-white border-b gap-1 p-1">
+        {tabConfig.map((tab) => {
+          const Icon = tab.icon;
+          const count = columnData[tab.key].items.length;
+          return (
+            <button
+              key={tab.key}
+              onClick={() => setMobileTab(tab.key)}
+              className={cn(
+                "flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors",
+                getTabColor(tab.key, mobileTab === tab.key)
+              )}
+              data-testid={`tab-${tab.key}`}
+            >
+              <Icon className="h-4 w-4" />
+              <span>{tab.shortLabel}</span>
+              <span className={cn(
+                "text-xs px-1.5 rounded-full",
+                mobileTab === tab.key ? "bg-white/30" : "bg-gray-200"
+              )}>
+                {count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Mobile: Single column view */}
+      <div className="md:hidden flex-1 overflow-hidden">
+        {activeId && activeConversation ? (
+          <div className="h-full flex flex-col bg-white">
+            <button
+              onClick={() => setActiveId(null)}
+              className="p-3 border-b text-left text-sm text-primary font-medium"
+              data-testid="button-back-kanban"
+            >
+              ← Volver al Kanban
+            </button>
+            <div className="flex-1 overflow-hidden">
+              <ChatArea
+                conversation={activeConversation.conversation}
+                messages={activeConversation.messages}
+              />
+            </div>
+          </div>
+        ) : (
+          <KanbanColumn
+            title={columnData[mobileTab].title}
+            items={columnData[mobileTab].items}
+            activeId={activeId}
+            onSelect={setActiveId}
+            columnType={mobileTab}
+          />
+        )}
+      </div>
+
+      {/* Desktop: Grid view */}
+      <div className="hidden md:flex flex-1 min-h-0">
         <div className="flex-1 grid grid-cols-5 gap-px min-h-0 overflow-hidden">
           <KanbanColumn
             title="Interacción Humana"
@@ -340,7 +429,7 @@ export function KanbanView({ conversations, isLoading, daysToShow, onLoadMore, m
         ) : null}
       </div>
 
-      {daysToShow < maxDays && (
+      {daysToShow < maxDays && !activeId && (
         <div className="p-2 border-t bg-white flex justify-center">
           <Button
             variant="outline"
