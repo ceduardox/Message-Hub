@@ -63,6 +63,15 @@ interface AiLog {
   createdAt: string;
 }
 
+interface LearnedRule {
+  id: number;
+  rule: string;
+  learnedFrom: string | null;
+  conversationId: number | null;
+  isActive: boolean;
+  createdAt: string;
+}
+
 export default function AIAgentPage() {
   const { toast } = useToast();
   const [systemPrompt, setSystemPrompt] = useState("");
@@ -106,6 +115,35 @@ export default function AIAgentPage() {
   const { data: logs = [], isLoading: logsLoading } = useQuery<AiLog[]>({
     queryKey: ["/api/ai/logs"],
     refetchInterval: 10000,
+  });
+
+  const { data: learnedRules = [], isLoading: rulesLoading } = useQuery<LearnedRule[]>({
+    queryKey: ["/api/ai/rules"],
+  });
+
+  // State for editing rules
+  const [editingRuleId, setEditingRuleId] = useState<number | null>(null);
+  const [editRuleText, setEditRuleText] = useState("");
+
+  const deleteRuleMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return apiRequest("DELETE", `/api/ai/rules/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/ai/rules"] });
+      toast({ title: "Regla eliminada" });
+    },
+  });
+
+  const updateRuleMutation = useMutation({
+    mutationFn: async ({ id, rule, isActive }: { id: number; rule?: string; isActive?: boolean }) => {
+      return apiRequest("PATCH", `/api/ai/rules/${id}`, { rule, isActive });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/ai/rules"] });
+      toast({ title: "Regla actualizada" });
+      setEditingRuleId(null);
+    },
   });
 
   useEffect(() => {
@@ -679,6 +717,105 @@ export default function AIAgentPage() {
             ) : (
               <p className="text-sm text-muted-foreground text-center py-4">
                 No hay productos. Agrega tu primer producto arriba.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Learned Rules Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Reglas Aprendidas</CardTitle>
+            <CardDescription>
+              El agente usa estas reglas en sus respuestas. Haz clic en el icono de bombilla en el chat para agregar nuevas.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {rulesLoading ? (
+              <div className="flex justify-center py-4">
+                <Loader2 className="h-6 w-6 animate-spin" />
+              </div>
+            ) : learnedRules.length > 0 ? (
+              <div className="space-y-3">
+                {learnedRules.map((rule) => (
+                  <div 
+                    key={rule.id} 
+                    className={`p-3 border rounded-md ${!rule.isActive ? 'opacity-50' : ''}`}
+                    data-testid={`learned-rule-${rule.id}`}
+                  >
+                    {editingRuleId === rule.id ? (
+                      <div className="space-y-2">
+                        <Textarea
+                          value={editRuleText}
+                          onChange={(e) => setEditRuleText(e.target.value)}
+                          rows={2}
+                          data-testid="textarea-edit-rule"
+                        />
+                        <div className="flex gap-2">
+                          <Button 
+                            size="sm" 
+                            onClick={() => updateRuleMutation.mutate({ id: rule.id, rule: editRuleText })}
+                            data-testid="button-save-rule-edit"
+                          >
+                            <Check className="h-3 w-3 mr-1" /> Guardar
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            onClick={() => setEditingRuleId(null)}
+                            data-testid="button-cancel-rule-edit"
+                          >
+                            Cancelar
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <p className="text-sm mb-2">{rule.rule}</p>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground">
+                              {rule.learnedFrom || "General"}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {new Date(rule.createdAt).toLocaleDateString()}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Switch
+                              checked={rule.isActive}
+                              onCheckedChange={(checked) => updateRuleMutation.mutate({ id: rule.id, isActive: checked })}
+                              data-testid={`switch-rule-active-${rule.id}`}
+                            />
+                            <Button 
+                              size="icon" 
+                              variant="ghost"
+                              onClick={() => {
+                                setEditingRuleId(rule.id);
+                                setEditRuleText(rule.rule);
+                              }}
+                              data-testid={`button-edit-rule-${rule.id}`}
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                            <Button 
+                              size="icon" 
+                              variant="ghost"
+                              onClick={() => deleteRuleMutation.mutate(rule.id)}
+                              data-testid={`button-delete-rule-${rule.id}`}
+                            >
+                              <Trash2 className="h-3 w-3 text-destructive" />
+                            </Button>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                No hay reglas aprendidas aún. Usa el botón de bombilla en el chat para analizar conversaciones.
               </p>
             )}
           </CardContent>
