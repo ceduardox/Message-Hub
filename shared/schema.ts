@@ -124,6 +124,8 @@ export const aiSettings = pgTable("ai_settings", {
   audioVoice: varchar("audio_voice", { length: 20 }).default("nova"), // TTS voice: nova, alloy, echo, shimmer, coral, sage, ash, ballad, verse
   ttsSpeed: integer("tts_speed").default(100), // 25-400, divide by 100 for actual value (0.25x - 4.0x)
   ttsInstructions: text("tts_instructions"), // Only for realistic voices - describes tone/style
+  learningMode: boolean("learning_mode").default(false), // Enable/disable learning from human responses
+  learningMessageCount: integer("learning_message_count").default(10), // How many messages to read for learning
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
@@ -188,3 +190,18 @@ export const purchaseAnalyses = pgTable("purchase_analyses", {
 export const insertPurchaseAnalysisSchema = createInsertSchema(purchaseAnalyses).omit({ id: true, createdAt: true });
 export type PurchaseAnalysis = typeof purchaseAnalyses.$inferSelect;
 export type InsertPurchaseAnalysis = z.infer<typeof insertPurchaseAnalysisSchema>;
+
+// === LEARNED RULES TABLE ===
+
+export const learnedRules = pgTable("learned_rules", {
+  id: serial("id").primaryKey(),
+  rule: text("rule").notNull(),
+  learnedFrom: text("learned_from"),
+  conversationId: integer("conversation_id").references(() => conversations.id),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertLearnedRuleSchema = createInsertSchema(learnedRules).omit({ id: true, createdAt: true });
+export type LearnedRule = typeof learnedRules.$inferSelect;
+export type InsertLearnedRule = z.infer<typeof insertLearnedRuleSchema>;
