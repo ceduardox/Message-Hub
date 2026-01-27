@@ -711,6 +711,12 @@ export async function registerRoutes(
                       console.log("=== MARKING ORDER AS READY ===", conversation.id);
                     }
                     
+                    // Mark shouldCall if AI suggests calling client
+                    if (aiResult.shouldCall) {
+                      updateData.shouldCall = true;
+                      console.log("=== MARKING SHOULD CALL ===", conversation.id);
+                    }
+                    
                     await storage.updateConversation(conversation.id, updateData);
 
                     // Send image if AI included one
