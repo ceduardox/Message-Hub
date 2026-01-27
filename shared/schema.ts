@@ -141,6 +141,7 @@ export const aiLogs = pgTable("ai_logs", {
   userMessage: text("user_message"),
   aiResponse: text("ai_response"),
   tokensUsed: integer("tokens_used"),
+  markersDetected: text("markers_detected"), // Comma-separated: "LLAMAR,PEDIDO_LISTO"
   success: boolean("success").default(true),
   error: text("error"),
   createdAt: timestamp("created_at").defaultNow(),

@@ -133,27 +133,27 @@ export async function generateAiResponse(
     const instructions = settings.systemPrompt || "Eres un asistente de ventas amigable.";
     
     // Build system prompt with CRITICAL markers at the top
-    const systemPrompt = `=== MARCADORES CRM (OBLIGATORIO - ESCRIBE ESTOS TEXTOS AL FINAL) ===
-Para mover conversaciones en el CRM, escribe estos marcadores AL FINAL de tu respuesta.
-Puedes usar varios marcadores juntos si aplican. El cliente NO verá estos marcadores.
+    const systemPrompt = `=== MARCADORES CRM (OBLIGATORIO) ===
+Escribe estos marcadores AL FINAL de tu respuesta. El cliente NO los verá.
 
-[LLAMAR] - Cuando:
-  - Cliente pide que lo llamen o hablar por teléfono
-  - Alta intención + objeciones repetidas (precio, desconfianza)
-  - Cliente manda audios largos/confusos
-  - Cliente apurado/indeciso pero sigue respondiendo
+[LLAMAR] - Usa cuando el cliente dice:
+  "quiero que me llamen" / "llámame" / "prefiero hablar por teléfono"
+  "no entiendo" (repetido) / envía audios largos confusos
+  Tiene alta intención pero muchas objeciones (precio, desconfianza)
 
-[PEDIDO_LISTO] - Cuando tengas TODOS los datos:
-  - Producto + cantidad + dirección (ubicación GPS o escrita)
-  - Ejemplo: "Listo, María. Berberina x1 a tu ubicación. Contraentrega. [PEDIDO_LISTO]"
+[PEDIDO_LISTO] - Usa cuando tengas TODOS estos datos:
+  ✓ Producto (qué quiere)
+  ✓ Cantidad (cuántos, si no dice asumir 1)
+  ✓ Dirección (ubicación GPS, link de maps, o dirección escrita)
+  Cliente dice: "sí, lo quiero" + ya diste confirmación con todos los datos
 
-[ENTREGADO] - Cuando el cliente confirme que recibió el pedido:
-  - Cliente dice "ya llegó", "lo recibí", "ya me lo entregaron"
-  - Ejemplo: "Perfecto, gracias por confirmar. [ENTREGADO]"
+[ENTREGADO] - Usa cuando el cliente confirma recepción:
+  "ya llegó" / "ya lo recibí" / "me lo entregaron" / "ya tengo el producto"
 
-[NECESITO_HUMANO] - Cuando:
-  - Preguntas médicas delicadas, reclamos duros, confusión persistente
-  - NO puedes responder con la información disponible
+[NECESITO_HUMANO] - Usa cuando:
+  Reclamo fuerte: "estafa" / "devuélvanme" / "no llegó" / "llegó mal"
+  Pregunta médica delicada que no puedes responder
+  Confusión persistente después de 2 intentos
 
 === TUS INSTRUCCIONES ===
 ${instructions}
@@ -163,7 +163,10 @@ ${instructions}
 - Máximo 2 preguntas por respuesta
 - Tono humano y cálido
 - Para enviar imagen usa: [IMAGEN: url]
-${productContext ? `\n=== PRODUCTOS ===\n${productContext}` : ""}`;
+${productContext ? `\n=== PRODUCTOS ===\n${productContext}` : ""}
+
+=== RECORDATORIO FINAL ===
+NO OLVIDES: Si aplica algún marcador ([LLAMAR], [PEDIDO_LISTO], [ENTREGADO], [NECESITO_HUMANO]), escríbelo AL FINAL de tu respuesta.`;
 
     // Build user message content - with or without image
     let userContent: any = userMessage;
@@ -249,6 +252,7 @@ ${productContext ? `\n=== PRODUCTOS ===\n${productContext}` : ""}`;
       userMessage,
       aiResponse: responseText,
       tokensUsed,
+      markersDetected: markers.length > 0 ? markers.join(",") : null,
       success: true,
     });
 
