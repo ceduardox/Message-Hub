@@ -711,6 +711,12 @@ export async function registerRoutes(
                       console.log("=== MARKING ORDER AS READY ===", conversation.id);
                     }
                     
+                    // Mark for calling if AI detected shouldCall (NEUROVENTA)
+                    if (aiResult.shouldCall) {
+                      updateData.shouldCall = true;
+                      console.log("=== MARKING FOR CALL (NEUROVENTA) ===", conversation.id);
+                    }
+                    
                     await storage.updateConversation(conversation.id, updateData);
 
                     // Send image if AI included one

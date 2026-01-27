@@ -72,7 +72,7 @@ export async function generateAiResponse(
   userMessage: string,
   recentMessages: Message[],
   imageBase64?: string // Optional: base64 encoded image for vision analysis
-): Promise<{ response: string; imageUrl?: string; tokensUsed: number; orderReady?: boolean; needsHuman?: boolean } | null> {
+): Promise<{ response: string; imageUrl?: string; tokensUsed: number; orderReady?: boolean; needsHuman?: boolean; shouldCall?: boolean } | null> {
   try {
     const settings = await storage.getAiSettings();
     if (!settings?.enabled) {
@@ -143,6 +143,7 @@ export async function generateAiResponse(
 - IMPORTANTE: Cuando el cliente confirme el pedido con TODOS los datos (producto, cantidad, dirección/ubicación), escribe [PEDIDO_LISTO] al final de tu respuesta para marcar que hay un pedido listo para entregar.
 - Un pedido está listo cuando tienes: producto, cantidad, y dirección de entrega (ubicación GPS o dirección escrita)
 - Si NO puedes responder la pregunta con la información disponible, escribe exactamente [NECESITO_HUMANO] y no respondas nada más.
+- Si el cliente pide que lo llamen, menciona llamada telefónica, o detectas que una llamada cerraría la venta (NEUROVENTA), escribe [LLAMAR] al final. Recuerda: ya tienes su número de WhatsApp, NO le pidas número.
 ${productContext ? `\n=== PRODUCTOS ===\n${productContext}` : ""}`;
 
     // Build user message content - with or without image
@@ -206,6 +207,13 @@ ${productContext ? `\n=== PRODUCTOS ===\n${productContext}` : ""}`;
       console.log("=== NEEDS HUMAN ATTENTION ===", { conversationId });
     }
 
+    // Check if should call (NEUROVENTA or explicit request)
+    const shouldCall = cleanResponse.includes("[LLAMAR]");
+    if (shouldCall) {
+      cleanResponse = cleanResponse.replace(/\[LLAMAR\]/gi, "").trim();
+      console.log("=== SHOULD CALL DETECTED ===", { conversationId });
+    }
+
     await storage.createAiLog({
       conversationId,
       userMessage,
@@ -214,7 +222,7 @@ ${productContext ? `\n=== PRODUCTOS ===\n${productContext}` : ""}`;
       success: true,
     });
 
-    return { response: needsHuman ? "" : cleanResponse, imageUrl: needsHuman ? undefined : imageUrl, tokensUsed, orderReady, needsHuman };
+    return { response: needsHuman ? "" : cleanResponse, imageUrl: needsHuman ? undefined : imageUrl, tokensUsed, orderReady, needsHuman, shouldCall };
   } catch (error: any) {
     console.error("AI Error:", error);
     
