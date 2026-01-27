@@ -72,7 +72,7 @@ export async function generateAiResponse(
   userMessage: string,
   recentMessages: Message[],
   imageBase64?: string // Optional: base64 encoded image for vision analysis
-): Promise<{ response: string; imageUrl?: string; tokensUsed: number; orderReady?: boolean; needsHuman?: boolean; shouldCall?: boolean } | null> {
+): Promise<{ response: string; imageUrl?: string; tokensUsed: number; orderReady?: boolean; needsHuman?: boolean; shouldCall?: boolean; delivered?: boolean } | null> {
   try {
     const settings = await storage.getAiSettings();
     if (!settings?.enabled) {
@@ -133,24 +133,27 @@ export async function generateAiResponse(
     const instructions = settings.systemPrompt || "Eres un asistente de ventas amigable.";
     
     // Build system prompt with CRITICAL markers at the top
-    const systemPrompt = `=== MARCADORES CRM (OBLIGATORIO - ESCRIBE ESTOS TEXTOS LITERALES) ===
-IMPORTANTE: Para mover conversaciones en el CRM, DEBES escribir estos marcadores AL FINAL de tu respuesta:
+    const systemPrompt = `=== MARCADORES CRM (OBLIGATORIO - ESCRIBE ESTOS TEXTOS AL FINAL) ===
+Para mover conversaciones en el CRM, escribe estos marcadores AL FINAL de tu respuesta.
+Puedes usar varios marcadores juntos si aplican. El cliente NO verá estos marcadores.
 
-[LLAMAR] - Escribe esto cuando:
-  - El cliente pide que lo llamen o hablar por teléfono
-  - Alta intención pero hay objeciones repetidas (precio, desconfianza)
+[LLAMAR] - Cuando:
+  - Cliente pide que lo llamen o hablar por teléfono
+  - Alta intención + objeciones repetidas (precio, desconfianza)
   - Cliente manda audios largos/confusos
-  - Cliente apurado o indeciso pero sigue respondiendo
-  Ejemplo: "Perfecto. ¿Le conviene que le llamemos ahora o en 20 min? [LLAMAR]"
+  - Cliente apurado/indeciso pero sigue respondiendo
 
-[PEDIDO_LISTO] - Escribe esto cuando tengas TODOS los datos del pedido:
-  - Producto, cantidad, dirección (ubicación GPS o dirección escrita)
-  Ejemplo: "Perfecto, María. Berberina x1 a [dirección]. Pago contraentrega. [PEDIDO_LISTO]"
+[PEDIDO_LISTO] - Cuando tengas TODOS los datos:
+  - Producto + cantidad + dirección (ubicación GPS o escrita)
+  - Ejemplo: "Listo, María. Berberina x1 a tu ubicación. Contraentrega. [PEDIDO_LISTO]"
 
-[NECESITO_HUMANO] - Escribe esto cuando:
+[ENTREGADO] - Cuando el cliente confirme que recibió el pedido:
+  - Cliente dice "ya llegó", "lo recibí", "ya me lo entregaron"
+  - Ejemplo: "Perfecto, gracias por confirmar. [ENTREGADO]"
+
+[NECESITO_HUMANO] - Cuando:
   - Preguntas médicas delicadas, reclamos duros, confusión persistente
   - NO puedes responder con la información disponible
-  Ejemplo: "Entiendo. ¿Me cuenta qué pasó? [NECESITO_HUMANO]"
 
 === TUS INSTRUCCIONES ===
 ${instructions}
@@ -209,26 +212,37 @@ ${productContext ? `\n=== PRODUCTOS ===\n${productContext}` : ""}`;
       cleanResponse = cleanResponse.replace(imageMatch[0], "").trim();
     }
 
-    // Check if order is ready (AI detected complete order with all data)
+    // === DETECT ALL CRM MARKERS ===
+    const markers: string[] = [];
+    
+    // Check for [PEDIDO_LISTO]
     const orderReady = cleanResponse.includes("[PEDIDO_LISTO]");
-    if (orderReady) {
-      cleanResponse = cleanResponse.replace(/\[PEDIDO_LISTO\]/gi, "").trim();
-      console.log("=== ORDER READY DETECTED ===", { conversationId });
-    }
-
-    // Check if AI needs human help
+    if (orderReady) markers.push("PEDIDO_LISTO");
+    
+    // Check for [NECESITO_HUMANO]
     const needsHuman = cleanResponse.includes("[NECESITO_HUMANO]");
-    if (needsHuman) {
-      cleanResponse = cleanResponse.replace(/\[NECESITO_HUMANO\]/gi, "").trim();
-      console.log("=== NEEDS HUMAN ATTENTION ===", { conversationId });
-    }
-
-    // Check if AI suggests calling the client
+    if (needsHuman) markers.push("NECESITO_HUMANO");
+    
+    // Check for [LLAMAR]
     const shouldCall = cleanResponse.includes("[LLAMAR]");
-    if (shouldCall) {
-      cleanResponse = cleanResponse.replace(/\[LLAMAR\]/gi, "").trim();
-      console.log("=== SHOULD CALL CLIENT ===", { conversationId });
+    if (shouldCall) markers.push("LLAMAR");
+    
+    // Check for [ENTREGADO]
+    const delivered = cleanResponse.includes("[ENTREGADO]");
+    if (delivered) markers.push("ENTREGADO");
+    
+    // Log detected markers
+    if (markers.length > 0) {
+      console.log("=== CRM MARKERS DETECTED ===", { conversationId, markers: markers.join(", ") });
     }
+    
+    // === REMOVE ALL MARKERS FROM RESPONSE (client won't see them) ===
+    cleanResponse = cleanResponse
+      .replace(/\[PEDIDO_LISTO\]/gi, "")
+      .replace(/\[NECESITO_HUMANO\]/gi, "")
+      .replace(/\[LLAMAR\]/gi, "")
+      .replace(/\[ENTREGADO\]/gi, "")
+      .trim();
 
     await storage.createAiLog({
       conversationId,
@@ -238,7 +252,7 @@ ${productContext ? `\n=== PRODUCTOS ===\n${productContext}` : ""}`;
       success: true,
     });
 
-    return { response: needsHuman ? "" : cleanResponse, imageUrl: needsHuman ? undefined : imageUrl, tokensUsed, orderReady, needsHuman, shouldCall };
+    return { response: needsHuman ? "" : cleanResponse, imageUrl: needsHuman ? undefined : imageUrl, tokensUsed, orderReady, needsHuman, shouldCall, delivered };
   } catch (error: any) {
     console.error("AI Error:", error);
     

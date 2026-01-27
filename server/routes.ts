@@ -705,8 +705,14 @@ export async function registerRoutes(
                       lastMessageTimestamp: new Date(),
                     };
                     
-                    // Mark order as ready if AI detected complete order
-                    if (aiResult.orderReady) {
+                    // Mark order as delivered if AI detected delivery confirmation
+                    if (aiResult.delivered) {
+                      updateData.orderStatus = 'delivered';
+                      updateData.shouldCall = false; // Clear shouldCall when delivered
+                      console.log("=== MARKING ORDER AS DELIVERED ===", conversation.id);
+                    }
+                    // Mark order as ready if AI detected complete order (only if not delivered)
+                    else if (aiResult.orderReady) {
                       updateData.orderStatus = 'ready';
                       console.log("=== MARKING ORDER AS READY ===", conversation.id);
                     }
