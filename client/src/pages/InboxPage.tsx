@@ -4,12 +4,13 @@ import { useConversations } from "@/hooks/use-inbox";
 import { NotificationBell } from "@/components/NotificationBell";
 import { KanbanView } from "@/components/KanbanView";
 import { Button } from "@/components/ui/button";
-import { LogOut, Bot, ClipboardList } from "lucide-react";
-import { Link } from "wouter";
+import { LogOut, Bot, ClipboardList, Bell, LayoutGrid } from "lucide-react";
+import { Link, useLocation } from "wouter";
 
 export default function InboxPage() {
   const { logout, user } = useAuth();
   const [daysToShow, setDaysToShow] = useState(1);
+  const [location] = useLocation();
   const maxDays = 3;
   
   const { data: conversations = [], isLoading: loadingList } = useConversations();
@@ -57,7 +58,7 @@ export default function InboxPage() {
       </div>
 
       {/* Kanban View - responsive para móvil y desktop */}
-      <div className="flex flex-1 min-h-0">
+      <div className="flex flex-1 min-h-0 pb-14 md:pb-0">
         <KanbanView
           conversations={filteredConversations}
           isLoading={loadingList}
@@ -65,6 +66,36 @@ export default function InboxPage() {
           onLoadMore={handleLoadMore}
           maxDays={maxDays}
         />
+      </div>
+
+      {/* Mobile Bottom Navigation */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t flex justify-around items-center py-2 px-1 z-50">
+        <Link href="/">
+          <button className={`flex flex-col items-center px-3 py-1 rounded-lg ${location === '/' ? 'text-primary bg-primary/10' : 'text-gray-500'}`}>
+            <LayoutGrid className="h-5 w-5" />
+            <span className="text-xs mt-0.5">Inbox</span>
+          </button>
+        </Link>
+        <Link href="/ai-agent">
+          <button className={`flex flex-col items-center px-3 py-1 rounded-lg ${location === '/ai-agent' ? 'text-primary bg-primary/10' : 'text-gray-500'}`}>
+            <Bot className="h-5 w-5" />
+            <span className="text-xs mt-0.5">IA</span>
+          </button>
+        </Link>
+        <Link href="/follow-up">
+          <button className={`flex flex-col items-center px-3 py-1 rounded-lg ${location === '/follow-up' ? 'text-primary bg-primary/10' : 'text-gray-500'}`}>
+            <ClipboardList className="h-5 w-5" />
+            <span className="text-xs mt-0.5">Seguir</span>
+          </button>
+        </Link>
+        <NotificationBell />
+        <button 
+          onClick={() => logout()} 
+          className="flex flex-col items-center px-3 py-1 rounded-lg text-gray-500"
+        >
+          <LogOut className="h-5 w-5" />
+          <span className="text-xs mt-0.5">Salir</span>
+        </button>
       </div>
     </div>
   );
