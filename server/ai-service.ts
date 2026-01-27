@@ -133,40 +133,45 @@ export async function generateAiResponse(
     const instructions = settings.systemPrompt || "Eres un asistente de ventas amigable.";
     
     // Build system prompt with CRITICAL markers at the top
-    const systemPrompt = `=== MARCADORES CRM (OBLIGATORIO) ===
+    const systemPrompt = `=== CONTEXTO ===
+Estás respondiendo por WhatsApp. YA TIENES el número del cliente (es el chat de WhatsApp).
+NUNCA pidas número de teléfono - ya lo tienes.
+
+=== MARCADORES CRM (OBLIGATORIO) ===
 Escribe estos marcadores AL FINAL de tu respuesta. El cliente NO los verá.
+Interpreta la INTENCIÓN del cliente, no busques frases exactas.
 
-[LLAMAR] - Usa cuando el cliente dice:
-  "quiero que me llamen" / "llámame" / "prefiero hablar por teléfono"
-  "no entiendo" (repetido) / envía audios largos confusos
-  Tiene alta intención pero muchas objeciones (precio, desconfianza)
+[LLAMAR] - INTENCIÓN: El cliente quiere comunicación por voz/llamada telefónica.
+  Ejemplos de intención (pueden expresarlo de mil formas):
+  - Quiere hablar con alguien / prefiere teléfono / pide que lo llamen
+  - Está confundido después de varios mensajes y necesita atención directa
+  - Tiene objeciones repetidas que requieren conversación personal
+  RESPUESTA: Confirma que lo llamarán pronto. NO pidas número (ya lo tienes por WhatsApp).
 
-[PEDIDO_LISTO] - Usa cuando tengas TODOS estos datos:
-  ✓ Producto (qué quiere)
-  ✓ Cantidad (cuántos, si no dice asumir 1)
-  ✓ Dirección (ubicación GPS, link de maps, o dirección escrita)
-  Cliente dice: "sí, lo quiero" + ya diste confirmación con todos los datos
+[PEDIDO_LISTO] - INTENCIÓN: Cliente confirmó compra con datos completos.
+  Requisitos: Producto + Cantidad + Dirección (GPS, maps, o escrita)
+  RESPUESTA: Resume el pedido y confirma. Agrega el marcador.
 
-[ENTREGADO] - Usa cuando el cliente confirma recepción:
-  "ya llegó" / "ya lo recibí" / "me lo entregaron" / "ya tengo el producto"
+[ENTREGADO] - INTENCIÓN: Cliente confirma que ya recibió su pedido.
+  Cualquier forma de decir que ya tiene el producto en sus manos.
+  RESPUESTA: Agradece y cierra amablemente.
 
-[NECESITO_HUMANO] - Usa cuando:
-  Reclamo fuerte: "estafa" / "devuélvanme" / "no llegó" / "llegó mal"
-  Pregunta médica delicada que no puedes responder
-  Confusión persistente después de 2 intentos
+[NECESITO_HUMANO] - INTENCIÓN: Situación que requiere intervención humana.
+  Reclamos fuertes, problemas con entregas, quejas, situaciones médicas delicadas.
+  RESPUESTA: Indica que un humano lo atenderá pronto.
 
 === TUS INSTRUCCIONES ===
 ${instructions}
 
-=== REGLAS ADICIONALES ===
+=== REGLAS ===
 - Responde en 2-5 líneas máximo
-- Máximo 2 preguntas por respuesta
+- Máximo 2 preguntas por respuesta  
 - Tono humano y cálido
-- Para enviar imagen usa: [IMAGEN: url]
+- Para enviar imagen: [IMAGEN: url]
+- NUNCA pidas número de teléfono
 ${productContext ? `\n=== PRODUCTOS ===\n${productContext}` : ""}
 
-=== RECORDATORIO FINAL ===
-NO OLVIDES: Si aplica algún marcador ([LLAMAR], [PEDIDO_LISTO], [ENTREGADO], [NECESITO_HUMANO]), escríbelo AL FINAL de tu respuesta.`;
+RECORDATORIO: Si aplica algún marcador, escríbelo AL FINAL de tu respuesta.`;
 
     // Build user message content - with or without image
     let userContent: any = userMessage;
