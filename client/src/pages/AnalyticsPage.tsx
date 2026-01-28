@@ -84,14 +84,15 @@ export default function AnalyticsPage() {
     color: string;
     gradient: string;
   }) => (
-    <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-4 border border-slate-700/50 relative overflow-hidden">
-      <div className={`absolute top-0 right-0 w-20 h-20 ${gradient} opacity-20 blur-2xl`} />
+    <div className="group bg-gradient-to-br from-slate-800/80 to-slate-900/80 backdrop-blur-sm rounded-2xl p-4 border border-slate-700/50 relative overflow-hidden transform transition-all duration-300 hover:scale-105 hover:-translate-y-1 shadow-xl shadow-black/20 hover:shadow-2xl hover:shadow-black/40">
+      <div className={`absolute top-0 right-0 w-24 h-24 ${gradient} opacity-20 blur-3xl group-hover:opacity-40 transition-opacity`} />
+      <div className={`absolute inset-0 bg-gradient-to-t from-black/20 to-transparent rounded-2xl`} />
       <div className="relative">
-        <div className={`w-10 h-10 rounded-xl ${gradient} flex items-center justify-center mb-3 shadow-lg`}>
-          <Icon className="h-5 w-5 text-white" />
+        <div className={`w-12 h-12 rounded-xl ${gradient} flex items-center justify-center mb-3 shadow-lg shadow-black/30 transform -rotate-3 group-hover:rotate-0 transition-transform`}>
+          <Icon className="h-6 w-6 text-white drop-shadow-lg" />
         </div>
-        <p className="text-2xl font-bold text-white">{value}</p>
-        <p className={`text-sm ${color}`}>{label}</p>
+        <p className="text-3xl font-bold text-white drop-shadow-lg">{value}</p>
+        <p className={`text-sm ${color} font-medium`}>{label}</p>
       </div>
     </div>
   );
@@ -132,14 +133,17 @@ export default function AnalyticsPage() {
       </div>
 
       <div className="p-4 space-y-6 pb-20">
-        <div className="bg-gradient-to-r from-emerald-600/20 to-cyan-600/20 rounded-2xl p-5 border border-emerald-500/20">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-emerald-500/30">
-              <TrendingUp className="h-6 w-6 text-white" />
+        <div className="group bg-gradient-to-r from-emerald-600/20 via-teal-600/20 to-cyan-600/20 rounded-2xl p-6 border border-emerald-500/30 shadow-xl shadow-emerald-500/10 hover:shadow-2xl hover:shadow-emerald-500/20 transition-all duration-300 relative overflow-hidden transform hover:scale-[1.02]">
+          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent rounded-2xl" />
+          <div className="absolute -top-20 -right-20 w-60 h-60 bg-emerald-500/20 rounded-full blur-3xl" />
+          <div className="absolute -bottom-20 -left-20 w-60 h-60 bg-cyan-500/20 rounded-full blur-3xl" />
+          <div className="flex items-center gap-4 relative">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center shadow-xl shadow-emerald-500/40 transform -rotate-6 group-hover:rotate-0 transition-transform">
+              <TrendingUp className="h-8 w-8 text-white drop-shadow-lg" />
             </div>
             <div>
-              <p className="text-3xl font-bold">{stats.total}</p>
-              <p className="text-emerald-400 text-sm">Conversaciones totales</p>
+              <p className="text-4xl font-bold drop-shadow-lg">{stats.total}</p>
+              <p className="text-emerald-400 text-sm font-medium">Conversaciones totales</p>
             </div>
           </div>
         </div>
@@ -153,9 +157,13 @@ export default function AnalyticsPage() {
         </div>
 
         <div className="grid md:grid-cols-2 gap-4">
-          <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-5 border border-slate-700/50">
-            <h3 className="font-semibold mb-4 flex items-center gap-2">
-              <MessageSquare className="h-4 w-4 text-emerald-400" />
+          <div className="group bg-gradient-to-br from-slate-800/80 to-slate-900/80 backdrop-blur-sm rounded-2xl p-5 border border-slate-700/50 shadow-xl shadow-black/20 hover:shadow-2xl transition-all duration-300 relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-t from-emerald-500/5 to-transparent rounded-2xl" />
+            <div className="absolute -top-10 -right-10 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl" />
+            <h3 className="font-semibold mb-4 flex items-center gap-2 relative">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg">
+                <MessageSquare className="h-4 w-4 text-white" />
+              </div>
               Distribución por estado
             </h3>
             {pieData.length > 0 ? (
@@ -197,9 +205,13 @@ export default function AnalyticsPage() {
             </div>
           </div>
 
-          <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-5 border border-slate-700/50">
-            <h3 className="font-semibold mb-4 flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-cyan-400" />
+          <div className="group bg-gradient-to-br from-slate-800/80 to-slate-900/80 backdrop-blur-sm rounded-2xl p-5 border border-slate-700/50 shadow-xl shadow-black/20 hover:shadow-2xl transition-all duration-300 relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-t from-cyan-500/5 to-transparent rounded-2xl" />
+            <div className="absolute -top-10 -left-10 w-40 h-40 bg-cyan-500/10 rounded-full blur-3xl" />
+            <h3 className="font-semibold mb-4 flex items-center gap-2 relative">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg">
+                <TrendingUp className="h-4 w-4 text-white" />
+              </div>
               Comparativa
             </h3>
             <div className="h-48">
@@ -218,9 +230,13 @@ export default function AnalyticsPage() {
           </div>
         </div>
 
-        <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-5 border border-slate-700/50">
-          <h3 className="font-semibold mb-4 flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-violet-400" />
+        <div className="group bg-gradient-to-br from-slate-800/80 to-slate-900/80 backdrop-blur-sm rounded-2xl p-5 border border-slate-700/50 shadow-xl shadow-black/20 hover:shadow-2xl transition-all duration-300 relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-t from-violet-500/5 to-transparent rounded-2xl" />
+          <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-violet-500/10 rounded-full blur-3xl" />
+          <h3 className="font-semibold mb-4 flex items-center gap-2 relative">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg">
+              <Calendar className="h-4 w-4 text-white" />
+            </div>
             Actividad por hora
           </h3>
           <div className="h-40">
