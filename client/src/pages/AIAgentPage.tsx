@@ -372,7 +372,7 @@ export default function AIAgentPage() {
             </div>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <div>
-                <Label htmlFor="maxTokens">Máx. Tokens (respuesta)</Label>
+                <Label htmlFor="maxTokens" className="text-slate-300">Máx. Tokens (respuesta)</Label>
                 <Input
                   id="maxTokens"
                   type="number"
@@ -384,11 +384,12 @@ export default function AIAgentPage() {
                     setConfigEdited(true);
                   }}
                   data-testid="input-max-tokens"
+                  className="bg-slate-800/50 border-slate-600/50 text-white"
                 />
-                <p className="text-xs text-muted-foreground mt-1">50-500. Más tokens = respuestas más largas</p>
+                <p className="text-xs text-slate-500 mt-1">50-500. Más tokens = respuestas más largas</p>
               </div>
               <div>
-                <Label htmlFor="temperature">Temperatura (%)</Label>
+                <Label htmlFor="temperature" className="text-slate-300">Temperatura (%)</Label>
                 <Input
                   id="temperature"
                   type="number"
@@ -400,11 +401,12 @@ export default function AIAgentPage() {
                     setConfigEdited(true);
                   }}
                   data-testid="input-temperature"
+                  className="bg-slate-800/50 border-slate-600/50 text-white"
                 />
-                <p className="text-xs text-muted-foreground mt-1">0=preciso, 100=creativo</p>
+                <p className="text-xs text-slate-500 mt-1">0=preciso, 100=creativo</p>
               </div>
               <div>
-                <Label htmlFor="model">Modelo</Label>
+                <Label htmlFor="model" className="text-slate-300">Modelo</Label>
                 <select
                   id="model"
                   value={model}
@@ -412,17 +414,17 @@ export default function AIAgentPage() {
                     setModel(e.target.value);
                     setConfigEdited(true);
                   }}
-                  className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+                  className="w-full h-9 rounded-md border border-slate-600/50 bg-slate-800/50 px-3 text-sm text-white"
                   data-testid="select-model"
                 >
                   <option value="gpt-4o-mini">GPT-4o Mini (rápido, económico)</option>
                   <option value="gpt-4o">GPT-4o (más inteligente)</option>
                   <option value="gpt-4-turbo">GPT-4 Turbo</option>
                 </select>
-                <p className="text-xs text-muted-foreground mt-1">Modelo de OpenAI a usar</p>
+                <p className="text-xs text-slate-500 mt-1">Modelo de OpenAI a usar</p>
               </div>
               <div>
-                <Label htmlFor="maxPromptChars">Máx. Caracteres (instrucciones)</Label>
+                <Label htmlFor="maxPromptChars" className="text-slate-300">Máx. Caracteres (instrucciones)</Label>
                 <Input
                   id="maxPromptChars"
                   type="number"
@@ -434,11 +436,12 @@ export default function AIAgentPage() {
                     setConfigEdited(true);
                   }}
                   data-testid="input-max-prompt-chars"
+                  className="bg-slate-800/50 border-slate-600/50 text-white"
                 />
-                <p className="text-xs text-muted-foreground mt-1">500-20000. Límite de texto en instrucciones</p>
+                <p className="text-xs text-slate-500 mt-1">500-20000. Límite de texto en instrucciones</p>
               </div>
               <div>
-                <Label htmlFor="conversationHistory">Mensajes de contexto</Label>
+                <Label htmlFor="conversationHistory" className="text-slate-300">Mensajes de contexto</Label>
                 <Input
                   id="conversationHistory"
                   type="number"
@@ -450,15 +453,16 @@ export default function AIAgentPage() {
                     setConfigEdited(true);
                   }}
                   data-testid="input-conversation-history"
+                  className="bg-slate-800/50 border-slate-600/50 text-white"
                 />
-                <p className="text-xs text-muted-foreground mt-1">1-20. Cuántos mensajes previos lee la IA</p>
+                <p className="text-xs text-slate-500 mt-1">1-20. Cuántos mensajes previos lee la IA</p>
               </div>
             </div>
             
-            <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/50">
+            <div className="flex items-center justify-between p-4 border border-slate-700/50 rounded-xl bg-slate-800/30">
               <div className="space-y-1">
-                <Label htmlFor="audioResponse">Responder con Audio</Label>
-                <p className="text-xs text-muted-foreground">
+                <Label htmlFor="audioResponse" className="text-slate-300">Responder con Audio</Label>
+                <p className="text-xs text-slate-500">
                   Cuando el cliente envía un audio, la IA responde también con audio
                 </p>
               </div>
@@ -475,8 +479,8 @@ export default function AIAgentPage() {
             
             {audioResponseEnabled && (
               <div className="space-y-3">
-                <Label htmlFor="audioVoice" className="font-medium">Voz de Audio</Label>
-                <p className="text-xs text-muted-foreground">Voces realistas usan modelo avanzado (mayor calidad y costo)</p>
+                <Label htmlFor="audioVoice" className="font-medium text-slate-300">Voz de Audio</Label>
+                <p className="text-xs text-slate-500">Voces realistas usan modelo avanzado (mayor calidad y costo)</p>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {[
                     { value: "marin", label: "Marin", desc: "Realista", realistic: true },
@@ -500,24 +504,24 @@ export default function AIAgentPage() {
                         setAudioVoice(voice.value);
                         setConfigEdited(true);
                       }}
-                      className={`p-3 rounded-lg border-2 text-left transition-all ${
+                      className={`p-3 rounded-xl border-2 text-left transition-all ${
                         audioVoice === voice.value
-                          ? "border-primary bg-primary/10 shadow-md"
+                          ? "border-emerald-500 bg-emerald-500/20 shadow-lg shadow-emerald-500/20"
                           : voice.realistic 
-                            ? "border-amber-500/50 bg-amber-500/5 hover:border-amber-500 hover:bg-amber-500/10"
-                            : "border-border bg-card hover:border-primary/50 hover:bg-muted"
+                            ? "border-amber-500/30 bg-amber-500/10 hover:border-amber-500 hover:bg-amber-500/20"
+                            : "border-slate-600/50 bg-slate-800/50 hover:border-cyan-500/50 hover:bg-slate-700/50"
                       }`}
                       data-testid={`voice-${voice.value}`}
                     >
-                      <div className="font-semibold text-sm">{voice.label}</div>
-                      <div className={`text-xs ${voice.realistic ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"}`}>{voice.desc}</div>
+                      <div className="font-semibold text-sm text-white">{voice.label}</div>
+                      <div className={`text-xs ${voice.realistic ? "text-amber-400" : "text-slate-400"}`}>{voice.desc}</div>
                     </button>
                   ))}
                 </div>
                 
-                <div className="grid gap-4 sm:grid-cols-2 mt-4 pt-4 border-t">
+                <div className="grid gap-4 sm:grid-cols-2 mt-4 pt-4 border-t border-slate-700/50">
                   <div>
-                    <Label htmlFor="ttsSpeed">Velocidad de habla</Label>
+                    <Label htmlFor="ttsSpeed" className="text-slate-300">Velocidad de habla</Label>
                     <div className="flex items-center gap-3">
                       <Input
                         id="ttsSpeed"
@@ -530,17 +534,17 @@ export default function AIAgentPage() {
                           setTtsSpeed(parseInt(e.target.value));
                           setConfigEdited(true);
                         }}
-                        className="flex-1"
+                        className="flex-1 accent-emerald-500"
                         data-testid="input-tts-speed"
                       />
-                      <span className="text-sm font-medium w-14 text-center">{(ttsSpeed / 100).toFixed(2)}x</span>
+                      <span className="text-sm font-medium w-14 text-center text-emerald-400">{(ttsSpeed / 100).toFixed(2)}x</span>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">0.5x (lento) - 2.0x (rápido)</p>
+                    <p className="text-xs text-slate-500 mt-1">0.5x (lento) - 2.0x (rápido)</p>
                   </div>
                   
                   {["ash", "ballad", "sage", "verse", "marin", "cedar"].includes(audioVoice) && (
                     <div className="sm:col-span-2">
-                      <Label htmlFor="ttsInstructions">Instrucciones de tono (solo voces realistas)</Label>
+                      <Label htmlFor="ttsInstructions" className="text-slate-300">Instrucciones de tono (solo voces realistas)</Label>
                       <Textarea
                         id="ttsInstructions"
                         placeholder="Ej: Habla con entusiasmo y calidez, como un vendedor amable"
@@ -550,10 +554,10 @@ export default function AIAgentPage() {
                           setConfigEdited(true);
                         }}
                         rows={2}
-                        className="mt-1"
+                        className="mt-1 bg-slate-800/50 border-slate-600/50 text-white placeholder:text-slate-500"
                         data-testid="textarea-tts-instructions"
                       />
-                      <p className="text-xs text-muted-foreground mt-1">Describe cómo quieres que suene la voz (tono, emoción, estilo)</p>
+                      <p className="text-xs text-slate-500 mt-1">Describe cómo quieres que suene la voz (tono, emoción, estilo)</p>
                     </div>
                   )}
                 </div>
@@ -561,7 +565,7 @@ export default function AIAgentPage() {
             )}
             
             {configEdited && (
-              <Button onClick={handleSaveConfig} disabled={updateSettingsMutation.isPending} data-testid="button-save-config">
+              <Button onClick={handleSaveConfig} disabled={updateSettingsMutation.isPending} data-testid="button-save-config" className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white shadow-lg shadow-cyan-500/30">
                 {updateSettingsMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
                 Guardar Configuración
               </Button>
@@ -583,56 +587,61 @@ export default function AIAgentPage() {
                 <p className="text-xs text-slate-400">La IA buscará solo el producto que mencione el cliente</p>
               </div>
             </div>
-            <div className="grid gap-3 p-4 border rounded-md bg-muted/30">
+            <div className="grid gap-3 p-4 border border-slate-700/50 rounded-xl bg-slate-900/50">
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
-                  <Label>Nombre *</Label>
+                  <Label className="text-slate-300">Nombre *</Label>
                   <Input
                     placeholder="Ej: Berberina"
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
                     data-testid="input-product-name"
+                    className="bg-slate-800/50 border-slate-600/50 text-white placeholder:text-slate-500"
                   />
                 </div>
                 <div>
-                  <Label>Precio</Label>
+                  <Label className="text-slate-300">Precio</Label>
                   <Input
                     placeholder="Ej: 280 Bs"
                     value={newPrice}
                     onChange={(e) => setNewPrice(e.target.value)}
                     data-testid="input-product-price"
+                    className="bg-slate-800/50 border-slate-600/50 text-white placeholder:text-slate-500"
                   />
                 </div>
               </div>
               <div>
-                <Label>Palabras clave (separadas por coma)</Label>
+                <Label className="text-slate-300">Palabras clave (separadas por coma)</Label>
                 <Input
                   placeholder="Ej: glucosa, azúcar, diabetes"
                   value={newKeywords}
                   onChange={(e) => setNewKeywords(e.target.value)}
                   data-testid="input-product-keywords"
+                  className="bg-slate-800/50 border-slate-600/50 text-white placeholder:text-slate-500"
                 />
               </div>
               <div>
-                <Label>Descripción</Label>
+                <Label className="text-slate-300">Descripción</Label>
                 <Textarea
                   placeholder="Beneficios, dosis, instrucciones..."
                   value={newDescription}
                   onChange={(e) => setNewDescription(e.target.value)}
                   rows={2}
                   data-testid="textarea-product-description"
+                  className="bg-slate-800/50 border-slate-600/50 text-white placeholder:text-slate-500"
                 />
               </div>
               <div>
-                <Label>URL de imagen</Label>
+                <Label className="text-slate-300">URL de imagen</Label>
                 <Input
                   placeholder="https://..."
                   value={newImageUrl}
                   onChange={(e) => setNewImageUrl(e.target.value)}
                   data-testid="input-product-image"
+                  className="bg-slate-800/50 border-slate-600/50 text-white placeholder:text-slate-500"
                 />
               </div>
-              <Button onClick={handleAddProduct} disabled={createProductMutation.isPending} data-testid="button-add-product">
+              <Button onClick={handleAddProduct} disabled={createProductMutation.isPending} data-testid="button-add-product" className="bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-white shadow-lg shadow-emerald-500/30">
                 {createProductMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
                 Agregar Producto
               </Button>
