@@ -173,16 +173,27 @@ export function NotificationBell() {
     <>
       <Tooltip>
         <TooltipTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon"
+          <button
             onClick={handleClick}
             disabled={loading}
             data-testid="button-notification-bell"
-            className={status === "subscribed" ? "text-green-500" : ""}
+            className={`flex flex-col items-center px-3 py-1.5 rounded-xl transition-all ${
+              status === "subscribed" 
+                ? "text-emerald-400 bg-emerald-500/20" 
+                : "text-slate-500 hover:text-slate-300"
+            }`}
           >
-            {getIcon()}
-          </Button>
+            {status === "subscribed" ? (
+              <Bell className="h-5 w-5" />
+            ) : status === "denied" ? (
+              <BellOff className="h-5 w-5 text-red-400" />
+            ) : loading || status === "loading" ? (
+              <BellRing className="h-5 w-5 animate-pulse" />
+            ) : (
+              <BellOff className="h-5 w-5" />
+            )}
+            <span className="text-[10px] mt-0.5 font-medium">Notif</span>
+          </button>
         </TooltipTrigger>
         <TooltipContent>
           <p>{getTooltipText()}</p>

@@ -282,20 +282,27 @@ export default function AIAgentPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b bg-card">
-        <div className="container mx-auto px-4 py-4 flex items-center gap-4">
+    <div className="min-h-screen bg-slate-900 text-white">
+      {/* Futuristic Header */}
+      <header className="sticky top-0 z-10 bg-gradient-to-r from-slate-800/90 via-slate-800/80 to-slate-800/90 backdrop-blur-xl border-b border-emerald-500/20">
+        <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/5 via-cyan-500/5 to-emerald-500/5" />
+        <div className="container mx-auto px-4 py-4 flex items-center gap-4 relative">
           <Link href="/">
-            <Button variant="ghost" size="icon" data-testid="button-back">
+            <Button variant="ghost" size="icon" data-testid="button-back" className="text-slate-400 hover:text-white hover:bg-slate-700/50">
               <ArrowLeft className="h-5 w-5" />
             </Button>
           </Link>
-          <div className="flex items-center gap-2">
-            <Bot className="h-6 w-6 text-primary" />
-            <h1 className="text-xl font-semibold">Agente IA</h1>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+              <Bot className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold">Agente IA</h1>
+              <p className="text-xs text-slate-400">Configuración inteligente</p>
+            </div>
           </div>
           <div className="ml-auto flex items-center gap-3">
-            <span className="text-sm text-muted-foreground">
+            <span className={`text-sm font-medium ${settings?.enabled ? 'text-emerald-400' : 'text-slate-500'}`}>
               {settings?.enabled ? "Activo" : "Inactivo"}
             </span>
             <Switch
@@ -308,15 +315,21 @@ export default function AIAgentPage() {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-6 space-y-6 max-w-4xl">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Instrucciones del Agente</CardTitle>
-            <CardDescription>
-              Define cómo debe comportarse el agente (nombre, tono, reglas). Máximo: {maxPromptChars} caracteres.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
+      <main className="container mx-auto px-4 py-6 space-y-6 max-w-4xl pb-20">
+        {/* Instructions Card - 3D Style */}
+        <div className="group bg-gradient-to-br from-slate-800/80 to-slate-900/80 backdrop-blur-sm rounded-2xl p-5 border border-slate-700/50 shadow-xl shadow-black/20 hover:shadow-2xl transition-all duration-300 relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-t from-emerald-500/5 to-transparent rounded-2xl" />
+          <div className="absolute -top-10 -right-10 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl" />
+          <div className="relative space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg">
+                <Bot className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-white">Instrucciones del Agente</h3>
+                <p className="text-xs text-slate-400">Define cómo debe comportarse (máx: {maxPromptChars} caracteres)</p>
+              </div>
+            </div>
             <div className="relative">
               <Textarea
                 placeholder="Ej: Eres Isabella, asistente de ventas amigable. Responde siempre en español. Si quieren comprar, pide ubicación..."
@@ -328,28 +341,35 @@ export default function AIAgentPage() {
                 }}
                 rows={5}
                 data-testid="textarea-system-prompt"
+                className="bg-slate-900/50 border-slate-600/50 text-white placeholder:text-slate-500"
               />
-              <div className={`text-xs mt-1 ${systemPrompt.length >= maxPromptChars ? 'text-destructive' : 'text-muted-foreground'}`}>
+              <div className={`text-xs mt-1 ${systemPrompt.length >= maxPromptChars ? 'text-red-400' : 'text-slate-500'}`}>
                 {systemPrompt.length} / {maxPromptChars} caracteres
               </div>
             </div>
             {promptEdited && (
-              <Button onClick={handleSavePrompt} disabled={updateSettingsMutation.isPending} data-testid="button-save-prompt">
+              <Button onClick={handleSavePrompt} disabled={updateSettingsMutation.isPending} data-testid="button-save-prompt" className="bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-white shadow-lg shadow-emerald-500/30">
                 {updateSettingsMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
                 Guardar Instrucciones
               </Button>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Configuración del Modelo</CardTitle>
-            <CardDescription>
-              Ajusta los parámetros de la IA (tokens, creatividad, modelo, contexto)
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        {/* Model Config Card - 3D Style */}
+        <div className="group bg-gradient-to-br from-slate-800/80 to-slate-900/80 backdrop-blur-sm rounded-2xl p-5 border border-slate-700/50 shadow-xl shadow-black/20 hover:shadow-2xl transition-all duration-300 relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-t from-cyan-500/5 to-transparent rounded-2xl" />
+          <div className="absolute -top-10 -left-10 w-40 h-40 bg-cyan-500/10 rounded-full blur-3xl" />
+          <div className="relative space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg">
+                <RefreshCw className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-white">Configuración del Modelo</h3>
+                <p className="text-xs text-slate-400">Ajusta tokens, creatividad, modelo y contexto</p>
+              </div>
+            </div>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <div>
                 <Label htmlFor="maxTokens">Máx. Tokens (respuesta)</Label>
@@ -546,20 +566,23 @@ export default function AIAgentPage() {
                 Guardar Configuración
               </Button>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Package className="h-5 w-5" />
-              Productos
-            </CardTitle>
-            <CardDescription>
-              Agrega tus productos individualmente. La IA buscará solo el producto que mencione el cliente.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        {/* Products Card - 3D Style */}
+        <div className="group bg-gradient-to-br from-slate-800/80 to-slate-900/80 backdrop-blur-sm rounded-2xl p-5 border border-slate-700/50 shadow-xl shadow-black/20 hover:shadow-2xl transition-all duration-300 relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-t from-violet-500/5 to-transparent rounded-2xl" />
+          <div className="absolute -top-10 -right-10 w-40 h-40 bg-violet-500/10 rounded-full blur-3xl" />
+          <div className="relative space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg">
+                <Package className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-white">Productos</h3>
+                <p className="text-xs text-slate-400">La IA buscará solo el producto que mencione el cliente</p>
+              </div>
+            </div>
             <div className="grid gap-3 p-4 border rounded-md bg-muted/30">
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
@@ -719,18 +742,23 @@ export default function AIAgentPage() {
                 No hay productos. Agrega tu primer producto arriba.
               </p>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        {/* Learned Rules Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Reglas Aprendidas</CardTitle>
-            <CardDescription>
-              El agente usa estas reglas en sus respuestas. Haz clic en el icono de bombilla en el chat para agregar nuevas.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+        {/* Learned Rules Card - 3D Style */}
+        <div className="group bg-gradient-to-br from-slate-800/80 to-slate-900/80 backdrop-blur-sm rounded-2xl p-5 border border-slate-700/50 shadow-xl shadow-black/20 hover:shadow-2xl transition-all duration-300 relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-t from-amber-500/5 to-transparent rounded-2xl" />
+          <div className="absolute -top-10 -left-10 w-40 h-40 bg-amber-500/10 rounded-full blur-3xl" />
+          <div className="relative space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg">
+                <CheckCircle className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-white">Reglas Aprendidas</h3>
+                <p className="text-xs text-slate-400">El agente usa estas reglas en sus respuestas</p>
+              </div>
+            </div>
             {rulesLoading ? (
               <div className="flex justify-center py-4">
                 <Loader2 className="h-6 w-6 animate-spin" />
@@ -814,50 +842,57 @@ export default function AIAgentPage() {
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground text-center py-4">
+              <p className="text-sm text-slate-400 text-center py-4">
                 No hay reglas aprendidas aún. Usa el botón de bombilla en el chat para analizar conversaciones.
               </p>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-2">
-            <div>
-              <CardTitle className="text-lg">Logs de IA</CardTitle>
-              <CardDescription>
-                Historial de respuestas del agente
-              </CardDescription>
-            </div>
-            <Button 
-              variant="outline" 
-              size="icon"
-              onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/ai/logs"] })}
-              data-testid="button-refresh-logs"
+        {/* Logs Card - 3D Style */}
+        <div className="group bg-gradient-to-br from-slate-800/80 to-slate-900/80 backdrop-blur-sm rounded-2xl p-5 border border-slate-700/50 shadow-xl shadow-black/20 hover:shadow-2xl transition-all duration-300 relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-500/5 to-transparent rounded-2xl" />
+          <div className="absolute -top-10 -right-10 w-40 h-40 bg-slate-500/10 rounded-full blur-3xl" />
+          <div className="relative space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-500 to-slate-600 flex items-center justify-center shadow-lg">
+                  <RefreshCw className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-white">Logs de IA</h3>
+                  <p className="text-xs text-slate-400">Historial de respuestas del agente</p>
+                </div>
+              </div>
+              <Button 
+                variant="outline" 
+                size="icon"
+                onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/ai/logs"] })}
+                data-testid="button-refresh-logs"
+                className="border-slate-600 hover:bg-slate-700/50"
             >
               <RefreshCw className="h-4 w-4" />
-            </Button>
-          </CardHeader>
-          <CardContent>
+              </Button>
+            </div>
             {logsLoading ? (
               <div className="flex justify-center py-4">
-                <Loader2 className="h-6 w-6 animate-spin" />
+                <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
               </div>
             ) : logs.length > 0 ? (
-              <div className="border rounded-md divide-y max-h-80 overflow-y-auto">
+              <div className="border border-slate-700/50 rounded-xl divide-y divide-slate-700/50 max-h-80 overflow-y-auto bg-slate-900/50">
                 {logs.map((log) => (
                   <div key={log.id} className="p-3 text-sm" data-testid={`log-item-${log.id}`}>
                     <div className="flex items-center gap-2 mb-1">
                       {log.success ? (
-                        <CheckCircle className="h-4 w-4 text-green-500" />
+                        <CheckCircle className="h-4 w-4 text-emerald-500" />
                       ) : (
-                        <XCircle className="h-4 w-4 text-destructive" />
+                        <XCircle className="h-4 w-4 text-red-500" />
                       )}
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-xs text-slate-400">
                         {new Date(log.createdAt).toLocaleString()}
                       </span>
                       {log.tokensUsed !== null && log.tokensUsed !== undefined && (
-                        <span className="text-xs bg-secondary px-1.5 py-0.5 rounded">
+                        <span className="text-xs bg-slate-700/50 px-1.5 py-0.5 rounded text-slate-300">
                           {log.tokensUsed} tokens
                         </span>
                       )}
@@ -874,12 +909,12 @@ export default function AIAgentPage() {
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground text-center py-4">
+              <p className="text-sm text-slate-400 text-center py-4">
                 No hay logs aún
               </p>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </main>
     </div>
   );
