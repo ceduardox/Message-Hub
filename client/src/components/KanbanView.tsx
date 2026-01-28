@@ -205,20 +205,26 @@ function KanbanColumn({ title, items, activeId, onSelect, columnType }: ColumnPr
   const getColumnHeaderStyle = () => {
     switch (columnType) {
       case "humano":
-        return "bg-gradient-to-r from-red-600 to-rose-600 text-white";
+        return "from-red-600/80 to-rose-600/80";
       case "llamar":
-        return "bg-gradient-to-r from-emerald-600 to-teal-600 text-white";
+        return "from-emerald-600/80 to-teal-600/80";
       case "listo":
-        return "bg-gradient-to-r from-cyan-600 to-blue-600 text-white";
+        return "from-cyan-600/80 to-blue-600/80";
       case "entregado":
-        return "bg-gradient-to-r from-slate-600 to-slate-700 text-white";
+        return "from-slate-600/80 to-slate-700/80";
       default:
-        return "bg-slate-700 text-white";
+        return "from-slate-700/80 to-slate-800/80";
     }
   };
 
-  const getColumnBgStyle = () => {
-    return "bg-slate-900/50";
+  const getColumnGlow = () => {
+    switch (columnType) {
+      case "humano": return "shadow-red-500/20";
+      case "llamar": return "shadow-emerald-500/20";
+      case "listo": return "shadow-cyan-500/20";
+      case "entregado": return "shadow-slate-500/20";
+      default: return "shadow-slate-500/20";
+    }
   };
 
   const getColumnIcon = () => {
@@ -237,27 +243,32 @@ function KanbanColumn({ title, items, activeId, onSelect, columnType }: ColumnPr
   };
 
   return (
-    <div className={cn("flex flex-col h-full min-w-0 flex-1", getColumnBgStyle())}>
+    <div className={cn(
+      "flex flex-col h-full min-w-0 flex-1 mx-1.5 first:ml-0 last:mr-0",
+      "bg-slate-800/30 backdrop-blur-xl rounded-2xl border border-slate-700/30",
+      "shadow-xl", getColumnGlow()
+    )}>
       <div className={cn(
-        "flex items-center gap-2 px-4 py-3 border-b border-slate-700/50 relative overflow-hidden",
+        "flex items-center gap-2 px-4 py-3 rounded-t-2xl relative overflow-hidden",
+        "bg-gradient-to-r backdrop-blur-sm text-white",
         getColumnHeaderStyle()
       )}>
         <div className="absolute inset-0 animate-glow-line" />
         <div className="relative flex items-center gap-2">
           {getColumnIcon()}
-          <span className="font-semibold">{title}</span>
-          <span className="text-sm px-2.5 py-0.5 rounded-full bg-white/20 backdrop-blur-sm font-bold">
+          <span className="font-semibold text-sm">{title}</span>
+          <span className="text-xs px-2 py-0.5 rounded-full bg-white/20 backdrop-blur-sm font-bold">
             {items.length}
           </span>
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto p-3 space-y-3">
+      <div className="flex-1 overflow-y-auto p-2.5 space-y-2.5">
         {items.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-slate-800 flex items-center justify-center border border-slate-700">
-              <Zap className="h-8 w-8 text-slate-600" />
+          <div className="text-center py-10">
+            <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-slate-800/50 flex items-center justify-center border border-slate-700/50">
+              <Zap className="h-5 w-5 text-slate-600" />
             </div>
-            <p className="text-sm text-slate-500">Sin conversaciones</p>
+            <p className="text-xs text-slate-500">Sin conversaciones</p>
           </div>
         ) : (
           items.map((conv) => (
@@ -331,8 +342,16 @@ export function KanbanView({ conversations, isLoading, daysToShow, onLoadMore, m
   }
 
   return (
-    <div className="h-full flex flex-col w-full bg-slate-900">
+    <div className="h-full flex flex-col w-full bg-gradient-to-br from-slate-900 via-emerald-950/30 to-slate-900 relative overflow-hidden">
       <style dangerouslySetInnerHTML={{ __html: pulseAnimation }} />
+      
+      {/* Animated background effects */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-10 left-10 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '6s' }} />
+        <div className="absolute bottom-10 right-10 w-80 h-80 bg-cyan-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '8s', animationDelay: '2s' }} />
+        <div className="absolute top-1/2 left-1/2 w-64 h-64 bg-violet-500/5 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '10s', animationDelay: '4s' }} />
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(16,185,129,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(16,185,129,0.02)_1px,transparent_1px)] bg-[size:60px_60px]" />
+      </div>
       
       {/* Mobile: Tab bar - Futuristic */}
       <div className="md:hidden flex overflow-x-auto bg-slate-800/80 backdrop-blur-lg border-b border-slate-700/50 gap-1 p-2">
@@ -392,9 +411,9 @@ export function KanbanView({ conversations, isLoading, daysToShow, onLoadMore, m
         )}
       </div>
 
-      {/* Desktop: Grid view */}
+      {/* Desktop: Grid view with glassmorphism */}
       <div className="hidden md:flex flex-1 min-h-0">
-        <div className="flex-1 grid grid-cols-5 gap-px min-h-0 overflow-hidden">
+        <div className="flex-1 flex gap-0 min-h-0 overflow-hidden p-3">
           <KanbanColumn
             title="Interacción Humana"
             items={humano}
@@ -433,7 +452,7 @@ export function KanbanView({ conversations, isLoading, daysToShow, onLoadMore, m
         </div>
 
         {activeId && activeConversation ? (
-          <div className="w-[500px] border-l border-gray-200 flex-shrink-0 bg-white">
+          <div className="w-[420px] border-l border-slate-700/50 flex-shrink-0 bg-slate-900/80 backdrop-blur-xl">
             <ChatArea
               conversation={activeConversation.conversation}
               messages={activeConversation.messages}
