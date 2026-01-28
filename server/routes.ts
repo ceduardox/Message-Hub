@@ -842,7 +842,7 @@ export async function registerRoutes(
         waMessageId: waMessageId,
         direction: "out",
         type: type,
-        text: text,
+        text: type === 'image' ? imageUrl : text,
         mediaId: null, // We sent a URL, no media ID usually unless uploaded
         mimeType: null,
         timestamp: Math.floor(Date.now() / 1000).toString(),

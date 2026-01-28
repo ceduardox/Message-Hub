@@ -560,9 +560,11 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
               >
                 {(msg.type === "image" || msg.mediaId) && (
                   <div className="mb-2 rounded overflow-hidden">
-                    {msg.mediaId && (
+                    {msg.mediaId ? (
                       <img src={`/api/media/${msg.mediaId}`} alt="Media" className="max-w-full h-auto" />
-                    )}
+                    ) : msg.direction === "out" && msg.text?.startsWith("http") ? (
+                      <img src={msg.text} alt="Sent image" className="max-w-full h-auto" />
+                    ) : null}
                   </div>
                 )}
 
