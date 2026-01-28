@@ -558,13 +558,22 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
                     : "bg-white dark:bg-[#202c33] text-[#111b21] dark:text-[#e9edef] rounded-tl-sm"
                 )}
               >
-                {(msg.type === "image" || msg.mediaId) && (
+                {msg.type === "image" && (
                   <div className="mb-2 rounded overflow-hidden">
                     {msg.mediaId ? (
                       <img src={`/api/media/${msg.mediaId}`} alt="Media" className="max-w-full h-auto" />
                     ) : msg.direction === "out" && msg.text?.startsWith("http") ? (
                       <img src={msg.text} alt="Sent image" className="max-w-full h-auto" />
                     ) : null}
+                  </div>
+                )}
+
+                {msg.type === "audio" && msg.mediaId && (
+                  <div className="mb-2">
+                    <audio controls className="max-w-full h-10" preload="metadata">
+                      <source src={`/api/media/${msg.mediaId}`} type={msg.mimeType || "audio/ogg"} />
+                      Tu navegador no soporta audio
+                    </audio>
                   </div>
                 )}
 
