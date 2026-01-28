@@ -9,6 +9,7 @@ import LoginPage from "@/pages/LoginPage";
 import InboxPage from "@/pages/InboxPage";
 import AIAgentPage from "@/pages/AIAgentPage";
 import FollowUpPage from "@/pages/FollowUpPage";
+import AnalyticsPage from "@/pages/AnalyticsPage";
 import NotFound from "@/pages/not-found";
 
 // Protected Route Wrapper - No loading spinner, goes directly to content or login
@@ -39,6 +40,9 @@ function Router() {
       </Route>
       <Route path="/follow-up">
         <ProtectedRoute component={FollowUpPage} />
+      </Route>
+      <Route path="/analytics">
+        <ProtectedRoute component={AnalyticsPage} />
       </Route>
       <Route path="/">
         <ProtectedRoute component={InboxPage} />

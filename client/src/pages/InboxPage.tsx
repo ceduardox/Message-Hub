@@ -4,7 +4,7 @@ import { useConversations } from "@/hooks/use-inbox";
 import { NotificationBell } from "@/components/NotificationBell";
 import { KanbanView } from "@/components/KanbanView";
 import { Button } from "@/components/ui/button";
-import { LogOut, Bot, ClipboardList, LayoutGrid, Sparkles, MessageSquare, Zap, Activity } from "lucide-react";
+import { LogOut, Bot, ClipboardList, LayoutGrid, Sparkles, MessageSquare, Zap, Activity, BarChart3 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 
 const pulseLineAnimation = `
@@ -77,6 +77,11 @@ export default function InboxPage() {
               <ClipboardList className="h-5 w-5" />
             </Button>
           </Link>
+          <Link href="/analytics">
+            <Button variant="ghost" size="icon" title="Analytics" data-testid="button-analytics-desktop" className="text-slate-400 hover:text-cyan-400 hover:bg-cyan-500/10">
+              <BarChart3 className="h-5 w-5" />
+            </Button>
+          </Link>
           <div className="h-6 w-px bg-slate-600 mx-2" />
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-700/50 border border-slate-600">
             <div className="h-2 w-2 bg-emerald-400 rounded-full animate-pulse" />
@@ -102,27 +107,32 @@ export default function InboxPage() {
       {/* Mobile Bottom Navigation - Futuristic */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-xl border-t border-emerald-500/20 flex justify-around items-center py-2 px-1 z-50">
         <Link href="/">
-          <button className={`flex flex-col items-center px-4 py-1.5 rounded-xl transition-all ${location === '/' ? 'text-emerald-400 bg-emerald-500/20' : 'text-slate-500'}`}>
+          <button className={`flex flex-col items-center px-3 py-1.5 rounded-xl transition-all ${location === '/' ? 'text-emerald-400 bg-emerald-500/20' : 'text-slate-500'}`}>
             <LayoutGrid className="h-5 w-5" />
             <span className="text-[10px] mt-0.5 font-medium">Inbox</span>
           </button>
         </Link>
         <Link href="/ai-agent">
-          <button className={`flex flex-col items-center px-4 py-1.5 rounded-xl transition-all ${location === '/ai-agent' ? 'text-emerald-400 bg-emerald-500/20' : 'text-slate-500'}`}>
+          <button className={`flex flex-col items-center px-3 py-1.5 rounded-xl transition-all ${location === '/ai-agent' ? 'text-emerald-400 bg-emerald-500/20' : 'text-slate-500'}`}>
             <Bot className="h-5 w-5" />
             <span className="text-[10px] mt-0.5 font-medium">IA</span>
           </button>
         </Link>
+        <Link href="/analytics">
+          <button className={`flex flex-col items-center px-3 py-1.5 rounded-xl transition-all ${location === '/analytics' ? 'text-cyan-400 bg-cyan-500/20' : 'text-slate-500'}`}>
+            <BarChart3 className="h-5 w-5" />
+            <span className="text-[10px] mt-0.5 font-medium">Stats</span>
+          </button>
+        </Link>
         <Link href="/follow-up">
-          <button className={`flex flex-col items-center px-4 py-1.5 rounded-xl transition-all ${location === '/follow-up' ? 'text-emerald-400 bg-emerald-500/20' : 'text-slate-500'}`}>
+          <button className={`flex flex-col items-center px-3 py-1.5 rounded-xl transition-all ${location === '/follow-up' ? 'text-emerald-400 bg-emerald-500/20' : 'text-slate-500'}`}>
             <ClipboardList className="h-5 w-5" />
             <span className="text-[10px] mt-0.5 font-medium">Seguir</span>
           </button>
         </Link>
-        <NotificationBell />
         <button 
           onClick={() => logout()} 
-          className="flex flex-col items-center px-4 py-1.5 rounded-xl text-slate-500 transition-all"
+          className="flex flex-col items-center px-3 py-1.5 rounded-xl text-slate-500 transition-all"
         >
           <LogOut className="h-5 w-5" />
           <span className="text-[10px] mt-0.5 font-medium">Salir</span>
