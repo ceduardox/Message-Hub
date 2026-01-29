@@ -234,16 +234,23 @@ async function sendAudioResponse(phoneNumber: string, text: string, voice: strin
   }
 }
 
+// Push notification logs (in-memory, max 50)
+const pushLogs: Array<{timestamp: string, title: string, message: string, event: string, success: boolean, error?: string}> = [];
+
 // Send push notification via OneSignal
 async function sendPushNotification(title: string, message: string, data?: Record<string, string>) {
   const apiKey = process.env.ONESIGNAL_REST_API_KEY;
   const appId = "07dfe1e4-83b1-4623-b57c-e6e33232d4eb";
+  const timestamp = new Date().toISOString();
+  const event = data?.event || "unknown";
 
   console.log("[OneSignal] Attempting to send notification:", { title, message });
   console.log("[OneSignal] API Key configured:", !!apiKey);
 
   if (!apiKey) {
     console.log("[OneSignal] ERROR: API key not configured, skipping push notification");
+    pushLogs.unshift({ timestamp, title, message, event, success: false, error: "API key not configured" });
+    if (pushLogs.length > 50) pushLogs.pop();
     return;
   }
 
@@ -270,8 +277,11 @@ async function sendPushNotification(title: string, message: string, data?: Recor
       }
     );
     console.log("[OneSignal] SUCCESS - Response:", JSON.stringify(response.data, null, 2));
+    pushLogs.unshift({ timestamp, title, message, event, success: true });
+    if (pushLogs.length > 50) pushLogs.pop();
   } catch (error: any) {
     console.error("[OneSignal] FAILED - Error:", error.response?.data || error.message);
+    const errorMsg = JSON.stringify(error.response?.data) || error.message;
     
     // If "Subscribed Users" segment fails, try "All" segment as fallback
     if (error.response?.data?.errors?.includes("Segment 'Subscribed Users' was not found")) {
@@ -295,11 +305,23 @@ async function sendPushNotification(title: string, message: string, data?: Recor
           }
         );
         console.log("[OneSignal] Fallback SUCCESS:", JSON.stringify(fallbackResponse.data, null, 2));
+        pushLogs.unshift({ timestamp, title, message, event, success: true });
+        if (pushLogs.length > 50) pushLogs.pop();
       } catch (fallbackError: any) {
         console.error("[OneSignal] Fallback FAILED:", fallbackError.response?.data || fallbackError.message);
+        pushLogs.unshift({ timestamp, title, message, event, success: false, error: errorMsg });
+        if (pushLogs.length > 50) pushLogs.pop();
       }
+    } else {
+      pushLogs.unshift({ timestamp, title, message, event, success: false, error: errorMsg });
+      if (pushLogs.length > 50) pushLogs.pop();
     }
   }
+}
+
+// Endpoint to get push logs
+export function getPushLogs() {
+  return pushLogs;
 }
 
 // Helper to send messages via Graph API
@@ -1308,6 +1330,11 @@ NO uses saludos formales. Sé directo y amigable.`
       console.error("Error fetching AI logs:", error);
       res.status(500).json({ message: "Error fetching AI logs" });
     }
+  });
+
+  // Get push notification logs
+  app.get("/api/push-logs", requireAuth, async (req, res) => {
+    res.json(pushLogs);
   });
 
   // === LEARNED RULES ROUTES ===

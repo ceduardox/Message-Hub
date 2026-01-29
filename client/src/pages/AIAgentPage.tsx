@@ -72,6 +72,15 @@ interface LearnedRule {
   createdAt: string;
 }
 
+interface PushLog {
+  timestamp: string;
+  title: string;
+  message: string;
+  event: string;
+  success: boolean;
+  error?: string;
+}
+
 export default function AIAgentPage() {
   const { toast } = useToast();
   const [systemPrompt, setSystemPrompt] = useState("");
@@ -119,6 +128,11 @@ export default function AIAgentPage() {
 
   const { data: learnedRules = [], isLoading: rulesLoading } = useQuery<LearnedRule[]>({
     queryKey: ["/api/ai/rules"],
+  });
+
+  const { data: pushLogs = [], isLoading: pushLogsLoading, refetch: refetchPushLogs } = useQuery<PushLog[]>({
+    queryKey: ["/api/push-logs"],
+    refetchInterval: 10000,
   });
 
   // State for editing rules
@@ -920,6 +934,67 @@ export default function AIAgentPage() {
             ) : (
               <p className="text-sm text-slate-400 text-center py-4">
                 No hay logs aún
+              </p>
+            )}
+          </div>
+
+          {/* Push Notification Logs */}
+          <div className="bg-slate-800/40 backdrop-blur-md border border-slate-700/50 rounded-xl p-5 shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="font-semibold text-white">Logs de Notificaciones Push</h3>
+                <p className="text-xs text-slate-400">Solo: atención humana, pedido listo, llamar</p>
+              </div>
+              <Button 
+                size="sm" 
+                variant="outline" 
+                onClick={() => refetchPushLogs()}
+                data-testid="button-refresh-push-logs"
+                className="border-slate-600 hover:bg-slate-700/50"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            </div>
+            {pushLogsLoading ? (
+              <div className="flex justify-center py-4">
+                <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+              </div>
+            ) : pushLogs.length > 0 ? (
+              <div className="border border-slate-700/50 rounded-xl divide-y divide-slate-700/50 max-h-60 overflow-y-auto bg-slate-900/50">
+                {pushLogs.map((log, idx) => (
+                  <div key={idx} className="p-3 text-sm" data-testid={`push-log-${idx}`}>
+                    <div className="flex items-center gap-2 mb-1">
+                      {log.success ? (
+                        <CheckCircle className="h-4 w-4 text-emerald-500" />
+                      ) : (
+                        <XCircle className="h-4 w-4 text-red-500" />
+                      )}
+                      <span className="text-xs text-slate-400">
+                        {new Date(log.timestamp).toLocaleString()}
+                      </span>
+                      <span className={`text-xs px-1.5 py-0.5 rounded ${
+                        log.event === 'human_attention' ? 'bg-orange-500/20 text-orange-400' :
+                        log.event === 'order_ready' ? 'bg-emerald-500/20 text-emerald-400' :
+                        log.event === 'should_call' ? 'bg-cyan-500/20 text-cyan-400' :
+                        'bg-slate-600/50 text-slate-300'
+                      }`}>
+                        {log.event === 'human_attention' ? 'Atención Humana' :
+                         log.event === 'order_ready' ? 'Pedido Listo' :
+                         log.event === 'should_call' ? 'Llamar' : log.event}
+                      </span>
+                    </div>
+                    <div className="pl-6 space-y-1">
+                      <p className="text-slate-300"><span className="font-medium text-white">{log.title}:</span> {log.message}</p>
+                      {!log.success && log.error && (
+                        <p className="text-red-400 text-xs">Error: {log.error}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-slate-400 text-center py-4">
+                No hay logs de push aún. Se generarán cuando haya eventos de atención humana, pedidos listos, o llamadas.
               </p>
             )}
           </div>
