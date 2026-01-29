@@ -4,7 +4,8 @@ import { useConversations } from "@/hooks/use-inbox";
 import { NotificationBell } from "@/components/NotificationBell";
 import { KanbanView } from "@/components/KanbanView";
 import { Button } from "@/components/ui/button";
-import { LogOut, Bot, ClipboardList, LayoutGrid, Sparkles, MessageSquare, Zap, Activity, BarChart3 } from "lucide-react";
+import { LogOut, Bot, ClipboardList, LayoutGrid, Sparkles, MessageSquare, Zap, Activity, BarChart3, Search, X } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { Link, useLocation } from "wouter";
 
 const pulseLineAnimation = `
@@ -19,6 +20,7 @@ export default function InboxPage() {
   const { logout, user } = useAuth();
   const [daysToShow, setDaysToShow] = useState(1);
   const [location] = useLocation();
+  const [searchQuery, setSearchQuery] = useState("");
   const maxDays = 3;
   
   const { data: conversations = [], isLoading: loadingList } = useConversations();
@@ -26,14 +28,23 @@ export default function InboxPage() {
   const filteredConversations = useMemo(() => {
     const now = new Date();
     const cutoff = new Date(now.getTime() - daysToShow * 24 * 60 * 60 * 1000);
+    const query = searchQuery.toLowerCase().trim();
     
     return conversations
       .filter(c => {
+        // Si hay búsqueda, buscar en nombre y último mensaje (sin límite de tiempo)
+        if (query) {
+          const nameMatch = c.contactName?.toLowerCase().includes(query);
+          const messageMatch = c.lastMessage?.toLowerCase().includes(query);
+          const phoneMatch = c.waId?.includes(query);
+          return nameMatch || messageMatch || phoneMatch;
+        }
+        // Sin búsqueda, aplicar filtro de tiempo
         if (!c.lastMessageTimestamp) return true;
         return new Date(c.lastMessageTimestamp) >= cutoff;
       })
-      .slice(0, 50 * daysToShow);
-  }, [conversations, daysToShow]);
+      .slice(0, query ? 100 : 50 * daysToShow);
+  }, [conversations, daysToShow, searchQuery]);
 
   const handleLoadMore = () => {
     if (daysToShow < maxDays) {
@@ -65,6 +76,30 @@ export default function InboxPage() {
             </p>
           </div>
         </div>
+        
+        {/* Search Bar */}
+        <div className="flex-1 max-w-md mx-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Input
+              type="text"
+              placeholder="Buscar por nombre, mensaje o teléfono..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 pr-8 bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-400 focus:border-emerald-500 focus:ring-emerald-500/20"
+              data-testid="input-search"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+        </div>
+        
         <div className="flex items-center gap-1">
           <NotificationBell />
           <Link href="/ai-agent">
@@ -91,6 +126,34 @@ export default function InboxPage() {
             <LogOut className="h-5 w-5" />
           </Button>
         </div>
+      </div>
+
+      {/* Mobile Header with Search */}
+      <div className="md:hidden px-3 py-2 bg-slate-800/80 backdrop-blur-lg border-b border-emerald-500/20">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <Input
+            type="text"
+            placeholder="Buscar chat..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10 pr-8 h-9 bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-400 focus:border-emerald-500"
+            data-testid="input-search-mobile"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+        {searchQuery && (
+          <p className="text-xs text-slate-400 mt-1 text-center">
+            {filteredConversations.length} resultado(s)
+          </p>
+        )}
       </div>
 
       {/* Kanban View - responsive para móvil y desktop */}
