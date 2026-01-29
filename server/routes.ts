@@ -567,15 +567,7 @@ export async function registerRoutes(
               const existing = await storage.getMessageByWaId(msg.id);
               if (existing) continue;
 
-              // 4. Send push notification for new incoming message
-              const messagePreview = messageText || `[${msg.type}]`;
-              sendPushNotification(
-                name,
-                messagePreview.length > 100 ? messagePreview.substring(0, 100) + "..." : messagePreview,
-                { conversationId: conversation.id.toString(), waId: from }
-              );
-
-              // 5. Save Message (include mediaId for images and audio)
+              // 4. Save Message (include mediaId for images and audio)
               const mediaId = msg.image?.id || msg.audio?.id || null;
               const mimeType = msg.image?.mime_type || msg.audio?.mime_type || null;
               
@@ -607,6 +599,11 @@ export async function registerRoutes(
                   if (aiResult && aiResult.needsHuman) {
                     await storage.updateConversation(conversation.id, { needsHumanAttention: true });
                     console.log("=== AI NEEDS HUMAN - MARKED FOR ATTENTION ===", conversation.id);
+                    sendPushNotification(
+                      "Atención Humana Requerida",
+                      `${name}: El cliente necesita hablar con un humano`,
+                      { conversationId: conversation.id.toString(), waId: from, event: "human_attention" }
+                    );
                   } else if (aiResult && aiResult.response) {
                     // Clear human attention flag if AI can respond
                     await storage.updateConversation(conversation.id, { needsHumanAttention: false });
@@ -709,12 +706,22 @@ export async function registerRoutes(
                     if (aiResult.orderReady) {
                       updateData.orderStatus = 'ready';
                       console.log("=== MARKING ORDER AS READY ===", conversation.id);
+                      sendPushNotification(
+                        "Pedido Listo para Enviar",
+                        `${name}: Pedido completo, listo para despachar`,
+                        { conversationId: conversation.id.toString(), waId: from, event: "order_ready" }
+                      );
                     }
                     
                     // Mark for calling if AI detected shouldCall (NEUROVENTA)
                     if (aiResult.shouldCall) {
                       updateData.shouldCall = true;
                       console.log("=== MARKING FOR CALL (NEUROVENTA) ===", conversation.id);
+                      sendPushNotification(
+                        "Llamar al Cliente",
+                        `${name}: Alta probabilidad de compra - llamar ahora`,
+                        { conversationId: conversation.id.toString(), waId: from, event: "should_call" }
+                      );
                     }
                     
                     await storage.updateConversation(conversation.id, updateData);
