@@ -1518,5 +1518,32 @@ Máximo 2 líneas. Sé específico y práctico.`;
     }
   });
 
+  // Data deletion requests - public endpoint (no auth required)
+  const deletionRequests: Array<{ id: number; phone: string; reason: string; createdAt: string; status: string }> = [];
+  let deletionIdCounter = 1;
+
+  app.post("/api/data-deletion-request", async (req, res) => {
+    try {
+      const { phone, reason } = req.body;
+      if (!phone) return res.status(400).json({ message: "Phone is required" });
+      deletionRequests.unshift({
+        id: deletionIdCounter++,
+        phone,
+        reason: reason || "",
+        createdAt: new Date().toISOString(),
+        status: "pending",
+      });
+      if (deletionRequests.length > 100) deletionRequests.pop();
+      console.log(`[Data Deletion] New request from ${phone}: ${reason || "No reason provided"}`);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Error processing request" });
+    }
+  });
+
+  app.get("/api/data-deletion-requests", requireAuth, async (_req, res) => {
+    res.json(deletionRequests);
+  });
+
   return httpServer;
 }
