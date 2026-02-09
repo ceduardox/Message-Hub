@@ -10,6 +10,8 @@ import InboxPage from "@/pages/InboxPage";
 import AIAgentPage from "@/pages/AIAgentPage";
 import FollowUpPage from "@/pages/FollowUpPage";
 import AnalyticsPage from "@/pages/AnalyticsPage";
+import PrivacyPolicyPage from "@/pages/PrivacyPolicyPage";
+import DataDeletionPage from "@/pages/DataDeletionPage";
 import NotFound from "@/pages/not-found";
 
 // Protected Route Wrapper - No loading spinner, goes directly to content or login
@@ -35,6 +37,8 @@ function Router() {
   return (
     <Switch>
       <Route path="/login" component={LoginPage} />
+      <Route path="/privacy-policy" component={PrivacyPolicyPage} />
+      <Route path="/data-deletion" component={DataDeletionPage} />
       <Route path="/ai-agent">
         <ProtectedRoute component={AIAgentPage} />
       </Route>
