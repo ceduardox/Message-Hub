@@ -38,6 +38,7 @@ export const conversations = pgTable("conversations", {
   aiDisabled: boolean("ai_disabled").default(false),
   needsHumanAttention: boolean("needs_human_attention").default(false),
   shouldCall: boolean("should_call").default(false),
+  lastFollowUpAt: timestamp("last_follow_up_at"),
   assignedAgentId: integer("assigned_agent_id").references(() => agents.id),
   lastMessage: text("last_message"),
   lastMessageTimestamp: timestamp("last_message_timestamp"),
@@ -140,6 +141,8 @@ export const aiSettings = pgTable("ai_settings", {
   ttsInstructions: text("tts_instructions"), // Only for realistic voices - describes tone/style
   learningMode: boolean("learning_mode").default(false), // Enable/disable learning from human responses
   learningMessageCount: integer("learning_message_count").default(10), // How many messages to read for learning
+  followUpEnabled: boolean("follow_up_enabled").default(false),
+  followUpMinutes: integer("follow_up_minutes").default(20),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
