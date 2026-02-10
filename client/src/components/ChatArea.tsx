@@ -59,10 +59,35 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
   const [learnFocus, setLearnFocus] = useState("");
   const [learnMessageCount, setLearnMessageCount] = useState(10);
   const [suggestedRule, setSuggestedRule] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [filePreview, setFilePreview] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { mutate: sendMessage, isPending } = useSendMessage();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  const uploadImageMutation = useMutation({
+    mutationFn: async ({ file, to, caption }: { file: File; to: string; caption?: string }) => {
+      const formData = new FormData();
+      formData.append("image", file);
+      formData.append("to", to);
+      if (caption) formData.append("caption", caption);
+      const res = await fetch("/api/send-image", { method: "POST", body: formData, credentials: "include" });
+      if (!res.ok) { const err = await res.json(); throw new Error(err.message || "Error"); }
+      return res.json();
+    },
+    onSuccess: () => {
+      setText("");
+      setSelectedFile(null);
+      setFilePreview(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
+      toast({ title: "Imagen enviada" });
+    },
+    onError: (err: any) => {
+      toast({ title: "Error al enviar imagen", description: err.message, variant: "destructive" });
+    },
+  });
 
   const { data: labelsData = [] } = useQuery<Label[]>({
     queryKey: ["/api/labels"],
@@ -277,6 +302,12 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
 
   const handleSend = (e?: React.FormEvent) => {
     e?.preventDefault();
+    
+    if (selectedFile) {
+      uploadImageMutation.mutate({ file: selectedFile, to: conversation.waId, caption: text.trim() || undefined });
+      return;
+    }
+
     if ((!text.trim() && !imageUrl.trim()) || isPending) return;
 
     sendMessage(
@@ -295,6 +326,19 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
         }
       }
     );
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: "Archivo muy grande", description: "Max 5MB", variant: "destructive" });
+      return;
+    }
+    setSelectedFile(file);
+    setFilePreview(URL.createObjectURL(file));
+    setShowImageInput(false);
+    setImageUrl("");
   };
 
   const handleQuickMessage = (qm: QuickMessage) => {
@@ -675,6 +719,28 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
         </div>
       )}
 
+      {selectedFile && filePreview && (
+        <div className="px-4 py-2 bg-muted/50 border-t flex items-center gap-3">
+          <img src={filePreview} alt="Preview" className="h-16 w-16 object-cover rounded" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs text-muted-foreground truncate">{selectedFile.name}</p>
+            <p className="text-xs text-muted-foreground">{(selectedFile.size / 1024).toFixed(0)} KB</p>
+          </div>
+          <Button size="icon" variant="ghost" onClick={() => { setSelectedFile(null); setFilePreview(null); }} data-testid="button-remove-file">
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleFileSelect}
+        data-testid="input-file-image"
+      />
+
       {/* Input Area */}
       <div className="p-2 bg-[#f0f2f5] dark:bg-[#202c33] z-20 flex-shrink-0">
         {showImageInput && !imageUrl && (
@@ -692,6 +758,9 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
+              <DropdownMenuItem onClick={() => fileInputRef.current?.click()} data-testid="menu-image-gallery">
+                <ImageIcon className="h-4 w-4 mr-2 text-blue-500" /> Imagen (Galería)
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setShowImageInput(!showImageInput)}>
                 <ImageIcon className="h-4 w-4 mr-2 text-purple-500" /> Imagen (URL)
               </DropdownMenuItem>
@@ -755,11 +824,11 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
 
           <Button
             onClick={() => handleSend()}
-            disabled={(!text && !imageUrl) || isPending}
+            disabled={(!text && !imageUrl && !selectedFile) || isPending || uploadImageMutation.isPending}
             size="icon"
             className="rounded-full h-10 w-10 flex-shrink-0"
           >
-            <Send className="h-4 w-4" />
+            {uploadImageMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </Button>
         </div>
       </div>

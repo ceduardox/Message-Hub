@@ -12,6 +12,9 @@ import OpenAI from "openai";
 import fs from "fs";
 import path from "path";
 import os from "os";
+import multer from "multer";
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
 // Debug log storage for production troubleshooting
 const audioDebugLogs: Array<{ timestamp: string; step: string; data: any }> = [];
@@ -1015,6 +1018,85 @@ export async function registerRoutes(
           details: errorData.message || error.message || "Unknown error"
         }
       });
+    }
+  });
+
+  app.post("/api/send-image", requireAuth, upload.single("image"), async (req, res) => {
+    try {
+      const file = req.file;
+      const to = req.body.to;
+      const caption = req.body.caption || undefined;
+      
+      if (!file || !to) {
+        return res.status(400).json({ message: "Missing image or recipient" });
+      }
+
+      const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+      if (!allowedTypes.includes(file.mimetype)) {
+        return res.status(400).json({ message: "Formato no soportado. Usa JPG, PNG o WebP." });
+      }
+
+      const token = process.env.META_ACCESS_TOKEN;
+      const phoneId = process.env.WA_PHONE_NUMBER_ID;
+      if (!token || !phoneId) {
+        return res.status(500).json({ message: "Missing Meta configuration" });
+      }
+
+      const FormData = (await import("form-data")).default;
+      const formData = new FormData();
+      formData.append("file", file.buffer, { filename: file.originalname, contentType: file.mimetype });
+      formData.append("messaging_product", "whatsapp");
+      formData.append("type", file.mimetype);
+
+      const uploadRes = await axios.post(
+        `https://graph.facebook.com/v24.0/${phoneId}/media`,
+        formData,
+        { headers: { Authorization: `Bearer ${token}`, ...formData.getHeaders() } }
+      );
+      const mediaId = uploadRes.data.id;
+
+      const formattedTo = to.startsWith('+') ? to : `+${to}`;
+      const payload: any = {
+        messaging_product: "whatsapp",
+        to: formattedTo,
+        type: "image",
+        image: { id: mediaId },
+      };
+      if (caption) payload.image.caption = caption;
+
+      const waResponse = await axios.post(
+        `https://graph.facebook.com/v24.0/${phoneId}/messages`,
+        payload,
+        { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } }
+      );
+      const waMessageId = waResponse.data.messages[0].id;
+
+      const normalizedTo = to.replace(/^\+/, "");
+      let conversation = await storage.getConversationByWaId(normalizedTo);
+      if (!conversation) {
+        conversation = await storage.createConversation({
+          waId: normalizedTo, contactName: normalizedTo,
+          lastMessage: "[imagen]", lastMessageTimestamp: new Date(),
+        });
+      } else {
+        await storage.updateConversation(conversation.id, {
+          lastMessage: "[imagen]", lastMessageTimestamp: new Date(),
+        });
+      }
+
+      await storage.createMessage({
+        conversationId: conversation.id, waMessageId,
+        direction: "out", type: "image",
+        text: caption || "[imagen]",
+        mediaId, mimeType: file.mimetype,
+        timestamp: Math.floor(Date.now() / 1000).toString(),
+        status: "sent", rawJson: waResponse.data,
+      });
+
+      res.json({ success: true, messageId: waMessageId });
+    } catch (error: any) {
+      console.error("Image upload error:", error.response?.data || error.message);
+      res.status(500).json({ message: "Failed to send image", error: error.message });
     }
   });
 

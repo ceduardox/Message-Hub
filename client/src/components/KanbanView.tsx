@@ -1,10 +1,11 @@
 import { useState } from "react";
-import type { Conversation } from "@shared/schema";
+import type { Conversation, Label } from "@shared/schema";
 import { useConversation } from "@/hooks/use-inbox";
 import { ChatArea } from "./ChatArea";
-import { Phone, Clock, ChevronDown, AlertCircle, Truck, CheckCircle, Zap, ArrowLeft } from "lucide-react";
+import { Phone, Clock, ChevronDown, AlertCircle, Truck, CheckCircle, Zap, ArrowLeft, Tag, Filter } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useQuery } from "@tanstack/react-query";
 
 // CSS animation keyframes - Futuristic style
 const pulseAnimation = `
@@ -50,6 +51,7 @@ interface ColumnProps {
   activeId: number | null;
   onSelect: (id: number) => void;
   columnType: "humano" | "nuevo" | "llamar" | "listo" | "entregado";
+  labels: Label[];
 }
 
 function getInitials(name: string): string {
@@ -81,12 +83,14 @@ function KanbanCard({
   conv, 
   isActive, 
   onSelect,
-  columnType
+  columnType,
+  labels
 }: { 
   conv: Conversation; 
   isActive: boolean; 
   onSelect: () => void;
   columnType: "humano" | "nuevo" | "llamar" | "listo" | "entregado";
+  labels: Label[];
 }) {
   const name = conv.contactName || conv.waId;
   
@@ -186,6 +190,25 @@ function KanbanCard({
             </div>
           )}
           
+          {conv.labelId && (() => {
+            const label = labels.find(l => l.id === conv.labelId);
+            if (!label) return null;
+            const colorMap: Record<string, string> = {
+              blue: "bg-blue-500/20 text-blue-400",
+              green: "bg-green-500/20 text-green-400",
+              yellow: "bg-yellow-500/20 text-yellow-400",
+              red: "bg-red-500/20 text-red-400",
+              purple: "bg-purple-500/20 text-purple-400",
+              orange: "bg-orange-500/20 text-orange-400",
+            };
+            return (
+              <div className={cn("inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-full text-xs font-medium", colorMap[label.color] || "bg-slate-500/20 text-slate-400")} data-testid={`text-label-${label.id}-conv-${conv.id}`}>
+                <Tag className="h-2.5 w-2.5" />
+                {label.name}
+              </div>
+            );
+          })()}
+
           {columnType === "nuevo" && conv.lastMessage && (
             <p className="text-sm text-slate-400 mt-2 line-clamp-2">
               {conv.lastMessage}
@@ -202,7 +225,7 @@ function KanbanCard({
   );
 }
 
-function KanbanColumn({ title, items, activeId, onSelect, columnType }: ColumnProps) {
+function KanbanColumn({ title, items, activeId, onSelect, columnType, labels }: ColumnProps) {
   const getColumnHeaderStyle = () => {
     switch (columnType) {
       case "humano":
@@ -279,6 +302,7 @@ function KanbanColumn({ title, items, activeId, onSelect, columnType }: ColumnPr
               isActive={activeId === conv.id}
               onSelect={() => onSelect(conv.id)}
               columnType={columnType}
+              labels={labels}
             />
           ))
         )}
@@ -300,15 +324,19 @@ const tabConfig: { key: TabType; label: string; shortLabel: string; icon: typeof
 export function KanbanView({ conversations, isLoading, daysToShow, onLoadMore, maxDays }: KanbanViewProps) {
   const [activeId, setActiveId] = useState<number | null>(null);
   const [mobileTab, setMobileTab] = useState<TabType>("humano");
+  const [filterLabelId, setFilterLabelId] = useState<number | null>(null);
   const { data: activeConversation } = useConversation(activeId);
+  const { data: labels = [] } = useQuery<Label[]>({ queryKey: ["/api/labels"] });
 
-  const humano = conversations.filter(c => c.needsHumanAttention);
-  const entregados = conversations.filter(c => c.orderStatus === "delivered" && !c.needsHumanAttention);
-  const listos = conversations.filter(c => c.orderStatus === "ready" && !c.needsHumanAttention);
-  const llamar = conversations.filter(c => 
+  const filtered = filterLabelId ? conversations.filter(c => c.labelId === filterLabelId) : conversations;
+
+  const humano = filtered.filter(c => c.needsHumanAttention);
+  const entregados = filtered.filter(c => c.orderStatus === "delivered" && !c.needsHumanAttention);
+  const listos = filtered.filter(c => c.orderStatus === "ready" && !c.needsHumanAttention);
+  const llamar = filtered.filter(c => 
     c.shouldCall && !c.needsHumanAttention && c.orderStatus !== "ready" && c.orderStatus !== "delivered"
   );
-  const nuevos = conversations.filter(c => 
+  const nuevos = filtered.filter(c => 
     !c.orderStatus && !c.shouldCall && !c.needsHumanAttention
   );
 
@@ -354,6 +382,47 @@ export function KanbanView({ conversations, isLoading, daysToShow, onLoadMore, m
         <div className="absolute inset-0 bg-[linear-gradient(rgba(16,185,129,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(16,185,129,0.02)_1px,transparent_1px)] bg-[size:60px_60px]" />
       </div>
       
+      {labels.length > 0 && (
+        <div className="relative z-10 flex items-center gap-2 px-3 py-2 bg-slate-800/60 backdrop-blur-lg border-b border-slate-700/30 overflow-x-auto">
+          <Filter className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
+          <button
+            onClick={() => setFilterLabelId(null)}
+            className={cn(
+              "px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap select-none transition-transform duration-100 active:scale-95 border",
+              !filterLabelId ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/50" : "text-slate-400 border-slate-600/50"
+            )}
+            data-testid="filter-label-all"
+          >
+            Todas
+          </button>
+          {labels.map(label => {
+            const colorMap: Record<string, string> = {
+              blue: "bg-blue-500/20 text-blue-400 border-blue-500/50",
+              green: "bg-green-500/20 text-green-400 border-green-500/50",
+              yellow: "bg-yellow-500/20 text-yellow-400 border-yellow-500/50",
+              red: "bg-red-500/20 text-red-400 border-red-500/50",
+              purple: "bg-purple-500/20 text-purple-400 border-purple-500/50",
+              orange: "bg-orange-500/20 text-orange-400 border-orange-500/50",
+            };
+            const activeColor = colorMap[label.color] || "bg-slate-500/20 text-slate-400 border-slate-500/50";
+            return (
+              <button
+                key={label.id}
+                onClick={() => setFilterLabelId(filterLabelId === label.id ? null : label.id)}
+                className={cn(
+                  "px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap select-none transition-transform duration-100 active:scale-95 border flex items-center gap-1",
+                  filterLabelId === label.id ? activeColor : "text-slate-400 border-slate-600/50"
+                )}
+                data-testid={`filter-label-${label.id}`}
+              >
+                <Tag className="h-2.5 w-2.5" />
+                {label.name}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* Mobile: Tab bar - Futuristic */}
       <div className="md:hidden flex overflow-x-auto bg-slate-800/80 backdrop-blur-lg border-b border-slate-700/50 gap-1 p-2">
         {tabConfig.map((tab) => {
@@ -409,6 +478,7 @@ export function KanbanView({ conversations, isLoading, daysToShow, onLoadMore, m
             activeId={activeId}
             onSelect={setActiveId}
             columnType={mobileTab}
+            labels={labels}
           />
         )}
       </div>
@@ -422,6 +492,7 @@ export function KanbanView({ conversations, isLoading, daysToShow, onLoadMore, m
             activeId={activeId}
             onSelect={setActiveId}
             columnType="humano"
+            labels={labels}
           />
           <KanbanColumn
             title="Esperando Confirmaci."
@@ -429,6 +500,7 @@ export function KanbanView({ conversations, isLoading, daysToShow, onLoadMore, m
             activeId={activeId}
             onSelect={setActiveId}
             columnType="nuevo"
+            labels={labels}
           />
           <KanbanColumn
             title="Llamar"
@@ -436,6 +508,7 @@ export function KanbanView({ conversations, isLoading, daysToShow, onLoadMore, m
             activeId={activeId}
             onSelect={setActiveId}
             columnType="llamar"
+            labels={labels}
           />
           <KanbanColumn
             title="Listo para Enviar"
@@ -443,6 +516,7 @@ export function KanbanView({ conversations, isLoading, daysToShow, onLoadMore, m
             activeId={activeId}
             onSelect={setActiveId}
             columnType="listo"
+            labels={labels}
           />
           <KanbanColumn
             title="Enviados y Entregados"
@@ -450,6 +524,7 @@ export function KanbanView({ conversations, isLoading, daysToShow, onLoadMore, m
             activeId={activeId}
             onSelect={setActiveId}
             columnType="entregado"
+            labels={labels}
           />
         </div>
 
