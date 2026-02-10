@@ -113,7 +113,7 @@ export default function AgentsPage() {
   const inactiveAgents = agents.filter(a => !a.isActive);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-emerald-950/30 to-slate-900 text-white relative overflow-hidden">
+    <div className="min-h-screen bg-slate-950 text-white relative overflow-hidden">
       <style dangerouslySetInnerHTML={{ __html: glowAnimation }} />
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-20 left-20 w-96 h-96 bg-emerald-500/8 rounded-full blur-3xl" />
