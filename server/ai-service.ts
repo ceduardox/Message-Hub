@@ -146,6 +146,9 @@ export async function generateAiResponse(
 - Máximo 2 preguntas por respuesta
 - Tono humano y cálido
 - Para enviar imagen usa: [IMAGEN: url]
+- Para enviar botones interactivos (máximo 3 opciones, 20 caracteres cada una) usa: [BOTONES: opción1, opción2, opción3]. Ejemplo: Te paso nuestros productos [BOTONES: Berberina, Citrato Magnesio, Ver más]
+- Para enviar una lista interactiva (hasta 10 opciones) usa: [LISTA: título del botón | opción1, opción2, opción3]. Ejemplo: Mira nuestro catálogo [LISTA: Ver productos | Berberina, Citrato Magnesio, Bitter Melon]
+- IMPORTANTE: Cuando las instrucciones mencionen "botones" o el cliente deba elegir entre opciones, SIEMPRE usa el formato [BOTONES:] o [LISTA:]. NUNCA escribas las opciones como texto plano con asteriscos o viñetas.
 - IMPORTANTE: Cuando el cliente confirme el pedido con TODOS los datos (producto, cantidad, dirección/ubicación), escribe [PEDIDO_LISTO] al final de tu respuesta para marcar que hay un pedido listo para entregar.
 - Un pedido está listo cuando tienes: producto, cantidad, y dirección de entrega (ubicación GPS o dirección escrita)
 - Si NO puedes responder la pregunta con la información disponible, escribe exactamente [NECESITO_HUMANO] y no respondas nada más.
