@@ -951,6 +951,17 @@ export async function registerRoutes(
     res.json({ conversation, messages });
   });
 
+  app.delete("/api/conversations/:id", requireAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id as string);
+      await storage.deleteConversation(id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting conversation:", error);
+      res.status(500).json({ message: "Error deleting conversation" });
+    }
+  });
+
   // Sending
   app.post(api.messages.send.path, requireAuth, async (req, res) => {
     try {

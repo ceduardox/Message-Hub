@@ -101,6 +101,7 @@ export interface IStorage {
   getActiveAgents(): Promise<Agent[]>;
   assignConversationToAgent(conversationId: number, agentId: number): Promise<void>;
   getNextAgentForAssignment(): Promise<Agent | undefined>;
+  deleteConversation(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -362,6 +363,11 @@ export class DatabaseStorage implements IStorage {
       }
     }
     return bestAgent;
+  }
+
+  async deleteConversation(id: number): Promise<void> {
+    await db.delete(messages).where(eq(messages.conversationId, id));
+    await db.delete(conversations).where(eq(conversations.id, id));
   }
 }
 

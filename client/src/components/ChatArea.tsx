@@ -168,6 +168,19 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
     },
   });
 
+  const deleteConversationMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("DELETE", `/api/conversations/${conversation.id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
+      toast({ title: "Conversación eliminada" });
+    },
+    onError: () => {
+      toast({ title: "Error al eliminar", variant: "destructive" });
+    },
+  });
+
   const clearAttentionMutation = useMutation({
     mutationFn: async () => {
       const res = await fetch(`/api/conversations/${conversation.id}/clear-attention`, {
@@ -411,6 +424,22 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
           data-testid="button-should-call"
         >
           <Phone className="h-4 w-4" />
+        </Button>
+
+        {/* Delete Conversation Button */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="flex-shrink-0 text-red-400"
+          onClick={() => {
+            if (confirm("¿Eliminar esta conversación y todos sus mensajes?")) {
+              deleteConversationMutation.mutate();
+            }
+          }}
+          title="Eliminar conversación"
+          data-testid="button-delete-conversation"
+        >
+          <Trash2 className="h-4 w-4" />
         </Button>
 
         {/* Learn Button */}
