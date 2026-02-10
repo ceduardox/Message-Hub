@@ -452,7 +452,7 @@ export async function registerRoutes(
       secret: process.env.SESSION_SECRET || "default_secret",
       resave: false,
       saveUninitialized: false,
-      cookie: { maxAge: 604800000 }, // 7 days
+      cookie: { maxAge: 2592000000 }, // 30 days
       store: new SessionStore({
         checkPeriod: 86400000,
       }),
