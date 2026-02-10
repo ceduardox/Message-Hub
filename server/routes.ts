@@ -647,12 +647,17 @@ export async function registerRoutes(
               // 2. Ensure Conversation Exists (now using correct messageText)
               let conversation = await storage.getConversationByWaId(from);
               if (!conversation) {
+                const nextAgent = await storage.getNextAgentForAssignment();
                 conversation = await storage.createConversation({
                   waId: from,
                   contactName: name,
                   lastMessage: messageText || `[${msg.type}]`,
                   lastMessageTimestamp: new Date(parseInt(msg.timestamp) * 1000),
+                  assignedAgentId: nextAgent?.id || null,
                 });
+                if (nextAgent) {
+                  console.log(`[Auto-Assign] New conversation assigned to agent: ${nextAgent.name} (id: ${nextAgent.id})`);
+                }
               } else {
                 await storage.updateConversation(conversation.id, {
                   contactName: name,
@@ -880,9 +885,21 @@ export async function registerRoutes(
     if (await storage.validateAdmin(username, password)) {
       (req.session as any).authenticated = true;
       (req.session as any).username = username;
+      (req.session as any).role = "admin";
       res.json({ success: true });
     } else {
-      res.status(401).json({ message: "Invalid credentials" });
+      const agent = await storage.getAgentByUsername(username);
+      if (agent && agent.password === password && agent.isActive) {
+        (req.session as any).authenticated = true;
+        (req.session as any).username = agent.name;
+        (req.session as any).role = "agent";
+        (req.session as any).agentId = agent.id;
+        res.json({ success: true });
+      } else if (agent && !agent.isActive) {
+        res.status(401).json({ message: "Cuenta desactivada" });
+      } else {
+        res.status(401).json({ message: "Invalid credentials" });
+      }
     }
   });
 
@@ -894,23 +911,42 @@ export async function registerRoutes(
 
   app.get(api.auth.me.path, (req, res) => {
     if ((req.session as any).authenticated) {
-      res.json({ authenticated: true, username: (req.session as any).username });
+      res.json({ 
+        authenticated: true, 
+        username: (req.session as any).username,
+        role: (req.session as any).role || "admin",
+        agentId: (req.session as any).agentId,
+      });
     } else {
       res.json({ authenticated: false });
     }
   });
 
+  const requireAdmin = (req: any, res: any, next: any) => {
+    if (req.session && req.session.authenticated && req.session.role === "admin") {
+      next();
+    } else {
+      res.status(403).json({ message: "Admin access required" });
+    }
+  };
+
   // Conversations
   app.get(api.conversations.list.path, requireAuth, async (req, res) => {
-    const conversations = await storage.getConversations();
-    res.json(conversations);
+    let allConversations = await storage.getConversations();
+    if ((req.session as any).role === "agent") {
+      const agentId = (req.session as any).agentId;
+      allConversations = allConversations.filter(c => c.assignedAgentId === agentId);
+    }
+    res.json(allConversations);
   });
 
   app.get(api.conversations.get.path, requireAuth, async (req, res) => {
     const id = parseInt(req.params.id as string);
     const conversation = await storage.getConversation(id);
     if (!conversation) return res.status(404).json({ message: "Conversation not found" });
-    
+    if ((req.session as any).role === "agent" && conversation.assignedAgentId !== (req.session as any).agentId) {
+      return res.status(403).json({ message: "Access denied" });
+    }
     const messages = await storage.getMessages(id);
     res.json({ conversation, messages });
   });
@@ -1591,6 +1627,70 @@ Máximo 2 líneas. Sé específico y práctico.`;
     } catch (error) {
       console.error("Error deleting product:", error);
       res.status(500).json({ message: "Error deleting product" });
+    }
+  });
+
+  // === AGENT MANAGEMENT (Admin only) ===
+  app.get("/api/agents", requireAdmin, async (_req, res) => {
+    try {
+      const agentsList = await storage.getAgents();
+      res.json(agentsList);
+    } catch (error) {
+      res.status(500).json({ message: "Error fetching agents" });
+    }
+  });
+
+  app.post("/api/agents", requireAdmin, async (req, res) => {
+    try {
+      const { name, username, password, weight } = req.body;
+      if (!name || !username || !password) {
+        return res.status(400).json({ message: "Name, username and password are required" });
+      }
+      const existing = await storage.getAgentByUsername(username);
+      if (existing) {
+        return res.status(400).json({ message: "Username already exists" });
+      }
+      const agent = await storage.createAgent({ name, username, password, isActive: true, weight: weight || 1 });
+      res.json(agent);
+    } catch (error) {
+      res.status(500).json({ message: "Error creating agent" });
+    }
+  });
+
+  app.patch("/api/agents/:id", requireAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const updates = req.body;
+      if (updates.username) {
+        const existing = await storage.getAgentByUsername(updates.username);
+        if (existing && existing.id !== id) {
+          return res.status(400).json({ message: "Username already exists" });
+        }
+      }
+      const agent = await storage.updateAgent(id, updates);
+      if (updates.isActive === false) {
+        const allConversations = await storage.getConversations();
+        const agentConvos = allConversations.filter(c => c.assignedAgentId === id);
+        for (const convo of agentConvos) {
+          const nextAgent = await storage.getNextAgentForAssignment();
+          if (nextAgent && nextAgent.id !== id) {
+            await storage.assignConversationToAgent(convo.id, nextAgent.id);
+          }
+        }
+      }
+      res.json(agent);
+    } catch (error) {
+      res.status(500).json({ message: "Error updating agent" });
+    }
+  });
+
+  app.delete("/api/agents/:id", requireAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteAgent(id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Error deleting agent" });
     }
   });
 

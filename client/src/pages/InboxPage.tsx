@@ -4,7 +4,7 @@ import { useConversations } from "@/hooks/use-inbox";
 import { NotificationBell } from "@/components/NotificationBell";
 import { KanbanView } from "@/components/KanbanView";
 import { Button } from "@/components/ui/button";
-import { LogOut, Bot, ClipboardList, LayoutGrid, Sparkles, MessageSquare, Zap, Activity, BarChart3, Search, X } from "lucide-react";
+import { LogOut, Bot, ClipboardList, LayoutGrid, Sparkles, MessageSquare, Zap, Activity, BarChart3, Search, X, Users } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Link, useLocation } from "wouter";
 
@@ -17,7 +17,7 @@ const pulseLineAnimation = `
 `;
 
 export default function InboxPage() {
-  const { logout, user } = useAuth();
+  const { logout, user, isAdmin } = useAuth();
   const [daysToShow, setDaysToShow] = useState(1);
   const [location] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
@@ -102,21 +102,30 @@ export default function InboxPage() {
         
         <div className="flex items-center gap-1">
           <NotificationBell />
-          <Link href="/ai-agent">
-            <Button variant="ghost" size="icon" title="Agente IA" data-testid="button-ai-agent-desktop" className="text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10">
-              <Bot className="h-5 w-5" />
-            </Button>
-          </Link>
-          <Link href="/follow-up">
-            <Button variant="ghost" size="icon" title="Seguimiento" data-testid="button-follow-up-desktop" className="text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10">
-              <ClipboardList className="h-5 w-5" />
-            </Button>
-          </Link>
-          <Link href="/analytics">
-            <Button variant="ghost" size="icon" title="Analytics" data-testid="button-analytics-desktop" className="text-slate-400 hover:text-cyan-400 hover:bg-cyan-500/10">
-              <BarChart3 className="h-5 w-5" />
-            </Button>
-          </Link>
+          {isAdmin && (
+            <>
+              <Link href="/ai-agent">
+                <Button variant="ghost" size="icon" title="Agente IA" data-testid="button-ai-agent-desktop" className="text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10">
+                  <Bot className="h-5 w-5" />
+                </Button>
+              </Link>
+              <Link href="/follow-up">
+                <Button variant="ghost" size="icon" title="Seguimiento" data-testid="button-follow-up-desktop" className="text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10">
+                  <ClipboardList className="h-5 w-5" />
+                </Button>
+              </Link>
+              <Link href="/analytics">
+                <Button variant="ghost" size="icon" title="Analytics" data-testid="button-analytics-desktop" className="text-slate-400 hover:text-cyan-400 hover:bg-cyan-500/10">
+                  <BarChart3 className="h-5 w-5" />
+                </Button>
+              </Link>
+              <Link href="/agents">
+                <Button variant="ghost" size="icon" title="Agentes" data-testid="button-agents-desktop" className="text-slate-400 hover:text-violet-400 hover:bg-violet-500/10">
+                  <Users className="h-5 w-5" />
+                </Button>
+              </Link>
+            </>
+          )}
           <div className="h-6 w-px bg-slate-600 mx-2" />
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-700/50 border border-slate-600">
             <div className="h-2 w-2 bg-emerald-400 rounded-full animate-pulse" />
@@ -175,19 +184,23 @@ export default function InboxPage() {
             <span className="text-[10px] mt-0.5 font-medium">Inbox</span>
           </button>
         </Link>
-        <Link href="/ai-agent">
-          <button className={`flex flex-col items-center px-3 py-1.5 rounded-xl transition-all ${location === '/ai-agent' ? 'text-emerald-400 bg-emerald-500/20' : 'text-slate-500'}`}>
-            <Bot className="h-5 w-5" />
-            <span className="text-[10px] mt-0.5 font-medium">IA</span>
-          </button>
-        </Link>
+        {isAdmin && (
+          <>
+            <Link href="/ai-agent">
+              <button className={`flex flex-col items-center px-3 py-1.5 rounded-xl transition-all ${location === '/ai-agent' ? 'text-emerald-400 bg-emerald-500/20' : 'text-slate-500'}`}>
+                <Bot className="h-5 w-5" />
+                <span className="text-[10px] mt-0.5 font-medium">IA</span>
+              </button>
+            </Link>
+            <Link href="/follow-up">
+              <button className={`flex flex-col items-center px-3 py-1.5 rounded-xl transition-all ${location === '/follow-up' ? 'text-emerald-400 bg-emerald-500/20' : 'text-slate-500'}`}>
+                <ClipboardList className="h-5 w-5" />
+                <span className="text-[10px] mt-0.5 font-medium">Seguir</span>
+              </button>
+            </Link>
+          </>
+        )}
         <NotificationBell />
-        <Link href="/follow-up">
-          <button className={`flex flex-col items-center px-3 py-1.5 rounded-xl transition-all ${location === '/follow-up' ? 'text-emerald-400 bg-emerald-500/20' : 'text-slate-500'}`}>
-            <ClipboardList className="h-5 w-5" />
-            <span className="text-[10px] mt-0.5 font-medium">Seguir</span>
-          </button>
-        </Link>
         <button 
           onClick={() => logout()} 
           className="flex flex-col items-center px-3 py-1.5 rounded-xl text-slate-500 transition-all"

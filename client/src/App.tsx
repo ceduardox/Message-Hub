@@ -10,23 +10,40 @@ import InboxPage from "@/pages/InboxPage";
 import AIAgentPage from "@/pages/AIAgentPage";
 import FollowUpPage from "@/pages/FollowUpPage";
 import AnalyticsPage from "@/pages/AnalyticsPage";
+import AgentsPage from "@/pages/AgentsPage";
 import PrivacyPolicyPage from "@/pages/PrivacyPolicyPage";
 import DataDeletionPage from "@/pages/DataDeletionPage";
 import NotFound from "@/pages/not-found";
 
-// Protected Route Wrapper - No loading spinner, goes directly to content or login
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const { user, isLoading } = useAuth();
   const [, setLocation] = useLocation();
 
-  // While loading, render component optimistically (assumes user is logged in)
-  // This avoids showing a loading spinner and lets the chat appear immediately
   if (isLoading) {
     return <Component />;
   }
 
   if (!user) {
     setTimeout(() => setLocation("/login"), 0);
+    return null;
+  }
+
+  return <Component />;
+}
+
+function AdminRoute({ component: Component }: { component: React.ComponentType }) {
+  const { user, isLoading, isAdmin } = useAuth();
+  const [, setLocation] = useLocation();
+
+  if (isLoading) return null;
+
+  if (!user) {
+    setTimeout(() => setLocation("/login"), 0);
+    return null;
+  }
+
+  if (!isAdmin) {
+    setTimeout(() => setLocation("/"), 0);
     return null;
   }
 
@@ -40,13 +57,16 @@ function Router() {
       <Route path="/privacy-policy" component={PrivacyPolicyPage} />
       <Route path="/data-deletion" component={DataDeletionPage} />
       <Route path="/ai-agent">
-        <ProtectedRoute component={AIAgentPage} />
+        <AdminRoute component={AIAgentPage} />
       </Route>
       <Route path="/follow-up">
-        <ProtectedRoute component={FollowUpPage} />
+        <AdminRoute component={FollowUpPage} />
       </Route>
       <Route path="/analytics">
-        <ProtectedRoute component={AnalyticsPage} />
+        <AdminRoute component={AnalyticsPage} />
+      </Route>
+      <Route path="/agents">
+        <AdminRoute component={AgentsPage} />
       </Route>
       <Route path="/">
         <ProtectedRoute component={InboxPage} />

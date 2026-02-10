@@ -10,6 +10,7 @@ import {
   products,
   purchaseAnalyses,
   learnedRules,
+  agents,
   type Conversation,
   type InsertConversation,
   type Message,
@@ -30,8 +31,10 @@ import {
   type InsertPurchaseAnalysis,
   type LearnedRule,
   type InsertLearnedRule,
+  type Agent,
+  type InsertAgent,
 } from "@shared/schema";
-import { eq, desc, asc } from "drizzle-orm";
+import { eq, desc, asc, sql } from "drizzle-orm";
 
 export interface IStorage {
   // Auth
@@ -87,6 +90,17 @@ export interface IStorage {
   createLearnedRule(rule: InsertLearnedRule): Promise<LearnedRule>;
   updateLearnedRule(id: number, rule: Partial<InsertLearnedRule>): Promise<LearnedRule>;
   deleteLearnedRule(id: number): Promise<void>;
+
+  // Agents
+  getAgents(): Promise<Agent[]>;
+  getAgent(id: number): Promise<Agent | undefined>;
+  getAgentByUsername(username: string): Promise<Agent | undefined>;
+  createAgent(agent: InsertAgent): Promise<Agent>;
+  updateAgent(id: number, agent: Partial<InsertAgent>): Promise<Agent>;
+  deleteAgent(id: number): Promise<void>;
+  getActiveAgents(): Promise<Agent[]>;
+  assignConversationToAgent(conversationId: number, agentId: number): Promise<void>;
+  getNextAgentForAssignment(): Promise<Agent | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -285,6 +299,69 @@ export class DatabaseStorage implements IStorage {
 
   async deleteLearnedRule(id: number): Promise<void> {
     await db.delete(learnedRules).where(eq(learnedRules.id, id));
+  }
+
+  // Agents
+  async getAgents(): Promise<Agent[]> {
+    return await db.select().from(agents).orderBy(asc(agents.name));
+  }
+
+  async getAgent(id: number): Promise<Agent | undefined> {
+    const [agent] = await db.select().from(agents).where(eq(agents.id, id));
+    return agent;
+  }
+
+  async getAgentByUsername(username: string): Promise<Agent | undefined> {
+    const [agent] = await db.select().from(agents).where(eq(agents.username, username));
+    return agent;
+  }
+
+  async createAgent(agent: InsertAgent): Promise<Agent> {
+    const [created] = await db.insert(agents).values(agent).returning();
+    return created;
+  }
+
+  async updateAgent(id: number, agent: Partial<InsertAgent>): Promise<Agent> {
+    const [updated] = await db.update(agents).set(agent).where(eq(agents.id, id)).returning();
+    return updated;
+  }
+
+  async deleteAgent(id: number): Promise<void> {
+    await db.update(conversations).set({ assignedAgentId: null }).where(eq(conversations.assignedAgentId, id));
+    await db.delete(agents).where(eq(agents.id, id));
+  }
+
+  async getActiveAgents(): Promise<Agent[]> {
+    return await db.select().from(agents).where(eq(agents.isActive, true)).orderBy(asc(agents.name));
+  }
+
+  async assignConversationToAgent(conversationId: number, agentId: number): Promise<void> {
+    await db.update(conversations).set({ assignedAgentId: agentId }).where(eq(conversations.id, conversationId));
+  }
+
+  async getNextAgentForAssignment(): Promise<Agent | undefined> {
+    const activeAgents = await this.getActiveAgents();
+    if (activeAgents.length === 0) return undefined;
+
+    const allConvos = await db.select().from(conversations);
+    const countByAgent: Record<number, number> = {};
+    for (const a of activeAgents) countByAgent[a.id] = 0;
+    for (const c of allConvos) {
+      if (c.assignedAgentId && countByAgent[c.assignedAgentId] !== undefined) {
+        countByAgent[c.assignedAgentId]++;
+      }
+    }
+
+    let bestAgent = activeAgents[0];
+    let bestRatio = Infinity;
+    for (const agent of activeAgents) {
+      const ratio = countByAgent[agent.id] / (agent.weight || 1);
+      if (ratio < bestRatio) {
+        bestRatio = ratio;
+        bestAgent = agent;
+      }
+    }
+    return bestAgent;
   }
 }
 

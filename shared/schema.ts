@@ -18,16 +18,27 @@ export const quickMessages = pgTable("quick_messages", {
   imageUrl: text("image_url"),
 });
 
+export const agents = pgTable("agents", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 100 }).notNull(),
+  username: varchar("username", { length: 50 }).notNull().unique(),
+  password: varchar("password", { length: 100 }).notNull(),
+  isActive: boolean("is_active").default(true),
+  weight: integer("weight").default(1),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const conversations = pgTable("conversations", {
   id: serial("id").primaryKey(),
   waId: varchar("wa_id").notNull().unique(),
   contactName: text("contact_name"),
   labelId: integer("label_id").references(() => labels.id),
   isPinned: boolean("is_pinned").default(false),
-  orderStatus: varchar("order_status", { length: 20 }), // null = no order, 'pending' = in progress, 'ready' = ready for delivery, 'delivered' = completed
-  aiDisabled: boolean("ai_disabled").default(false), // true = human will respond, AI won't auto-reply
-  needsHumanAttention: boolean("needs_human_attention").default(false), // true = AI couldn't respond, needs human
-  shouldCall: boolean("should_call").default(false), // true = AI detected high purchase probability, should call
+  orderStatus: varchar("order_status", { length: 20 }),
+  aiDisabled: boolean("ai_disabled").default(false),
+  needsHumanAttention: boolean("needs_human_attention").default(false),
+  shouldCall: boolean("should_call").default(false),
+  assignedAgentId: integer("assigned_agent_id").references(() => agents.id),
   lastMessage: text("last_message"),
   lastMessageTimestamp: timestamp("last_message_timestamp"),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -67,6 +78,7 @@ export const insertConversationSchema = createInsertSchema(conversations).omit({
 export const insertMessageSchema = createInsertSchema(messages).omit({ id: true, createdAt: true });
 export const insertLabelSchema = createInsertSchema(labels).omit({ id: true });
 export const insertQuickMessageSchema = createInsertSchema(quickMessages).omit({ id: true });
+export const insertAgentSchema = createInsertSchema(agents).omit({ id: true, createdAt: true });
 
 // === API TYPES ===
 
@@ -74,6 +86,8 @@ export type Conversation = typeof conversations.$inferSelect;
 export type Message = typeof messages.$inferSelect;
 export type Label = typeof labels.$inferSelect;
 export type QuickMessage = typeof quickMessages.$inferSelect;
+export type Agent = typeof agents.$inferSelect;
+export type InsertAgent = z.infer<typeof insertAgentSchema>;
 
 export type InsertConversation = z.infer<typeof insertConversationSchema>;
 export type InsertMessage = z.infer<typeof insertMessageSchema>;

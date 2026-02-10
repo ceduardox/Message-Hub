@@ -23,7 +23,7 @@ export const api = {
       method: "GET" as const,
       path: "/api/me",
       responses: {
-        200: z.object({ authenticated: z.boolean(), username: z.string().optional() }),
+        200: z.object({ authenticated: z.boolean(), username: z.string().optional(), role: z.enum(["admin", "agent"]).optional(), agentId: z.number().optional() }),
       },
     },
   },

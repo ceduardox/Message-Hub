@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, type LoginRequest } from "@shared/routes";
+import { api } from "@shared/routes";
+import type { LoginRequest } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 
@@ -64,7 +65,6 @@ export function useAuth() {
     },
   });
 
-  // Only return user if authenticated
   const isAuthenticated = userQuery.data?.authenticated === true;
 
   return {
@@ -74,5 +74,8 @@ export function useAuth() {
     isLoggingIn: loginMutation.isPending,
     logout: logoutMutation.mutate,
     isLoggingOut: logoutMutation.isPending,
+    isAdmin: isAuthenticated && userQuery.data?.role === "admin",
+    isAgent: isAuthenticated && userQuery.data?.role === "agent",
+    role: userQuery.data?.role,
   };
 }

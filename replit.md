@@ -33,7 +33,7 @@ The server handles three main responsibilities:
 
 ### Data Storage
 - **Database**: PostgreSQL via Drizzle ORM
-- **Schema**: Seven main tables - conversations, messages, labels, quick_messages, ai_settings, ai_training_data, ai_logs
+- **Schema**: Eight main tables - conversations, messages, labels, quick_messages, ai_settings, ai_training_data, ai_logs, agents
 - **Migrations**: Drizzle Kit for schema management (`npm run db:push`)
 
 ### AI Agent Integration
@@ -73,11 +73,24 @@ The server handles three main responsibilities:
 - **Unique notifications**: Each message creates a separate notification (no grouping)
 - **Service Worker**: OneSignalSDKWorker.js in public folder
 
-### Authentication
-- Simple username/password authentication against environment variables (ADMIN_USER, ADMIN_PASS)
-- Session-based authentication with express-session
-- Session duration: 7 days (extended from 24h)
-- Protected API routes require active session
+### Authentication & Agent Management
+- **Admin Login**: Username/password against environment variables (ADMIN_USER, ADMIN_PASS)
+- **Agent Login**: Agents created by admin, login with username/password stored in agents table
+- **Roles**: "admin" (full access) and "agent" (inbox only, sees assigned conversations)
+- **Session**: express-session with MemoryStore, 30-day duration
+- **Agent Management** (/agents page, admin-only):
+  - Admin creates agents with name, username, password, weight
+  - Activate/deactivate agents with toggle (deactivated = can't login, convos redistributed)
+  - Weight-based auto-distribution: weight determines proportion of conversations assigned
+  - Example: Agent with weight 3 gets 3x more conversations than agent with weight 1
+  - New conversations auto-assigned in webhook to agent with lowest ratio (convos / weight)
+  - Agents only see their assigned conversations
+  - Agents cannot access AI config, follow-up, analytics, or agents pages
+- **API Endpoints**:
+  - GET/POST /api/agents - list/create agents (admin only)
+  - PATCH /api/agents/:id - update agent (admin only)
+  - DELETE /api/agents/:id - delete agent and reassign convos (admin only)
+- **Access Control**: requireAdmin middleware for admin-only routes, conversation filtering for agents
 
 ### Order Management (Call Center Features)
 - **Order Status Field**: conversations.orderStatus ('pending', 'ready', 'delivered', null)
