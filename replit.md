@@ -129,6 +129,15 @@ The server handles three main responsibilities:
   - PATCH /api/ai/rules/:id - update rule text or isActive status
   - DELETE /api/ai/rules/:id - delete rule
 
+### Automated Re-Engagement (Follow-Up Automático)
+- **File**: server/follow-up.ts
+- **Scheduler**: setInterval every 5 minutes checks for "left on read" conversations
+- **Conditions**: Last message is outgoing, status "read" or "delivered", 20+ min elapsed, no prior follow-up, within 72h Meta window
+- **AI-Powered**: Uses generateAiResponse with a system prompt to create personalized re-engagement messages
+- **Limits**: Maximum 1 follow-up per conversation (tracked via lastFollowUpAt field)
+- **Settings**: followUpEnabled toggle + followUpMinutes slider (5-60 min) in AI Agent page
+- **Exclusions**: Skips conversations with AI disabled, delivered orders, or older than 72h
+
 ### Follow-Up & Call Management
 - **Follow-Up Page**: /follow-up route to manage unresponded conversations
 - **Time Filters**: Filter by today, yesterday, before yesterday

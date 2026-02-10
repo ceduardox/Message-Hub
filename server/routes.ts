@@ -7,6 +7,7 @@ import session from "express-session";
 import MemoryStore from "memorystore";
 import axios from "axios";
 import { generateAiResponse } from "./ai-service";
+import { initFollowUp } from "./follow-up";
 import { insertProductSchema, updateOrderStatusSchema } from "@shared/schema";
 import OpenAI from "openai";
 import fs from "fs";
@@ -1813,6 +1814,8 @@ Máximo 2 líneas. Sé específico y práctico.`;
   app.get("/api/data-deletion-requests", requireAuth, async (_req, res) => {
     res.json(deletionRequests);
   });
+
+  initFollowUp(sendToWhatsApp, sendAiResponseToWhatsApp);
 
   return httpServer;
 }

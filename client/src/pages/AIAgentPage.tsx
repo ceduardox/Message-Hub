@@ -24,7 +24,8 @@ import {
   Package,
   X,
   Check,
-  MessageSquare
+  MessageSquare,
+  Clock
 } from "lucide-react";
 
 interface AiSettings {
@@ -41,6 +42,8 @@ interface AiSettings {
   audioVoice: string | null;
   ttsSpeed: number | null;
   ttsInstructions: string | null;
+  followUpEnabled: boolean | null;
+  followUpMinutes: number | null;
 }
 
 interface Product {
@@ -97,6 +100,8 @@ export default function AIAgentPage() {
   const [audioVoice, setAudioVoice] = useState("nova");
   const [ttsSpeed, setTtsSpeed] = useState(100);
   const [ttsInstructions, setTtsInstructions] = useState("");
+  const [followUpEnabled, setFollowUpEnabled] = useState(false);
+  const [followUpMinutes, setFollowUpMinutes] = useState(20);
   const [configEdited, setConfigEdited] = useState(false);
   
   // Product form state
@@ -175,6 +180,8 @@ export default function AIAgentPage() {
       setAudioVoice(settings.audioVoice || "nova");
       setTtsSpeed(settings.ttsSpeed || 100);
       setTtsInstructions(settings.ttsInstructions || "");
+      setFollowUpEnabled(settings.followUpEnabled || false);
+      setFollowUpMinutes(settings.followUpMinutes || 20);
     }
   }, [settings, promptEdited, configEdited]);
 
@@ -248,7 +255,7 @@ export default function AIAgentPage() {
 
   const handleSaveConfig = () => {
     console.log("Saving config:", { maxTokens, temperature, model, maxPromptChars, conversationHistory });
-    updateSettingsMutation.mutate({ maxTokens, temperature, model, maxPromptChars, conversationHistory, audioResponseEnabled, audioVoice, ttsSpeed, ttsInstructions: ttsInstructions || null });
+    updateSettingsMutation.mutate({ maxTokens, temperature, model, maxPromptChars, conversationHistory, audioResponseEnabled, audioVoice, ttsSpeed, ttsInstructions: ttsInstructions || null, followUpEnabled, followUpMinutes });
   };
 
   const handleAddProduct = () => {
@@ -614,6 +621,49 @@ export default function AIAgentPage() {
               </div>
             )}
             
+            <div className="flex items-center justify-between p-4 border border-slate-700/50 rounded-xl bg-slate-800/30">
+              <div className="space-y-1">
+                <Label htmlFor="followUp" className="text-slate-300 flex items-center gap-2">
+                  <Clock className="h-4 w-4" />
+                  Re-enganche automático
+                </Label>
+                <p className="text-xs text-slate-500">
+                  Si el cliente te dejó en visto, el AI le escribe para retomar la conversación
+                </p>
+              </div>
+              <Switch
+                id="followUp"
+                checked={followUpEnabled}
+                onCheckedChange={(checked) => {
+                  setFollowUpEnabled(checked);
+                  setConfigEdited(true);
+                }}
+                data-testid="switch-follow-up"
+              />
+            </div>
+
+            {followUpEnabled && (
+              <div className="space-y-2 p-4 border border-slate-700/50 rounded-xl bg-slate-800/30">
+                <Label className="text-slate-300">Minutos de espera antes de re-enganchar</Label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min={5}
+                    max={60}
+                    value={followUpMinutes}
+                    onChange={(e) => {
+                      setFollowUpMinutes(parseInt(e.target.value));
+                      setConfigEdited(true);
+                    }}
+                    className="flex-1 accent-emerald-500"
+                    data-testid="slider-follow-up-minutes"
+                  />
+                  <span className="text-emerald-400 font-bold min-w-[4rem] text-center">{followUpMinutes} min</span>
+                </div>
+                <p className="text-xs text-slate-500">Máximo 1 re-enganche por conversación. Solo dentro de las 72h de Meta.</p>
+              </div>
+            )}
+
             {configEdited && (
               <Button onClick={handleSaveConfig} disabled={updateSettingsMutation.isPending} data-testid="button-save-config" className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white shadow-lg shadow-cyan-500/30">
                 {updateSettingsMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
