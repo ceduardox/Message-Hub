@@ -138,8 +138,9 @@ function KanbanCard({
     <div
       onClick={onSelect}
       className={cn(
-        "rounded-xl p-4 cursor-pointer transition-all backdrop-blur-sm",
+        "rounded-xl p-4 cursor-pointer backdrop-blur-sm select-none",
         "border border-slate-700/50 shadow-lg shadow-black/20",
+        "transition-transform duration-100 active:scale-[0.97]",
         getCardStyle(),
         isActive && "ring-2 ring-emerald-500/50 shadow-emerald-500/20",
         isUrgent && "animate-ring-pulse"
@@ -363,7 +364,8 @@ export function KanbanView({ conversations, isLoading, daysToShow, onLoadMore, m
               key={tab.key}
               onClick={() => setMobileTab(tab.key)}
               className={cn(
-                "flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all border",
+                "flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium whitespace-nowrap border select-none",
+                "transition-transform duration-100 active:scale-95",
                 getTabColor(tab.key, mobileTab === tab.key)
               )}
               data-testid={`tab-${tab.key}`}
@@ -387,7 +389,7 @@ export function KanbanView({ conversations, isLoading, daysToShow, onLoadMore, m
           <div className="h-full flex flex-col bg-slate-900">
             <button
               onClick={() => setActiveId(null)}
-              className="p-3 border-b border-slate-700 text-left text-sm text-emerald-400 font-medium flex items-center gap-2 bg-slate-800/50"
+              className="p-3 border-b border-slate-700 text-left text-sm text-emerald-400 font-medium flex items-center gap-2 bg-slate-800/50 select-none transition-transform duration-100 active:scale-95"
               data-testid="button-back-kanban"
             >
               <ArrowLeft className="h-4 w-4" />
