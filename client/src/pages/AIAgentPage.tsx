@@ -23,7 +23,8 @@ import {
   Pencil,
   Package,
   X,
-  Check
+  Check,
+  MessageSquare
 } from "lucide-react";
 
 interface AiSettings {
@@ -367,6 +368,41 @@ export default function AIAgentPage() {
                 Guardar Instrucciones
               </Button>
             )}
+          </div>
+        </div>
+
+        {/* Interactive Messages Guide */}
+        <div className="group bg-gradient-to-br from-slate-800/80 to-slate-900/80 backdrop-blur-sm rounded-2xl p-5 border border-slate-700/50 shadow-xl shadow-black/20 relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-t from-violet-500/5 to-transparent rounded-2xl" />
+          <div className="relative space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg">
+                <MessageSquare className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-white">Botones y Listas Interactivas</h3>
+                <p className="text-xs text-slate-400">Usa estos formatos en las instrucciones para que el agente envíe botones o listas</p>
+              </div>
+            </div>
+            <div className="space-y-3 text-sm">
+              <div className="bg-slate-900/60 rounded-lg p-3 border border-slate-700/30">
+                <p className="text-violet-400 font-medium mb-1">Botones de respuesta rápida (máx. 3)</p>
+                <code className="text-xs text-slate-300 block bg-black/30 rounded p-2">
+                  [BOTONES: Opción 1, Opción 2, Opción 3]
+                </code>
+                <p className="text-xs text-slate-400 mt-2">Ejemplo en instrucciones: <em className="text-slate-300">"Cuando el cliente pregunte por productos, responde: ¿Qué te interesa? [BOTONES: Ver catálogo, Ver precios, Hablar con asesor]"</em></p>
+                <p className="text-xs text-yellow-400/80 mt-1">Máx. 20 caracteres por botón. El cliente toca y su respuesta llega al IA.</p>
+              </div>
+              <div className="bg-slate-900/60 rounded-lg p-3 border border-slate-700/30">
+                <p className="text-violet-400 font-medium mb-1">Lista de opciones (máx. 10)</p>
+                <code className="text-xs text-slate-300 block bg-black/30 rounded p-2">
+                  [LISTA: Título del botón | Opción 1, Opción 2, Opción 3, ...]
+                </code>
+                <p className="text-xs text-slate-400 mt-2">Ejemplo en instrucciones: <em className="text-slate-300">"Cuando pregunten qué hay disponible, responde: Estos son nuestros productos: [LISTA: Ver productos | Creatina, Proteína, Vitaminas, Pre-entreno, BCAA]"</em></p>
+                <p className="text-xs text-yellow-400/80 mt-1">El título del botón máx. 20 caracteres. Cada opción máx. 24 caracteres.</p>
+              </div>
+              <p className="text-xs text-slate-400">El texto antes de [BOTONES:] o [LISTA:] se envía como mensaje. Cuando el cliente elige una opción, el IA recibe el texto de la opción elegida y responde según tus instrucciones.</p>
+            </div>
           </div>
         </div>
 

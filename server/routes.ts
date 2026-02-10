@@ -324,8 +324,30 @@ export function getPushLogs() {
   return pushLogs;
 }
 
+// Parse interactive elements from AI response text
+function parseInteractiveElements(text: string): { cleanText: string; buttons?: string[]; list?: { title: string; options: string[] } } {
+  // Check for buttons: [BOTONES: opt1, opt2, opt3]
+  const buttonMatch = text.match(/\[BOTONES:\s*(.+?)\]/i);
+  if (buttonMatch) {
+    const buttons = buttonMatch[1].split(',').map(b => b.trim()).filter(Boolean).slice(0, 3);
+    const cleanText = text.replace(/\[BOTONES:\s*.+?\]/i, '').trim();
+    if (buttons.length > 0) return { cleanText, buttons };
+  }
+
+  // Check for list: [LISTA: title | opt1, opt2, ..., opt10]
+  const listMatch = text.match(/\[LISTA:\s*(.+?)\s*\|\s*(.+?)\]/i);
+  if (listMatch) {
+    const title = listMatch[1].trim();
+    const options = listMatch[2].split(',').map(o => o.trim()).filter(Boolean).slice(0, 10);
+    const cleanText = text.replace(/\[LISTA:\s*.+?\]/i, '').trim();
+    if (options.length > 0) return { cleanText, list: { title, options } };
+  }
+
+  return { cleanText: text };
+}
+
 // Helper to send messages via Graph API
-async function sendToWhatsApp(to: string, type: 'text' | 'image', content: any) {
+async function sendToWhatsApp(to: string, type: 'text' | 'image' | 'interactive', content: any) {
   const token = process.env.META_ACCESS_TOKEN;
   const phoneId = process.env.WA_PHONE_NUMBER_ID;
 
@@ -341,7 +363,6 @@ async function sendToWhatsApp(to: string, type: 'text' | 'image', content: any) 
 
   const url = `https://graph.facebook.com/v24.0/${phoneId}/messages`;
   
-  // Ensure phone number has + prefix (Meta requires it)
   const formattedTo = to.startsWith('+') ? to : `+${to}`;
   
   const payload: any = {
@@ -357,6 +378,8 @@ async function sendToWhatsApp(to: string, type: 'text' | 'image', content: any) 
     if (content.caption) {
       payload.image.caption = content.caption;
     }
+  } else if (type === 'interactive') {
+    payload.interactive = content.interactive;
   }
 
   console.log("URL:", url);
@@ -377,6 +400,45 @@ async function sendToWhatsApp(to: string, type: 'text' | 'image', content: any) 
     console.error("Error Data:", JSON.stringify(error.response?.data, null, 2));
     throw error;
   }
+}
+
+// Send AI response with interactive elements if detected
+async function sendAiResponseToWhatsApp(to: string, responseText: string) {
+  const parsed = parseInteractiveElements(responseText);
+
+  if (parsed.buttons && parsed.buttons.length > 0) {
+    const interactive = {
+      type: "button",
+      body: { text: parsed.cleanText || "Elige una opción:" },
+      action: {
+        buttons: parsed.buttons.map((btn, i) => ({
+          type: "reply",
+          reply: { id: `btn_${i}_${Date.now()}`, title: btn.substring(0, 20) },
+        })),
+      },
+    };
+    return sendToWhatsApp(to, 'interactive', { interactive });
+  }
+
+  if (parsed.list && parsed.list.options.length > 0) {
+    const interactive = {
+      type: "list",
+      body: { text: parsed.cleanText || "Elige una opción:" },
+      action: {
+        button: parsed.list.title.substring(0, 20),
+        sections: [{
+          title: parsed.list.title.substring(0, 24),
+          rows: parsed.list.options.map((opt, i) => ({
+            id: `list_${i}_${Date.now()}`,
+            title: opt.substring(0, 24),
+          })),
+        }],
+      },
+    };
+    return sendToWhatsApp(to, 'interactive', { interactive });
+  }
+
+  return sendToWhatsApp(to, 'text', { text: responseText });
 }
 
 export async function registerRoutes(
@@ -563,6 +625,20 @@ export async function registerRoutes(
                   messageText = '[Audio]';
                   messageForAi = '[El cliente envió un audio]';
                 }
+              } else if (msg.type === 'interactive') {
+                // Handle button or list replies
+                const interactiveReply = msg.interactive;
+                if (interactiveReply?.type === 'button_reply') {
+                  messageText = interactiveReply.button_reply.title;
+                  messageForAi = interactiveReply.button_reply.title;
+                } else if (interactiveReply?.type === 'list_reply') {
+                  messageText = interactiveReply.list_reply.title;
+                  messageForAi = interactiveReply.list_reply.title;
+                } else {
+                  messageText = `[Respuesta interactiva]`;
+                  messageForAi = `[El cliente seleccionó una opción interactiva]`;
+                }
+                console.log("=== INTERACTIVE REPLY ===", messageText);
               } else {
                 messageText = `[${msg.type}]`;
                 messageForAi = `[El cliente envió un mensaje de tipo: ${msg.type}]`;
@@ -698,12 +774,12 @@ export async function registerRoutes(
                           success: false,
                         });
                         
-                        waResponse = await sendToWhatsApp(from, 'text', { text: aiResult.response });
+                        waResponse = await sendAiResponseToWhatsApp(from, aiResult.response);
                         waMessageId = waResponse.messages[0].id;
                       }
                     } else {
-                      // Send text response
-                      waResponse = await sendToWhatsApp(from, 'text', { text: aiResult.response });
+                      // Send text response (with buttons/list support)
+                      waResponse = await sendAiResponseToWhatsApp(from, aiResult.response);
                       waMessageId = waResponse.messages[0].id;
                     }
 
