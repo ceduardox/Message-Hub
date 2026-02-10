@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/use-auth";
 import { useSendMessage } from "@/hooks/use-inbox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,6 +44,8 @@ const LABEL_COLORS = [
 ];
 
 export function ChatArea({ conversation, messages }: ChatAreaProps) {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const [text, setText] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [showImageInput, setShowImageInput] = useState(false);
@@ -426,21 +429,22 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
           <Phone className="h-4 w-4" />
         </Button>
 
-        {/* Delete Conversation Button */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="flex-shrink-0 text-red-400"
-          onClick={() => {
-            if (confirm("¿Eliminar esta conversación y todos sus mensajes?")) {
-              deleteConversationMutation.mutate();
-            }
-          }}
-          title="Eliminar conversación"
-          data-testid="button-delete-conversation"
-        >
-          <Trash2 className="h-4 w-4" />
-        </Button>
+        {isAdmin && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="flex-shrink-0 text-red-400"
+            onClick={() => {
+              if (confirm("¿Eliminar esta conversación y todos sus mensajes?")) {
+                deleteConversationMutation.mutate();
+              }
+            }}
+            title="Eliminar conversación"
+            data-testid="button-delete-conversation"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        )}
 
         {/* Learn Button */}
         <Dialog open={showLearnModal} onOpenChange={setShowLearnModal}>
