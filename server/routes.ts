@@ -265,7 +265,9 @@ async function sendPushNotification(title: string, message: string, data?: Recor
       headings: { en: title },
       contents: { en: message },
       data: data || {},
-      web_push_topic: `message-${Date.now()}`,
+      url: "https://ryztor.replit.app",
+      chrome_web_icon: "https://ryztor.replit.app/icon-512.png",
+      ttl: 60,
     };
     
     console.log("[OneSignal] Sending payload:", JSON.stringify(payload, null, 2));
@@ -299,7 +301,9 @@ async function sendPushNotification(title: string, message: string, data?: Recor
             headings: { en: title },
             contents: { en: message },
             data: data || {},
-            web_push_topic: `message-${Date.now()}`,
+            url: "https://ryztor.replit.app",
+            chrome_web_icon: "https://ryztor.replit.app/icon-512.png",
+            ttl: 60,
           },
           {
             headers: {
