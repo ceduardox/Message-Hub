@@ -732,77 +732,26 @@ export async function registerRoutes(
                       { conversationId: conversation.id.toString(), waId: from, event: "human_attention" }
                     );
                   } else if (aiResult && aiResult.response) {
-                    // Clear human attention flag if AI can respond
                     await storage.updateConversation(conversation.id, { needsHumanAttention: false });
                     
-                    // Check if we should respond with audio
-                    const settings = await storage.getAiSettings();
-                    const audioDebugInfo = {
-                      wasAudioMessage,
-                      audioResponseEnabled: settings?.audioResponseEnabled,
-                      audioVoice: settings?.audioVoice
-                    };
-                    console.log("=== AUDIO CHECK ===", audioDebugInfo);
-                    
-                    // Log to database for production debugging
-                    await storage.createAiLog({
-                      conversationId: conversation.id,
-                      userMessage: `AUDIO_DEBUG: ${JSON.stringify(audioDebugInfo)}`,
-                      aiResponse: `wasAudio=${wasAudioMessage}, enabled=${settings?.audioResponseEnabled}, voice=${settings?.audioVoice}`,
-                      tokensUsed: 0,
-                      success: true,
-                    });
-                    
-                    const shouldSendAudio = wasAudioMessage && settings?.audioResponseEnabled;
+                    const audioSettings = await storage.getAiSettings();
+                    const shouldSendAudio = wasAudioMessage && audioSettings?.audioResponseEnabled;
                     
                     let waResponse: any;
                     let waMessageId: string;
                     
                     if (shouldSendAudio) {
-                      // Send audio response
-                      const selectedVoice = settings?.audioVoice || "nova";
-                      const ttsSpeed = settings?.ttsSpeed ? settings.ttsSpeed / 100 : 1.0; // Convert from 25-400 to 0.25-4.0
-                      const ttsInstructions = settings?.ttsInstructions || null;
-                      console.log("=== SENDING AUDIO RESPONSE with voice:", selectedVoice, "speed:", ttsSpeed, "===");
-                      
-                      // Estimate TTS tokens (OpenAI charges per character, ~4 chars = 1 token)
-                      const ttsChars = aiResult.response.length;
-                      const estimatedTtsTokens = Math.ceil(ttsChars / 4);
-                      
-                      // Log TTS attempt
-                      await storage.createAiLog({
-                        conversationId: conversation.id,
-                        userMessage: `TTS_ATTEMPT: voice=${selectedVoice}, speed=${ttsSpeed}`,
-                        aiResponse: aiResult.response.substring(0, 100),
-                        tokensUsed: estimatedTtsTokens,
-                        success: true,
-                      });
+                      const selectedVoice = audioSettings?.audioVoice || "nova";
+                      const ttsSpeed = audioSettings?.ttsSpeed ? audioSettings.ttsSpeed / 100 : 1.0;
+                      const ttsInstructions = audioSettings?.ttsInstructions || null;
+                      console.log("=== SENDING AUDIO ===", selectedVoice, ttsSpeed);
                       
                       const audioSent = await sendAudioResponse(from, aiResult.response, selectedVoice, { speed: ttsSpeed, instructions: ttsInstructions });
                       if (audioSent) {
-                        // For audio, we won't have a waMessageId, use a generated one
                         waMessageId = `audio_${Date.now()}`;
                         waResponse = { messages: [{ id: waMessageId }] };
-                        
-                        await storage.createAiLog({
-                          conversationId: conversation.id,
-                          userMessage: `TTS_SUCCESS: ${ttsChars} chars`,
-                          aiResponse: `Audio sent with voice ${selectedVoice}`,
-                          tokensUsed: estimatedTtsTokens,
-                          success: true,
-                        });
                       } else {
-                        // Fallback to text if audio fails
-                        console.log("=== AUDIO FAILED, FALLING BACK TO TEXT ===");
-                        
-                        await storage.createAiLog({
-                          conversationId: conversation.id,
-                          userMessage: `TTS_FAILED`,
-                          aiResponse: `Fallback to text`,
-                          tokensUsed: 0,
-                          success: false,
-                        });
-                        
+                        console.log("=== AUDIO FAILED, TEXT FALLBACK ===");
                         waResponse = await sendAiResponseToWhatsApp(from, aiResult.response);
                         waMessageId = waResponse.messages[0].id;
                       }

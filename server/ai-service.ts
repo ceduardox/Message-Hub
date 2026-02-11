@@ -74,13 +74,15 @@ export async function generateAiResponse(
   imageBase64?: string // Optional: base64 encoded image for vision analysis
 ): Promise<{ response: string; imageUrl?: string; tokensUsed: number; orderReady?: boolean; needsHuman?: boolean; shouldCall?: boolean } | null> {
   try {
-    const settings = await storage.getAiSettings();
+    const [settings, allProducts, learnedRules] = await Promise.all([
+      storage.getAiSettings(),
+      storage.getProducts(),
+      storage.getActiveLearnedRules(),
+    ]);
+    
     if (!settings?.enabled) {
       return null;
     }
-
-    // Get all products
-    const allProducts = await storage.getProducts();
     
     // Find products matching user's current message
     const matchingProducts = findMatchingProducts(userMessage, allProducts);
@@ -132,8 +134,6 @@ export async function generateAiResponse(
 
     const instructions = settings.systemPrompt || "Eres un asistente de ventas amigable.";
     
-    // Get active learned rules
-    const learnedRules = await storage.getActiveLearnedRules();
     const learnedRulesContext = learnedRules.length > 0 
       ? "\n=== REGLAS APRENDIDAS ===\n" + learnedRules.map(r => `- ${r.rule}`).join("\n")
       : "";
