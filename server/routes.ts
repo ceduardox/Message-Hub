@@ -17,6 +17,142 @@ import multer from "multer";
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
+const AI_DEBOUNCE_MS = 3000;
+interface BufferedMessage {
+  messageForAi: string;
+  imageBase64ForAi?: string;
+  wasAudioMessage: boolean;
+  conversationId: number;
+  from: string;
+  name: string;
+}
+const messageBuffers = new Map<string, { messages: BufferedMessage[]; timer: ReturnType<typeof setTimeout> }>();
+
+function flushMessageBuffer(waId: string) {
+  const buffer = messageBuffers.get(waId);
+  if (!buffer || buffer.messages.length === 0) return;
+  messageBuffers.delete(waId);
+
+  const msgs = buffer.messages;
+  const combined: BufferedMessage = {
+    messageForAi: msgs.map(m => m.messageForAi).join("\n"),
+    imageBase64ForAi: msgs.find(m => m.imageBase64ForAi)?.imageBase64ForAi,
+    wasAudioMessage: msgs.some(m => m.wasAudioMessage),
+    conversationId: msgs[msgs.length - 1].conversationId,
+    from: msgs[0].from,
+    name: msgs[0].name,
+  };
+
+  processAiResponse(combined).catch(err => console.error("Buffered AI error:", err));
+}
+
+async function processAiResponse(data: BufferedMessage) {
+  const { conversationId, messageForAi, from, name, imageBase64ForAi, wasAudioMessage } = data;
+  const conversation = await storage.getConversation(conversationId);
+  if (!conversation || conversation.aiDisabled) return;
+
+  try {
+    const recentMessages = await storage.getMessages(conversationId);
+    const aiResult = await generateAiResponse(conversationId, messageForAi, recentMessages, imageBase64ForAi);
+
+    if (aiResult && aiResult.needsHuman) {
+      await storage.updateConversation(conversationId, { needsHumanAttention: true });
+      console.log("=== AI NEEDS HUMAN - MARKED FOR ATTENTION ===", conversationId);
+      sendPushNotification(
+        "Atención Humana Requerida",
+        `${name}: El cliente necesita hablar con un humano`,
+        { conversationId: conversationId.toString(), waId: from, event: "human_attention" }
+      );
+    } else if (aiResult && aiResult.response) {
+      await storage.updateConversation(conversationId, { needsHumanAttention: false });
+
+      const audioSettings = await storage.getAiSettings();
+      const shouldSendAudio = wasAudioMessage && audioSettings?.audioResponseEnabled;
+
+      let waResponse: any;
+      let waMessageId: string;
+
+      if (shouldSendAudio) {
+        const selectedVoice = audioSettings?.audioVoice || "nova";
+        const ttsSpeed = audioSettings?.ttsSpeed ? audioSettings.ttsSpeed / 100 : 1.0;
+        const ttsInstructions = audioSettings?.ttsInstructions || null;
+        console.log("=== SENDING AUDIO ===", selectedVoice, ttsSpeed);
+
+        const audioSent = await sendAudioResponse(from, aiResult.response, selectedVoice, { speed: ttsSpeed, instructions: ttsInstructions });
+        if (audioSent) {
+          waMessageId = `audio_${Date.now()}`;
+          waResponse = { messages: [{ id: waMessageId }] };
+        } else {
+          console.log("=== AUDIO FAILED, TEXT FALLBACK ===");
+          waResponse = await sendAiResponseToWhatsApp(from, aiResult.response);
+          waMessageId = waResponse.messages[0].id;
+        }
+      } else {
+        waResponse = await sendAiResponseToWhatsApp(from, aiResult.response);
+        waMessageId = waResponse.messages[0].id;
+      }
+
+      await storage.createMessage({
+        conversationId,
+        waMessageId,
+        direction: "out",
+        type: "text",
+        text: aiResult.response,
+        timestamp: Math.floor(Date.now() / 1000).toString(),
+        status: "sent",
+        rawJson: waResponse,
+      });
+
+      const updateData: any = {
+        lastMessage: aiResult.response,
+        lastMessageTimestamp: new Date(),
+      };
+
+      if (aiResult.orderReady) {
+        updateData.orderStatus = 'ready';
+        console.log("=== MARKING ORDER AS READY ===", conversationId);
+        sendPushNotification(
+          "Pedido Listo para Enviar",
+          `${name}: Pedido completo, listo para despachar`,
+          { conversationId: conversationId.toString(), waId: from, event: "order_ready" }
+        );
+      }
+
+      if (aiResult.shouldCall) {
+        updateData.shouldCall = true;
+        console.log("=== MARKING FOR CALL (NEUROVENTA) ===", conversationId);
+        sendPushNotification(
+          "Llamar al Cliente",
+          `${name}: Alta probabilidad de compra - llamar ahora`,
+          { conversationId: conversationId.toString(), waId: from, event: "should_call" }
+        );
+      }
+
+      await storage.updateConversation(conversationId, updateData);
+
+      if (aiResult.imageUrl) {
+        const imgResponse = await sendToWhatsApp(from, 'image', { imageUrl: aiResult.imageUrl });
+        await storage.createMessage({
+          conversationId,
+          waMessageId: imgResponse.messages[0].id,
+          direction: "out",
+          type: "image",
+          text: null,
+          timestamp: Math.floor(Date.now() / 1000).toString(),
+          status: "sent",
+          rawJson: imgResponse,
+        });
+      }
+
+      console.log("=== AI RESPONSE SENT (BUFFERED) ===");
+      console.log("Response:", aiResult.response);
+      console.log("Tokens:", aiResult.tokensUsed);
+    }
+  } catch (aiError) {
+    console.error("AI Response Error (buffered):", aiError);
+  }
+}
+
 // Debug log storage for production troubleshooting
 const audioDebugLogs: Array<{ timestamp: string; step: string; data: any }> = [];
 function logAudioDebug(step: string, data: any) {
@@ -562,21 +698,20 @@ export async function registerRoutes(
             
             if (!value) continue;
 
-            // Handle Messages
+            // Handle Messages (iterate ALL messages in payload)
             if (value.messages && value.messages.length > 0) {
+              for (const msg of value.messages) {
               console.log("=== MESSAGE RECEIVED ===");
-              const msg = value.messages[0];
               console.log("Message ID:", msg.id);
               console.log("From:", msg.from);
               console.log("Type:", msg.type);
               const from = msg.from; // wa_id
               const name = value.contacts?.[0]?.profile?.name || from;
               
-              // 1. Build message text FIRST (handle different types including location)
               let messageText: string | null = null;
               let messageForAi: string | null = null;
-              let wasAudioMessage = false; // Track if client sent audio
-              let imageBase64ForAi: string | undefined = undefined; // For vision analysis
+              let wasAudioMessage = false;
+              let imageBase64ForAi: string | undefined = undefined;
               
               if (msg.type === 'text') {
                 messageText = msg.text.body;
@@ -711,120 +846,35 @@ export async function registerRoutes(
                 rawJson: msg,
               });
 
-              // 5. AI Auto-Response (if enabled and not disabled for this chat)
+              // 5. AI Auto-Response with debounce buffer (groups rapid messages)
               if (messageForAi && !conversation.aiDisabled) {
-                try {
-                  const recentMessages = await storage.getMessages(conversation.id);
-                  const aiResult = await generateAiResponse(
-                    conversation.id,
-                    messageForAi,
-                    recentMessages,
-                    imageBase64ForAi
-                  );
+                const bufferedMsg: BufferedMessage = {
+                  messageForAi,
+                  imageBase64ForAi,
+                  wasAudioMessage,
+                  conversationId: conversation.id,
+                  from,
+                  name,
+                };
 
-                  // Handle case where AI needs human help
-                  if (aiResult && aiResult.needsHuman) {
-                    await storage.updateConversation(conversation.id, { needsHumanAttention: true });
-                    console.log("=== AI NEEDS HUMAN - MARKED FOR ATTENTION ===", conversation.id);
-                    sendPushNotification(
-                      "Atención Humana Requerida",
-                      `${name}: El cliente necesita hablar con un humano`,
-                      { conversationId: conversation.id.toString(), waId: from, event: "human_attention" }
-                    );
-                  } else if (aiResult && aiResult.response) {
-                    await storage.updateConversation(conversation.id, { needsHumanAttention: false });
-                    
-                    const audioSettings = await storage.getAiSettings();
-                    const shouldSendAudio = wasAudioMessage && audioSettings?.audioResponseEnabled;
-                    
-                    let waResponse: any;
-                    let waMessageId: string;
-                    
-                    if (shouldSendAudio) {
-                      const selectedVoice = audioSettings?.audioVoice || "nova";
-                      const ttsSpeed = audioSettings?.ttsSpeed ? audioSettings.ttsSpeed / 100 : 1.0;
-                      const ttsInstructions = audioSettings?.ttsInstructions || null;
-                      console.log("=== SENDING AUDIO ===", selectedVoice, ttsSpeed);
-                      
-                      const audioSent = await sendAudioResponse(from, aiResult.response, selectedVoice, { speed: ttsSpeed, instructions: ttsInstructions });
-                      if (audioSent) {
-                        waMessageId = `audio_${Date.now()}`;
-                        waResponse = { messages: [{ id: waMessageId }] };
-                      } else {
-                        console.log("=== AUDIO FAILED, TEXT FALLBACK ===");
-                        waResponse = await sendAiResponseToWhatsApp(from, aiResult.response);
-                        waMessageId = waResponse.messages[0].id;
-                      }
-                    } else {
-                      // Send text response (with buttons/list support)
-                      waResponse = await sendAiResponseToWhatsApp(from, aiResult.response);
-                      waMessageId = waResponse.messages[0].id;
-                    }
-
-                    await storage.createMessage({
-                      conversationId: conversation.id,
-                      waMessageId: waMessageId,
-                      direction: "out",
-                      type: "text",
-                      text: aiResult.response,
-                      timestamp: Math.floor(Date.now() / 1000).toString(),
-                      status: "sent",
-                      rawJson: waResponse,
-                    });
-
-                    // Update conversation with last message and order status if ready
-                    const updateData: any = {
-                      lastMessage: aiResult.response,
-                      lastMessageTimestamp: new Date(),
-                    };
-                    
-                    // Mark order as ready if AI detected complete order
-                    if (aiResult.orderReady) {
-                      updateData.orderStatus = 'ready';
-                      console.log("=== MARKING ORDER AS READY ===", conversation.id);
-                      sendPushNotification(
-                        "Pedido Listo para Enviar",
-                        `${name}: Pedido completo, listo para despachar`,
-                        { conversationId: conversation.id.toString(), waId: from, event: "order_ready" }
-                      );
-                    }
-                    
-                    // Mark for calling if AI detected shouldCall (NEUROVENTA)
-                    if (aiResult.shouldCall) {
-                      updateData.shouldCall = true;
-                      console.log("=== MARKING FOR CALL (NEUROVENTA) ===", conversation.id);
-                      sendPushNotification(
-                        "Llamar al Cliente",
-                        `${name}: Alta probabilidad de compra - llamar ahora`,
-                        { conversationId: conversation.id.toString(), waId: from, event: "should_call" }
-                      );
-                    }
-                    
-                    await storage.updateConversation(conversation.id, updateData);
-
-                    // Send image if AI included one
-                    if (aiResult.imageUrl) {
-                      const imgResponse = await sendToWhatsApp(from, 'image', { imageUrl: aiResult.imageUrl });
-                      await storage.createMessage({
-                        conversationId: conversation.id,
-                        waMessageId: imgResponse.messages[0].id,
-                        direction: "out",
-                        type: "image",
-                        text: null,
-                        timestamp: Math.floor(Date.now() / 1000).toString(),
-                        status: "sent",
-                        rawJson: imgResponse,
-                      });
-                    }
-
-                    console.log("=== AI RESPONSE SENT ===");
-                    console.log("Response:", aiResult.response);
-                    console.log("Tokens:", aiResult.tokensUsed);
+                const existing = messageBuffers.get(from);
+                if (existing) {
+                  clearTimeout(existing.timer);
+                  existing.messages.push(bufferedMsg);
+                  if (existing.messages.length >= 10) {
+                    flushMessageBuffer(from);
+                    console.log(`=== BUFFER FULL, FLUSHING for ${from} ===`);
+                  } else {
+                    existing.timer = setTimeout(() => flushMessageBuffer(from), AI_DEBOUNCE_MS);
+                    console.log(`=== BUFFERED MESSAGE ${existing.messages.length} for ${from} ===`);
                   }
-                } catch (aiError) {
-                  console.error("AI Response Error:", aiError);
+                } else {
+                  const timer = setTimeout(() => flushMessageBuffer(from), AI_DEBOUNCE_MS);
+                  messageBuffers.set(from, { messages: [bufferedMsg], timer });
+                  console.log(`=== BUFFER STARTED for ${from} (${AI_DEBOUNCE_MS}ms) ===`);
                 }
               }
+              } // end for (const msg of value.messages)
             }
 
             // Handle Statuses (delivered, read)
