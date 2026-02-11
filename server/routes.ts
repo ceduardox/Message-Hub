@@ -496,6 +496,13 @@ export async function registerRoutes(
     }
   });
 
+  // === WEBHOOK DEBUG (Temporary) ===
+  const webhookDebugLog: Array<{ timestamp: string; hasBody: boolean; object: string; entryCount: number; raw: string }> = [];
+  
+  app.get("/webhook-debug", (req, res) => {
+    res.json({ count: webhookDebugLog.length, logs: webhookDebugLog });
+  });
+
   // === WEBHOOK (Public) ===
   
   // Verification
@@ -522,6 +529,15 @@ export async function registerRoutes(
   app.post("/webhook", async (req, res) => {
     console.log("=== WEBHOOK RECEIVED ===");
     console.log("Body:", JSON.stringify(req.body, null, 2));
+    
+    webhookDebugLog.push({
+      timestamp: new Date().toISOString(),
+      hasBody: !!req.body,
+      object: req.body?.object || "none",
+      entryCount: req.body?.entry?.length || 0,
+      raw: JSON.stringify(req.body).substring(0, 500),
+    });
+    if (webhookDebugLog.length > 20) webhookDebugLog.shift();
     
     // Always return 200 OK to Meta immediately
     res.sendStatus(200);
