@@ -2,8 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, buildUrl, type SendMessageRequest } from "@shared/routes";
 import { useToast } from "@/hooks/use-toast";
 
-// Poll interval as requested (8 seconds)
-const POLL_INTERVAL = 8000;
+const POLL_INTERVAL = 1000;
 
 export function useConversations() {
   return useQuery({
