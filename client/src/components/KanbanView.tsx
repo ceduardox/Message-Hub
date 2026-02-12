@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { Conversation, Label } from "@shared/schema";
 import { useConversation } from "@/hooks/use-inbox";
 import { ChatArea } from "./ChatArea";
-import { Phone, Clock, ChevronDown, AlertCircle, Truck, CheckCircle, Zap, ArrowLeft, Tag, Filter } from "lucide-react";
+import { Phone, Clock, ChevronDown, AlertCircle, Truck, CheckCircle, Zap, ArrowLeft, Tag, Filter, Package } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
@@ -311,12 +311,13 @@ function KanbanColumn({ title, items, activeId, onSelect, columnType, labels }: 
   );
 }
 
-type TabType = "humano" | "nuevo" | "llamar" | "listo" | "entregado";
+type TabType = "humano" | "nuevo" | "llamar" | "proceso" | "listo" | "entregado";
 
 const tabConfig: { key: TabType; label: string; shortLabel: string; icon: typeof AlertCircle }[] = [
   { key: "humano", label: "Interacción Humana", shortLabel: "Humano", icon: AlertCircle },
   { key: "nuevo", label: "Esperando Confirmaci.", shortLabel: "Nuevos", icon: Clock },
   { key: "llamar", label: "Llamar", shortLabel: "Llamar", icon: Phone },
+  { key: "proceso", label: "Pedido en Proceso", shortLabel: "Proceso", icon: Package },
   { key: "listo", label: "Listo para Enviar", shortLabel: "Listo", icon: CheckCircle },
   { key: "entregado", label: "Enviados y Entregados", shortLabel: "Enviado", icon: Truck },
 ];
@@ -334,7 +335,10 @@ export function KanbanView({ conversations, isLoading, daysToShow, onLoadMore, m
   const entregados = filtered.filter(c => c.orderStatus === "delivered" && !c.needsHumanAttention);
   const listos = filtered.filter(c => c.orderStatus === "ready" && !c.needsHumanAttention);
   const llamar = filtered.filter(c => 
-    c.shouldCall && !c.needsHumanAttention && c.orderStatus !== "ready" && c.orderStatus !== "delivered"
+    c.shouldCall && !c.needsHumanAttention && c.orderStatus !== "pending" && c.orderStatus !== "ready" && c.orderStatus !== "delivered"
+  );
+  const enProceso = filtered.filter(c =>
+    c.orderStatus === "pending" && !c.needsHumanAttention
   );
   const nuevos = filtered.filter(c => 
     !c.orderStatus && !c.shouldCall && !c.needsHumanAttention
@@ -344,6 +348,7 @@ export function KanbanView({ conversations, isLoading, daysToShow, onLoadMore, m
     humano: { items: humano, title: "Interacción Humana" },
     nuevo: { items: nuevos, title: "Esperando Confirmaci." },
     llamar: { items: llamar, title: "Llamar" },
+    proceso: { items: enProceso, title: "Pedido en Proceso" },
     listo: { items: listos, title: "Listo para Enviar" },
     entregado: { items: entregados, title: "Enviados y Entregados" },
   };
@@ -353,6 +358,7 @@ export function KanbanView({ conversations, isLoading, daysToShow, onLoadMore, m
       humano: isActive ? "bg-red-500/20 text-red-400 border-red-500/50" : "text-slate-500 border-transparent",
       nuevo: isActive ? "bg-slate-600/30 text-slate-300 border-slate-500/50" : "text-slate-500 border-transparent",
       llamar: isActive ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/50" : "text-slate-500 border-transparent",
+      proceso: isActive ? "bg-amber-500/20 text-amber-400 border-amber-500/50" : "text-slate-500 border-transparent",
       listo: isActive ? "bg-cyan-500/20 text-cyan-400 border-cyan-500/50" : "text-slate-500 border-transparent",
       entregado: isActive ? "bg-slate-500/20 text-slate-400 border-slate-500/50" : "text-slate-500 border-transparent",
     };
