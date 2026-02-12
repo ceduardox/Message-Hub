@@ -50,7 +50,7 @@ interface ColumnProps {
   items: Conversation[];
   activeId: number | null;
   onSelect: (id: number) => void;
-  columnType: "humano" | "nuevo" | "llamar" | "listo" | "entregado";
+  columnType: "humano" | "nuevo" | "llamar" | "proceso" | "listo" | "entregado";
   labels: Label[];
 }
 
@@ -89,7 +89,7 @@ function KanbanCard({
   conv: Conversation; 
   isActive: boolean; 
   onSelect: () => void;
-  columnType: "humano" | "nuevo" | "llamar" | "listo" | "entregado";
+  columnType: "humano" | "nuevo" | "llamar" | "proceso" | "listo" | "entregado";
   labels: Label[];
 }) {
   const name = conv.contactName || conv.waId;
@@ -100,6 +100,8 @@ function KanbanCard({
         return { text: "Urgente", bgColor: "bg-red-500/20", textColor: "text-red-400", dotColor: "bg-red-500" };
       case "llamar":
         return { text: "Llamar", bgColor: "bg-emerald-500/20", textColor: "text-emerald-400", dotColor: "bg-emerald-500" };
+      case "proceso":
+        return { text: "En Proceso", bgColor: "bg-amber-500/20", textColor: "text-amber-400", dotColor: "bg-amber-500" };
       case "listo":
         return { text: "Listo", bgColor: "bg-cyan-500/20", textColor: "text-cyan-400", dotColor: "bg-cyan-500" };
       case "entregado":
@@ -115,6 +117,8 @@ function KanbanCard({
         return "border-l-2 border-l-red-500 bg-slate-800/80 hover:bg-slate-700/80";
       case "llamar":
         return "border-l-2 border-l-emerald-500 bg-slate-800/80 hover:bg-slate-700/80";
+      case "proceso":
+        return "border-l-2 border-l-amber-500 bg-slate-800/80 hover:bg-slate-700/80";
       case "listo":
         return "border-l-2 border-l-cyan-500 bg-slate-800/80 hover:bg-slate-700/80";
       case "entregado":
@@ -128,6 +132,7 @@ function KanbanCard({
     switch (columnType) {
       case "humano": return "bg-gradient-to-br from-red-500 to-rose-600";
       case "llamar": return "bg-gradient-to-br from-emerald-500 to-teal-600";
+      case "proceso": return "bg-gradient-to-br from-amber-500 to-orange-600";
       case "listo": return "bg-gradient-to-br from-cyan-500 to-blue-600";
       case "entregado": return "bg-gradient-to-br from-slate-500 to-slate-600";
       default: return "bg-gradient-to-br from-emerald-500 to-cyan-600";
@@ -232,6 +237,8 @@ function KanbanColumn({ title, items, activeId, onSelect, columnType, labels }: 
         return "from-red-600/80 to-rose-600/80";
       case "llamar":
         return "from-emerald-600/80 to-teal-600/80";
+      case "proceso":
+        return "from-amber-600/80 to-orange-600/80";
       case "listo":
         return "from-cyan-600/80 to-blue-600/80";
       case "entregado":
@@ -245,6 +252,7 @@ function KanbanColumn({ title, items, activeId, onSelect, columnType, labels }: 
     switch (columnType) {
       case "humano": return "shadow-red-500/20";
       case "llamar": return "shadow-emerald-500/20";
+      case "proceso": return "shadow-amber-500/20";
       case "listo": return "shadow-cyan-500/20";
       case "entregado": return "shadow-slate-500/20";
       default: return "shadow-slate-500/20";
@@ -257,6 +265,8 @@ function KanbanColumn({ title, items, activeId, onSelect, columnType, labels }: 
         return <AlertCircle className="h-4 w-4" />;
       case "llamar":
         return <Phone className="h-4 w-4" />;
+      case "proceso":
+        return <Package className="h-4 w-4" />;
       case "listo":
         return <CheckCircle className="h-4 w-4" />;
       case "entregado":
@@ -514,6 +524,14 @@ export function KanbanView({ conversations, isLoading, daysToShow, onLoadMore, m
             activeId={activeId}
             onSelect={setActiveId}
             columnType="llamar"
+            labels={labels}
+          />
+          <KanbanColumn
+            title="Pedido en Proceso"
+            items={enProceso}
+            activeId={activeId}
+            onSelect={setActiveId}
+            columnType="proceso"
             labels={labels}
           />
           <KanbanColumn
