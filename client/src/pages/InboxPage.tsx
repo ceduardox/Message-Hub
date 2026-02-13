@@ -102,6 +102,11 @@ export default function InboxPage() {
         
         <div className="flex items-center gap-1">
           <NotificationBell />
+          <Link href="/analytics">
+            <Button variant="ghost" size="icon" title="Analytics" data-testid="button-analytics-desktop" className="text-slate-400 hover:text-cyan-400 hover:bg-cyan-500/10">
+              <BarChart3 className="h-5 w-5" />
+            </Button>
+          </Link>
           {isAdmin && (
             <>
               <Link href="/ai-agent">
@@ -112,11 +117,6 @@ export default function InboxPage() {
               <Link href="/follow-up">
                 <Button variant="ghost" size="icon" title="Seguimiento" data-testid="button-follow-up-desktop" className="text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10">
                   <ClipboardList className="h-5 w-5" />
-                </Button>
-              </Link>
-              <Link href="/analytics">
-                <Button variant="ghost" size="icon" title="Analytics" data-testid="button-analytics-desktop" className="text-slate-400 hover:text-cyan-400 hover:bg-cyan-500/10">
-                  <BarChart3 className="h-5 w-5" />
                 </Button>
               </Link>
               <Link href="/agents">
