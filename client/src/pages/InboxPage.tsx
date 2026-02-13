@@ -200,6 +200,12 @@ export default function InboxPage() {
             </Link>
           </>
         )}
+        <Link href="/analytics">
+          <button className={`flex flex-col items-center px-3 py-1.5 rounded-xl transition-all ${location === '/analytics' ? 'text-cyan-400 bg-cyan-500/20' : 'text-slate-500'}`}>
+            <BarChart3 className="h-5 w-5" />
+            <span className="text-[10px] mt-0.5 font-medium">Stats</span>
+          </button>
+        </Link>
         <NotificationBell />
         <button 
           onClick={() => logout()} 
