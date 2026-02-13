@@ -1121,13 +1121,19 @@ export async function registerRoutes(
   // Labels
   app.get("/api/labels", requireAuth, async (req, res) => {
     const allLabels = await storage.getLabels();
-    res.json(allLabels);
+    const agentId = (req.session as any).agentId;
+    if (agentId) {
+      res.json(allLabels.filter(l => !l.agentId || l.agentId === agentId));
+    } else {
+      res.json(allLabels);
+    }
   });
 
   app.post("/api/labels", requireAuth, async (req, res) => {
     try {
       const parsed = api.labels.create.input.parse(req.body);
-      const label = await storage.createLabel(parsed);
+      const agentId = (req.session as any).agentId || null;
+      const label = await storage.createLabel({ ...parsed, agentId });
       res.json(label);
     } catch (error) {
       res.status(400).json({ message: "Invalid label data" });
@@ -1164,7 +1170,7 @@ export async function registerRoutes(
   app.patch("/api/conversations/:id/label", requireAuth, async (req, res) => {
     const id = parseInt(req.params.id);
     const { labelId } = req.body;
-    const updated = await storage.updateConversation(id, { labelId });
+    const updated = await storage.updateConversation(id, { labelId: labelId || null });
     res.json(updated);
   });
 

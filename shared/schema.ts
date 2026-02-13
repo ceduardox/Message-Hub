@@ -8,7 +8,8 @@ import { relations } from "drizzle-orm";
 export const labels = pgTable("labels", {
   id: serial("id").primaryKey(),
   name: varchar("name", { length: 50 }).notNull(),
-  color: varchar("color", { length: 20 }).notNull(), // hex or tailwind color
+  color: varchar("color", { length: 20 }).notNull(),
+  agentId: integer("agent_id").references(() => agents.id),
 });
 
 export const quickMessages = pgTable("quick_messages", {
