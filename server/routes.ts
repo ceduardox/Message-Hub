@@ -1779,16 +1779,6 @@ Máximo 2 líneas. Sé específico y práctico.`;
         }
       }
       const agent = await storage.updateAgent(id, updates);
-      if (updates.isActive === false) {
-        const allConversations = await storage.getConversations();
-        const agentConvos = allConversations.filter(c => c.assignedAgentId === id);
-        for (const convo of agentConvos) {
-          const nextAgent = await storage.getNextAgentForAssignment();
-          if (nextAgent && nextAgent.id !== id) {
-            await storage.assignConversationToAgent(convo.id, nextAgent.id);
-          }
-        }
-      }
       res.json(agent);
     } catch (error) {
       res.status(500).json({ message: "Error updating agent" });
