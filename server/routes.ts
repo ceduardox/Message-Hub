@@ -912,14 +912,12 @@ export async function registerRoutes(
       res.json({ success: true });
     } else {
       const agent = await storage.getAgentByUsername(username);
-      if (agent && agent.password === password && agent.isActive) {
+      if (agent && agent.password === password) {
         (req.session as any).authenticated = true;
         (req.session as any).username = agent.name;
         (req.session as any).role = "agent";
         (req.session as any).agentId = agent.id;
         res.json({ success: true });
-      } else if (agent && !agent.isActive) {
-        res.status(401).json({ message: "Cuenta desactivada" });
       } else {
         res.status(401).json({ message: "Invalid credentials" });
       }
