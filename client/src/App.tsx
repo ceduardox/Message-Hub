@@ -63,7 +63,7 @@ function Router() {
         <AdminRoute component={FollowUpPage} />
       </Route>
       <Route path="/analytics">
-        <AdminRoute component={AnalyticsPage} />
+        <ProtectedRoute component={AnalyticsPage} />
       </Route>
       <Route path="/agents">
         <AdminRoute component={AgentsPage} />

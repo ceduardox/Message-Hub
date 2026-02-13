@@ -3,13 +3,24 @@ import { useConversations } from "@/hooks/use-inbox";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Tooltip } from "recharts";
-import { ArrowLeft, TrendingUp, Users, Phone, Truck, CheckCircle, AlertCircle, MessageSquare, Calendar, Zap } from "lucide-react";
+import { ArrowLeft, TrendingUp, Users, Phone, Truck, CheckCircle, AlertCircle, MessageSquare, Calendar, Zap, Inbox, Send as SendIcon } from "lucide-react";
 import { Link } from "wouter";
+import { useQuery } from "@tanstack/react-query";
+
+interface AgentStat {
+  agent_id: number;
+  agent_name: string;
+  date: string;
+  incoming: string;
+  outgoing: string;
+}
 
 export default function AnalyticsPage() {
   const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const { data: conversations = [] } = useConversations();
   const [dateFilter, setDateFilter] = useState<"today" | "week" | "month">("today");
+  const { data: agentStats = [] } = useQuery<AgentStat[]>({ queryKey: ["/api/agent-stats"] });
 
   const filteredConversations = useMemo(() => {
     const now = new Date();
@@ -259,6 +270,52 @@ export default function AnalyticsPage() {
               </LineChart>
             </ResponsiveContainer>
           </div>
+        </div>
+
+        {/* Agent Message Stats */}
+        <div className="group bg-gradient-to-br from-slate-800/80 to-slate-900/80 backdrop-blur-sm rounded-2xl p-5 border border-slate-700/50 shadow-xl shadow-black/20 relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-t from-amber-500/5 to-transparent rounded-2xl" />
+          <div className="absolute -top-10 -right-10 w-40 h-40 bg-amber-500/10 rounded-full blur-3xl" />
+          <h3 className="font-semibold mb-4 flex items-center gap-2 relative">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg">
+              <Users className="h-4 w-4 text-white" />
+            </div>
+            Mensajes por Agente
+          </h3>
+          {agentStats.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm" data-testid="table-agent-stats">
+                <thead>
+                  <tr className="border-b border-slate-700/50">
+                    <th className="text-left py-2 px-2 text-slate-400 font-medium">Agente</th>
+                    <th className="text-left py-2 px-2 text-slate-400 font-medium">Fecha</th>
+                    <th className="text-center py-2 px-2 text-slate-400 font-medium">
+                      <span className="flex items-center justify-center gap-1"><Inbox className="h-3 w-3" /> Recibidos</span>
+                    </th>
+                    <th className="text-center py-2 px-2 text-slate-400 font-medium">
+                      <span className="flex items-center justify-center gap-1"><SendIcon className="h-3 w-3" /> Enviados</span>
+                    </th>
+                    <th className="text-center py-2 px-2 text-slate-400 font-medium">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {agentStats.map((row, i) => (
+                    <tr key={i} className="border-b border-slate-800/50">
+                      <td className="py-2 px-2 font-medium text-white">{row.agent_name}</td>
+                      <td className="py-2 px-2 text-slate-300">{new Date(row.date).toLocaleDateString("es-BO", { day: "2-digit", month: "short" })}</td>
+                      <td className="py-2 px-2 text-center text-emerald-400 font-semibold">{row.incoming}</td>
+                      <td className="py-2 px-2 text-center text-cyan-400 font-semibold">{row.outgoing}</td>
+                      <td className="py-2 px-2 text-center text-amber-400 font-bold">{Number(row.incoming) + Number(row.outgoing)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="h-20 flex items-center justify-center text-slate-500">
+              Sin datos de mensajes
+            </div>
+          )}
         </div>
       </div>
     </div>

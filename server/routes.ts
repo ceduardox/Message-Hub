@@ -9,6 +9,7 @@ import axios from "axios";
 import { generateAiResponse } from "./ai-service";
 import { initFollowUp } from "./follow-up";
 import { insertProductSchema, updateOrderStatusSchema } from "@shared/schema";
+import { db } from "./db";
 import OpenAI from "openai";
 import fs from "fs";
 import path from "path";
@@ -1164,6 +1165,36 @@ export async function registerRoutes(
   app.delete("/api/quick-messages/:id", requireAuth, async (req, res) => {
     await storage.deleteQuickMessage(parseInt(req.params.id));
     res.json({ success: true });
+  });
+
+  // Agent message stats
+  app.get("/api/agent-stats", requireAuth, async (req, res) => {
+    try {
+      const { sql } = await import("drizzle-orm");
+      const rows = await db.execute(sql`
+        SELECT 
+          a.id as agent_id, a.name as agent_name,
+          DATE(m.created_at) as date,
+          COUNT(*) FILTER (WHERE m.direction = 'incoming') as incoming,
+          COUNT(*) FILTER (WHERE m.direction = 'outgoing') as outgoing
+        FROM messages m
+        JOIN conversations c ON m.conversation_id = c.id
+        JOIN agents a ON c.assigned_agent_id = a.id
+        WHERE m.created_at >= NOW() - INTERVAL '30 days'
+        GROUP BY a.id, a.name, DATE(m.created_at)
+        ORDER BY DATE(m.created_at) DESC, a.name
+      `);
+      const result = (rows as unknown as any[]);
+      const agentId = (req.session as any).agentId;
+      if (agentId) {
+        res.json(result.filter((r: any) => r.agent_id === agentId));
+      } else {
+        res.json(result);
+      }
+    } catch (error) {
+      console.error("Agent stats error:", error);
+      res.status(500).json({ message: "Error fetching stats" });
+    }
   });
 
   // Reassign conversation to agent
