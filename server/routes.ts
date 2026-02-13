@@ -1166,6 +1166,21 @@ export async function registerRoutes(
     res.json({ success: true });
   });
 
+  // Reassign conversation to agent
+  app.patch("/api/conversations/:id/assign", requireAdmin, async (req, res) => {
+    const id = parseInt(req.params.id);
+    const { agentId } = req.body;
+    if (agentId) {
+      await storage.assignConversationToAgent(id, agentId);
+    } else {
+      const updated = await storage.updateConversation(id, { assignedAgentId: null });
+      res.json(updated);
+      return;
+    }
+    const updated = await storage.getConversation(id);
+    res.json(updated);
+  });
+
   // Set conversation label
   app.patch("/api/conversations/:id/label", requireAuth, async (req, res) => {
     const id = parseInt(req.params.id);

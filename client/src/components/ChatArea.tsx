@@ -8,8 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Send, Image as ImageIcon, Plus, Check, CheckCheck, MapPin, Bug, Copy, ExternalLink, X, Zap, Tag, Trash2, Package, PackageCheck, Truck, PackageX, Bot, BotOff, AlertCircle, Phone, Lightbulb, Loader2 } from "lucide-react";
-import type { Conversation, Message, Label, QuickMessage } from "@shared/schema";
+import { Send, Image as ImageIcon, Plus, Check, CheckCheck, MapPin, Bug, Copy, ExternalLink, X, Zap, Tag, Trash2, Package, PackageCheck, Truck, PackageX, Bot, BotOff, AlertCircle, Phone, Lightbulb, Loader2, UserRoundCog } from "lucide-react";
+import type { Conversation, Message, Label, QuickMessage, Agent } from "@shared/schema";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -97,7 +97,27 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
     queryKey: ["/api/quick-messages"],
   });
 
+  const { data: agentsData = [] } = useQuery<Agent[]>({
+    queryKey: ["/api/agents"],
+    enabled: isAdmin,
+  });
+
   const currentLabel = labelsData.find(l => l.id === conversation.labelId);
+
+  const reassignMutation = useMutation({
+    mutationFn: async (agentId: number | null) => {
+      const res = await fetch(`/api/conversations/${conversation.id}/assign`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ agentId }),
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
+      toast({ title: "Conversación reasignada" });
+    },
+  });
 
   const setLabelMutation = useMutation({
     mutationFn: async (labelId: number | null) => {
@@ -380,6 +400,33 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
           </div>
         </div>
         
+        {/* Reassign Agent Dropdown (admin only) */}
+        {isAdmin && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="flex-shrink-0" data-testid="button-reassign-agent">
+                <UserRoundCog className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => reassignMutation.mutate(null)} data-testid="reassign-none">
+                Sin agente
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              {agentsData.map((agent) => (
+                <DropdownMenuItem
+                  key={agent.id}
+                  onClick={() => reassignMutation.mutate(agent.id)}
+                  data-testid={`reassign-agent-${agent.id}`}
+                  className={cn(conversation.assignedAgentId === agent.id && "font-bold")}
+                >
+                  {agent.name} {conversation.assignedAgentId === agent.id ? "(actual)" : ""}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+
         {/* Label Dropdown */}
         <Dialog>
           <DropdownMenu>
