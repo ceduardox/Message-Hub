@@ -18,10 +18,10 @@ const pulseLineAnimation = `
 
 export default function InboxPage() {
   const { logout, user, isAdmin } = useAuth();
-  const [daysToShow, setDaysToShow] = useState(1);
+  const [daysToShow, setDaysToShow] = useState(7);
   const [location] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
-  const maxDays = 3;
+  const maxDays = 30;
   
   const { data: conversations = [], isLoading: loadingList } = useConversations();
 
@@ -171,6 +171,7 @@ export default function InboxPage() {
           conversations={filteredConversations}
           isLoading={loadingList}
           daysToShow={daysToShow}
+          onDaysChange={setDaysToShow}
           onLoadMore={handleLoadMore}
           maxDays={maxDays}
         />

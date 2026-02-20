@@ -41,6 +41,7 @@ interface KanbanViewProps {
   conversations: Conversation[];
   isLoading: boolean;
   daysToShow: number;
+  onDaysChange: (days: number) => void;
   onLoadMore: () => void;
   maxDays: number;
 }
@@ -332,7 +333,7 @@ const tabConfig: { key: TabType; label: string; shortLabel: string; icon: typeof
   { key: "entregado", label: "Enviados y Entregados", shortLabel: "Enviado", icon: Truck },
 ];
 
-export function KanbanView({ conversations, isLoading, daysToShow, onLoadMore, maxDays }: KanbanViewProps) {
+export function KanbanView({ conversations, isLoading, daysToShow, onDaysChange, onLoadMore, maxDays }: KanbanViewProps) {
   const [activeId, setActiveId] = useState<number | null>(null);
   const [mobileTab, setMobileTab] = useState<TabType>("humano");
   const [filterLabelId, setFilterLabelId] = useState<number | null>(null);
@@ -438,6 +439,23 @@ export function KanbanView({ conversations, isLoading, daysToShow, onLoadMore, m
           })}
         </div>
       )}
+
+      <div className="relative z-10 flex items-center gap-2 px-3 py-1.5 bg-slate-800/40 backdrop-blur-lg border-b border-slate-700/30 overflow-x-auto">
+        <Clock className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
+        {[7, 14, 30].map(d => (
+          <button
+            key={d}
+            onClick={() => onDaysChange(d)}
+            className={cn(
+              "px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap select-none transition-transform duration-100 active:scale-95 border",
+              daysToShow === d ? "bg-cyan-500/20 text-cyan-400 border-cyan-500/50" : "text-slate-400 border-slate-600/50"
+            )}
+            data-testid={`filter-days-${d}`}
+          >
+            {d}d
+          </button>
+        ))}
+      </div>
 
       {/* Mobile: Tab bar - Futuristic */}
       <div className="md:hidden flex overflow-x-auto bg-slate-800/80 backdrop-blur-lg border-b border-slate-700/50 gap-1 p-2">
@@ -562,20 +580,7 @@ export function KanbanView({ conversations, isLoading, daysToShow, onLoadMore, m
         ) : null}
       </div>
 
-      {daysToShow < maxDays && !activeId && (
-        <div className="p-3 border-t border-slate-700/50 bg-slate-800/50 flex justify-center">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onLoadMore}
-            className="gap-2 bg-slate-700/50 border-slate-600 text-slate-300 hover:bg-emerald-500/20 hover:text-emerald-400 hover:border-emerald-500/50"
-            data-testid="button-load-more"
-          >
-            <ChevronDown className="h-4 w-4" />
-            Ver más días ({daysToShow} de {maxDays})
-          </Button>
-        </div>
-      )}
+      
     </div>
   );
 }
