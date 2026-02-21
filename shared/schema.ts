@@ -138,6 +138,8 @@ export const aiSettings = pgTable("ai_settings", {
   conversationHistory: integer("conversation_history").default(3), // How many previous messages to read
   audioResponseEnabled: boolean("audio_response_enabled").default(false), // Respond with audio when client sends audio
   audioVoice: varchar("audio_voice", { length: 20 }).default("nova"), // TTS voice: nova, alloy, echo, shimmer, coral, sage, ash, ballad, verse
+  ttsProvider: varchar("tts_provider", { length: 20 }).default("openai"), // "openai" or "elevenlabs"
+  elevenlabsVoiceId: varchar("elevenlabs_voice_id", { length: 50 }).default("JBFqnCBsd6RMkjVDRZzb"), // ElevenLabs voice ID
   ttsSpeed: integer("tts_speed").default(100), // 25-400, divide by 100 for actual value (0.25x - 4.0x)
   ttsInstructions: text("tts_instructions"), // Only for realistic voices - describes tone/style
   learningMode: boolean("learning_mode").default(false), // Enable/disable learning from human responses
