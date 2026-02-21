@@ -39,6 +39,11 @@ The server handles three main responsibilities:
 ### AI Agent Integration
 - **AI Provider**: OpenAI GPT-4o-mini via official SDK
 - **Auto-Response**: When enabled, automatically responds to incoming WhatsApp messages
+- **TTS Provider Selection**: Choose between OpenAI and ElevenLabs for text-to-speech
+  - OpenAI: Basic (tts-1) and realistic (gpt-4o-mini-tts) voices with speed/instructions control
+  - ElevenLabs: Ultra-realistic voices fetched from user's ElevenLabs account via Replit connector
+  - Admin UI shows provider selector and corresponding voice list
+  - Setting stored in ttsProvider field ("openai" or "elevenlabs") in ai_settings table
 - **Audio Transcription**: Uses OpenAI Whisper to transcribe voice notes, AI responds based on transcription
   - Downloads audio from WhatsApp, transcribes with whisper-1 model (Spanish)
   - Shows transcription in chat as "[Audio]: 'transcription text'"

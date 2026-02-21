@@ -40,6 +40,8 @@ interface AiSettings {
   conversationHistory: number | null;
   audioResponseEnabled: boolean | null;
   audioVoice: string | null;
+  ttsProvider: string | null;
+  elevenlabsVoiceId: string | null;
   ttsSpeed: number | null;
   ttsInstructions: string | null;
   followUpEnabled: boolean | null;
@@ -98,6 +100,8 @@ export default function AIAgentPage() {
   const [conversationHistory, setConversationHistory] = useState(3);
   const [audioResponseEnabled, setAudioResponseEnabled] = useState(false);
   const [audioVoice, setAudioVoice] = useState("nova");
+  const [ttsProvider, setTtsProvider] = useState("openai");
+  const [elevenlabsVoiceId, setElevenlabsVoiceId] = useState("JBFqnCBsd6RMkjVDRZzb");
   const [ttsSpeed, setTtsSpeed] = useState(100);
   const [ttsInstructions, setTtsInstructions] = useState("");
   const [followUpEnabled, setFollowUpEnabled] = useState(false);
@@ -121,6 +125,20 @@ export default function AIAgentPage() {
 
   const { data: settings, isLoading: settingsLoading } = useQuery<AiSettings>({
     queryKey: ["/api/ai/settings"],
+  });
+
+  interface ElevenLabsVoice {
+    voice_id: string;
+    name: string;
+    category: string;
+    labels: Record<string, string>;
+    preview_url: string;
+  }
+
+  const { data: elevenLabsVoices = [], isLoading: elVoicesLoading, isError: elVoicesError } = useQuery<ElevenLabsVoice[]>({
+    queryKey: ["/api/elevenlabs/voices"],
+    enabled: ttsProvider === "elevenlabs" && audioResponseEnabled,
+    staleTime: 5 * 60 * 1000,
   });
 
   const { data: products = [], isLoading: productsLoading } = useQuery<Product[]>({
@@ -178,6 +196,8 @@ export default function AIAgentPage() {
       setConversationHistory(settings.conversationHistory || 3);
       setAudioResponseEnabled(settings.audioResponseEnabled || false);
       setAudioVoice(settings.audioVoice || "nova");
+      setTtsProvider(settings.ttsProvider || "openai");
+      setElevenlabsVoiceId(settings.elevenlabsVoiceId || "JBFqnCBsd6RMkjVDRZzb");
       setTtsSpeed(settings.ttsSpeed || 100);
       setTtsInstructions(settings.ttsInstructions || "");
       setFollowUpEnabled(settings.followUpEnabled || false);
@@ -255,7 +275,7 @@ export default function AIAgentPage() {
 
   const handleSaveConfig = () => {
     console.log("Saving config:", { maxTokens, temperature, model, maxPromptChars, conversationHistory });
-    updateSettingsMutation.mutate({ maxTokens, temperature, model, maxPromptChars, conversationHistory, audioResponseEnabled, audioVoice, ttsSpeed, ttsInstructions: ttsInstructions || null, followUpEnabled, followUpMinutes });
+    updateSettingsMutation.mutate({ maxTokens, temperature, model, maxPromptChars, conversationHistory, audioResponseEnabled, audioVoice, ttsProvider, elevenlabsVoiceId, ttsSpeed, ttsInstructions: ttsInstructions || null, followUpEnabled, followUpMinutes });
   };
 
   const handleAddProduct = () => {
@@ -536,70 +556,144 @@ export default function AIAgentPage() {
             
             {audioResponseEnabled && (
               <div className="space-y-3">
-                <Label htmlFor="audioVoice" className="font-medium text-slate-300">Voz de Audio</Label>
-                <p className="text-xs text-slate-500">Voces realistas usan modelo avanzado (mayor calidad y costo)</p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {[
-                    { value: "marin", label: "Marin", desc: "Realista", realistic: true },
-                    { value: "cedar", label: "Cedar", desc: "Realista", realistic: true },
-                    { value: "ash", label: "Ash", desc: "Realista", realistic: true },
-                    { value: "ballad", label: "Ballad", desc: "Realista", realistic: true },
-                    { value: "sage", label: "Sage", desc: "Realista", realistic: true },
-                    { value: "verse", label: "Verse", desc: "Realista", realistic: true },
-                    { value: "coral", label: "Coral", desc: "Básica", realistic: false },
-                    { value: "nova", label: "Nova", desc: "Básica", realistic: false },
-                    { value: "alloy", label: "Alloy", desc: "Básica", realistic: false },
-                    { value: "echo", label: "Echo", desc: "Básica", realistic: false },
-                    { value: "shimmer", label: "Shimmer", desc: "Básica", realistic: false },
-                    { value: "fable", label: "Fable", desc: "Básica", realistic: false },
-                    { value: "onyx", label: "Onyx", desc: "Básica", realistic: false },
-                  ].map((voice) => (
-                    <button
-                      key={voice.value}
-                      type="button"
-                      onClick={() => {
-                        setAudioVoice(voice.value);
-                        setConfigEdited(true);
-                      }}
-                      className={`p-3 rounded-xl border-2 text-left transition-all ${
-                        audioVoice === voice.value
-                          ? "border-emerald-500 bg-emerald-500/20 shadow-lg shadow-emerald-500/20"
-                          : voice.realistic 
-                            ? "border-amber-500/30 bg-amber-500/10 hover:border-amber-500 hover:bg-amber-500/20"
-                            : "border-slate-600/50 bg-slate-800/50 hover:border-cyan-500/50 hover:bg-slate-700/50"
-                      }`}
-                      data-testid={`voice-${voice.value}`}
-                    >
-                      <div className="font-semibold text-sm text-white">{voice.label}</div>
-                      <div className={`text-xs ${voice.realistic ? "text-amber-400" : "text-slate-400"}`}>{voice.desc}</div>
-                    </button>
-                  ))}
+                <Label className="font-medium text-slate-300">Proveedor de Voz</Label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setTtsProvider("openai"); setConfigEdited(true); }}
+                    className={`flex-1 p-3 rounded-xl border-2 text-center transition-all ${
+                      ttsProvider === "openai"
+                        ? "border-emerald-500 bg-emerald-500/20 shadow-lg shadow-emerald-500/20"
+                        : "border-slate-600/50 bg-slate-800/50 hover:border-cyan-500/50"
+                    }`}
+                    data-testid="provider-openai"
+                  >
+                    <div className="font-semibold text-sm text-white">OpenAI</div>
+                    <div className="text-xs text-slate-400">Voces básicas y realistas</div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setTtsProvider("elevenlabs"); setConfigEdited(true); }}
+                    className={`flex-1 p-3 rounded-xl border-2 text-center transition-all ${
+                      ttsProvider === "elevenlabs"
+                        ? "border-violet-500 bg-violet-500/20 shadow-lg shadow-violet-500/20"
+                        : "border-slate-600/50 bg-slate-800/50 hover:border-violet-500/50"
+                    }`}
+                    data-testid="provider-elevenlabs"
+                  >
+                    <div className="font-semibold text-sm text-white">ElevenLabs</div>
+                    <div className="text-xs text-slate-400">Voces ultra-realistas</div>
+                  </button>
                 </div>
+
+                {ttsProvider === "openai" && (
+                  <>
+                    <Label className="font-medium text-slate-300">Voz de OpenAI</Label>
+                    <p className="text-xs text-slate-500">Voces realistas usan modelo avanzado (mayor calidad y costo)</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {[
+                        { value: "marin", label: "Marin", desc: "Realista", realistic: true },
+                        { value: "cedar", label: "Cedar", desc: "Realista", realistic: true },
+                        { value: "ash", label: "Ash", desc: "Realista", realistic: true },
+                        { value: "ballad", label: "Ballad", desc: "Realista", realistic: true },
+                        { value: "sage", label: "Sage", desc: "Realista", realistic: true },
+                        { value: "verse", label: "Verse", desc: "Realista", realistic: true },
+                        { value: "coral", label: "Coral", desc: "Básica", realistic: false },
+                        { value: "nova", label: "Nova", desc: "Básica", realistic: false },
+                        { value: "alloy", label: "Alloy", desc: "Básica", realistic: false },
+                        { value: "echo", label: "Echo", desc: "Básica", realistic: false },
+                        { value: "shimmer", label: "Shimmer", desc: "Básica", realistic: false },
+                        { value: "fable", label: "Fable", desc: "Básica", realistic: false },
+                        { value: "onyx", label: "Onyx", desc: "Básica", realistic: false },
+                      ].map((voice) => (
+                        <button
+                          key={voice.value}
+                          type="button"
+                          onClick={() => {
+                            setAudioVoice(voice.value);
+                            setConfigEdited(true);
+                          }}
+                          className={`p-3 rounded-xl border-2 text-left transition-all ${
+                            audioVoice === voice.value
+                              ? "border-emerald-500 bg-emerald-500/20 shadow-lg shadow-emerald-500/20"
+                              : voice.realistic 
+                                ? "border-amber-500/30 bg-amber-500/10 hover:border-amber-500 hover:bg-amber-500/20"
+                                : "border-slate-600/50 bg-slate-800/50 hover:border-cyan-500/50 hover:bg-slate-700/50"
+                          }`}
+                          data-testid={`voice-${voice.value}`}
+                        >
+                          <div className="font-semibold text-sm text-white">{voice.label}</div>
+                          <div className={`text-xs ${voice.realistic ? "text-amber-400" : "text-slate-400"}`}>{voice.desc}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                {ttsProvider === "elevenlabs" && (
+                  <>
+                    <Label className="font-medium text-slate-300">Voz de ElevenLabs</Label>
+                    <p className="text-xs text-slate-500">Selecciona una voz ultra-realista de tu cuenta ElevenLabs</p>
+                    {elVoicesError ? (
+                      <div className="p-4 rounded-xl border border-red-500/30 bg-red-500/10 text-center">
+                        <p className="text-sm text-red-300">Error al cargar voces. Verifica tu conexión con ElevenLabs.</p>
+                      </div>
+                    ) : elVoicesLoading || elevenLabsVoices.length === 0 ? (
+                      <div className="p-4 rounded-xl border border-violet-500/30 bg-violet-500/10 text-center">
+                        <p className="text-sm text-violet-300">Cargando voces de ElevenLabs...</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-64 overflow-y-auto pr-1">
+                        {elevenLabsVoices.map((voice) => (
+                          <button
+                            key={voice.voice_id}
+                            type="button"
+                            onClick={() => {
+                              setElevenlabsVoiceId(voice.voice_id);
+                              setConfigEdited(true);
+                            }}
+                            className={`p-3 rounded-xl border-2 text-left transition-all ${
+                              elevenlabsVoiceId === voice.voice_id
+                                ? "border-violet-500 bg-violet-500/20 shadow-lg shadow-violet-500/20"
+                                : "border-slate-600/50 bg-slate-800/50 hover:border-violet-500/50 hover:bg-slate-700/50"
+                            }`}
+                            data-testid={`voice-el-${voice.voice_id}`}
+                          >
+                            <div className="font-semibold text-sm text-white">{voice.name}</div>
+                            <div className="text-xs text-violet-400">{voice.labels?.accent || voice.category || "Custom"}</div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
                 
                 <div className="grid gap-4 sm:grid-cols-2 mt-4 pt-4 border-t border-slate-700/50">
-                  <div>
-                    <Label htmlFor="ttsSpeed" className="text-slate-300">Velocidad de habla</Label>
-                    <div className="flex items-center gap-3">
-                      <Input
-                        id="ttsSpeed"
-                        type="range"
-                        min={50}
-                        max={200}
-                        step={5}
-                        value={ttsSpeed}
-                        onChange={(e) => {
-                          setTtsSpeed(parseInt(e.target.value));
-                          setConfigEdited(true);
-                        }}
-                        className="flex-1 accent-emerald-500"
-                        data-testid="input-tts-speed"
-                      />
-                      <span className="text-sm font-medium w-14 text-center text-emerald-400">{(ttsSpeed / 100).toFixed(2)}x</span>
+                  {ttsProvider === "openai" && (
+                    <div>
+                      <Label htmlFor="ttsSpeed" className="text-slate-300">Velocidad de habla</Label>
+                      <div className="flex items-center gap-3">
+                        <Input
+                          id="ttsSpeed"
+                          type="range"
+                          min={50}
+                          max={200}
+                          step={5}
+                          value={ttsSpeed}
+                          onChange={(e) => {
+                            setTtsSpeed(parseInt(e.target.value));
+                            setConfigEdited(true);
+                          }}
+                          className="flex-1 accent-emerald-500"
+                          data-testid="input-tts-speed"
+                        />
+                        <span className="text-sm font-medium w-14 text-center text-emerald-400">{(ttsSpeed / 100).toFixed(2)}x</span>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-1">0.5x (lento) - 2.0x (rápido)</p>
                     </div>
-                    <p className="text-xs text-slate-500 mt-1">0.5x (lento) - 2.0x (rápido)</p>
-                  </div>
+                  )}
                   
-                  {["ash", "ballad", "sage", "verse", "marin", "cedar"].includes(audioVoice) && (
+                  {ttsProvider === "openai" && ["ash", "ballad", "sage", "verse", "marin", "cedar"].includes(audioVoice) && (
                     <div className="sm:col-span-2">
                       <Label htmlFor="ttsInstructions" className="text-slate-300">Instrucciones de tono (solo voces realistas)</Label>
                       <Textarea

@@ -74,12 +74,14 @@ async function processAiResponse(data: BufferedMessage) {
       let waMessageId: string;
 
       if (shouldSendAudio) {
+        const ttsProvider = audioSettings?.ttsProvider || "openai";
         const selectedVoice = audioSettings?.audioVoice || "nova";
+        const elevenlabsVoiceId = audioSettings?.elevenlabsVoiceId || "JBFqnCBsd6RMkjVDRZzb";
         const ttsSpeed = audioSettings?.ttsSpeed ? audioSettings.ttsSpeed / 100 : 1.0;
         const ttsInstructions = audioSettings?.ttsInstructions || null;
-        console.log("=== SENDING AUDIO ===", selectedVoice, ttsSpeed);
+        console.log("=== SENDING AUDIO ===", ttsProvider, selectedVoice, ttsSpeed);
 
-        const audioSent = await sendAudioResponse(from, aiResult.response, selectedVoice, { speed: ttsSpeed, instructions: ttsInstructions });
+        const audioSent = await sendAudioResponse(from, aiResult.response, selectedVoice, { speed: ttsSpeed, instructions: ttsInstructions, provider: ttsProvider, elevenlabsVoiceId });
         if (audioSent) {
           waMessageId = `audio_${Date.now()}`;
           waResponse = { messages: [{ id: waMessageId }] };
@@ -264,68 +266,128 @@ async function transcribeWhatsAppAudio(mediaId: string, mimeType?: string): Prom
 interface TtsOptions {
   speed?: number; // 0.25 - 4.0, default 1.0
   instructions?: string | null; // Only for realistic voices
+  provider?: string; // "openai" or "elevenlabs"
+  elevenlabsVoiceId?: string; // ElevenLabs voice ID
 }
 
-// Generate audio response using OpenAI TTS and send via WhatsApp
+// Get ElevenLabs API key via Replit connector
+async function getElevenLabsApiKey(): Promise<string> {
+  const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
+  const xReplitToken = process.env.REPL_IDENTITY
+    ? 'repl ' + process.env.REPL_IDENTITY
+    : process.env.WEB_REPL_RENEWAL
+    ? 'depl ' + process.env.WEB_REPL_RENEWAL
+    : null;
+
+  if (!xReplitToken) {
+    throw new Error('ElevenLabs connector token not found');
+  }
+
+  const res = await fetch(
+    'https://' + hostname + '/api/v2/connection?include_secrets=true&connector_names=elevenlabs',
+    { headers: { 'Accept': 'application/json', 'X_REPLIT_TOKEN': xReplitToken } }
+  );
+  const data = await res.json();
+  const conn = data.items?.[0];
+  if (!conn || !conn.settings?.api_key) {
+    throw new Error('ElevenLabs not connected');
+  }
+  return conn.settings.api_key;
+}
+
+// Generate audio buffer using ElevenLabs TTS
+async function generateElevenLabsAudio(text: string, voiceId: string): Promise<Buffer> {
+  const apiKey = await getElevenLabsApiKey();
+  const response = await axios.post(
+    `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
+    {
+      text,
+      model_id: "eleven_flash_v2_5",
+      output_format: "mp3_44100_128",
+    },
+    {
+      headers: {
+        'xi-api-key': apiKey,
+        'Content-Type': 'application/json',
+      },
+      responseType: 'arraybuffer',
+    }
+  );
+  return Buffer.from(response.data);
+}
+
+// Generate audio response and send via WhatsApp
 async function sendAudioResponse(phoneNumber: string, text: string, voice: string = "nova", options: TtsOptions = {}): Promise<boolean> {
   const openaiKey = process.env.OPENAI_API_KEY;
   const token = process.env.META_ACCESS_TOKEN;
   const phoneNumberId = process.env.WA_PHONE_NUMBER_ID;
   
-  if (!openaiKey || !token || !phoneNumberId) {
-    console.log("[TTS] Missing credentials");
+  if (!token || !phoneNumberId) {
+    console.log("[TTS] Missing WhatsApp credentials");
+    return false;
+  }
+  
+  const provider = options.provider || "openai";
+  
+  if (provider === "openai" && !openaiKey) {
+    console.log("[TTS] Missing OpenAI API key");
     return false;
   }
   
   let tempPath: string | null = null;
   
   try {
-    // Step 1: Generate audio with OpenAI TTS
-    console.log("[TTS] Generating audio for:", text.substring(0, 50) + "...");
-    const openai = new OpenAI({ apiKey: openaiKey });
+    let audioBuffer: Buffer;
+    const isElevenLabs = provider === "elevenlabs";
+    const fileExt = isElevenLabs ? "mp3" : "opus";
+    const contentType = isElevenLabs ? "audio/mpeg" : "audio/ogg; codecs=opus";
     
-    // Realistic voices require gpt-4o-mini-tts model, basic voices use tts-1
-    const realisticVoices = ["ash", "ballad", "sage", "verse", "marin", "cedar"];
-    const isRealisticVoice = realisticVoices.includes(voice.toLowerCase());
-    const ttsModel = isRealisticVoice ? "gpt-4o-mini-tts" : "tts-1";
-    
-    // Speed: default 1.0, range 0.25-4.0
-    const speed = options.speed ? Math.max(0.25, Math.min(4.0, options.speed)) : 1.0;
-    
-    console.log("[TTS] Using model:", ttsModel, "for voice:", voice, "speed:", speed);
-    
-    // Build TTS request - instructions only work with realistic voices
-    const ttsRequest: any = {
-      model: ttsModel,
-      voice: voice as any,
-      input: text,
-      response_format: "opus", // WhatsApp prefers opus
-      speed: speed
-    };
-    
-    // Add instructions only for realistic voices (gpt-4o-mini-tts model)
-    if (isRealisticVoice && options.instructions) {
-      ttsRequest.instructions = options.instructions;
-      console.log("[TTS] Using instructions:", options.instructions.substring(0, 50) + "...");
+    if (isElevenLabs) {
+      const elVoiceId = options.elevenlabsVoiceId || "JBFqnCBsd6RMkjVDRZzb";
+      console.log("[TTS] ElevenLabs generating audio, voice:", elVoiceId);
+      audioBuffer = await generateElevenLabsAudio(text, elVoiceId);
+      console.log("[TTS] ElevenLabs audio generated:", audioBuffer.length, "bytes");
+    } else {
+      console.log("[TTS] OpenAI generating audio for:", text.substring(0, 50) + "...");
+      const openai = new OpenAI({ apiKey: openaiKey });
+      
+      const realisticVoices = ["ash", "ballad", "sage", "verse", "marin", "cedar"];
+      const isRealisticVoice = realisticVoices.includes(voice.toLowerCase());
+      const ttsModel = isRealisticVoice ? "gpt-4o-mini-tts" : "tts-1";
+      const speed = options.speed ? Math.max(0.25, Math.min(4.0, options.speed)) : 1.0;
+      
+      console.log("[TTS] Using model:", ttsModel, "for voice:", voice, "speed:", speed);
+      
+      const ttsRequest: any = {
+        model: ttsModel,
+        voice: voice as any,
+        input: text,
+        response_format: "opus",
+        speed: speed
+      };
+      
+      if (isRealisticVoice && options.instructions) {
+        ttsRequest.instructions = options.instructions;
+        console.log("[TTS] Using instructions:", options.instructions.substring(0, 50) + "...");
+      }
+      
+      const audioResponse = await openai.audio.speech.create(ttsRequest);
+      audioBuffer = Buffer.from(await audioResponse.arrayBuffer());
+      console.log("[TTS] OpenAI audio generated:", audioBuffer.length, "bytes");
     }
     
-    const audioResponse = await openai.audio.speech.create(ttsRequest);
-    
-    // Step 2: Save to temp file
-    const audioBuffer = Buffer.from(await audioResponse.arrayBuffer());
-    tempPath = path.join(os.tmpdir(), `tts_${Date.now()}.opus`);
+    tempPath = path.join(os.tmpdir(), `tts_${Date.now()}.${fileExt}`);
     fs.writeFileSync(tempPath, audioBuffer);
-    console.log("[TTS] Audio saved:", audioBuffer.length, "bytes");
     
     // Step 3: Upload to WhatsApp Media
     const FormData = (await import('form-data')).default;
     const formData = new FormData();
     formData.append('file', fs.createReadStream(tempPath), {
-      filename: 'audio.opus',
-      contentType: 'audio/ogg; codecs=opus'
+      filename: `audio.${fileExt}`,
+      contentType: contentType
     });
     formData.append('messaging_product', 'whatsapp');
-    formData.append('type', 'audio/ogg; codecs=opus');
+    formData.append('type', contentType);
     
     const uploadResponse = await axios.post(
       `https://graph.facebook.com/v24.0/${phoneNumberId}/media`,
@@ -1507,7 +1569,9 @@ NO uses saludos formales. Sé directo y amigable.`
     conversationHistory: z.number().min(1).max(20).optional(),
     audioResponseEnabled: z.boolean().optional(),
     audioVoice: z.string().optional(),
-    ttsSpeed: z.number().min(25).max(400).optional(), // 25-400, divide by 100 for 0.25-4.0
+    ttsProvider: z.enum(["openai", "elevenlabs"]).optional(),
+    elevenlabsVoiceId: z.string().optional(),
+    ttsSpeed: z.number().min(25).max(400).optional(),
     ttsInstructions: z.string().nullable().optional(),
   });
 
@@ -1515,6 +1579,27 @@ NO uses saludos formales. Sé directo y amigable.`
     type: z.enum(["text", "url", "image_url"]),
     title: z.string().max(200).nullable().optional(),
     content: z.string().min(1),
+  });
+
+  // Get ElevenLabs available voices
+  app.get("/api/elevenlabs/voices", requireAuth, async (req, res) => {
+    try {
+      const apiKey = await getElevenLabsApiKey();
+      const response = await axios.get("https://api.elevenlabs.io/v1/voices", {
+        headers: { "xi-api-key": apiKey }
+      });
+      const voices = response.data.voices.map((v: any) => ({
+        voice_id: v.voice_id,
+        name: v.name,
+        category: v.category,
+        labels: v.labels,
+        preview_url: v.preview_url,
+      }));
+      res.json(voices);
+    } catch (error: any) {
+      console.error("Error fetching ElevenLabs voices:", error.message);
+      res.status(500).json({ message: "Error fetching ElevenLabs voices" });
+    }
   });
 
   // Get AI Settings
