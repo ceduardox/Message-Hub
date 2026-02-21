@@ -1586,15 +1586,22 @@ NO uses saludos formales. Sé directo y amigable.`
     try {
       const apiKey = await getElevenLabsApiKey();
       
-      const [userVoicesRes, sharedVoicesRes] = await Promise.all([
+      const [userVoicesRes, sharedPage1, sharedPage2] = await Promise.all([
         axios.get("https://api.elevenlabs.io/v1/voices", {
           headers: { "xi-api-key": apiKey }
         }),
         axios.get("https://api.elevenlabs.io/v1/shared-voices", {
           headers: { "xi-api-key": apiKey },
-          params: { gender: "female", language: "es", page_size: 30, sort: "usage_character_count_7d" }
+          params: { gender: "female", language: "es", page_size: 100, sort: "usage_character_count_7d" }
+        }).catch(() => ({ data: { voices: [] } })),
+        axios.get("https://api.elevenlabs.io/v1/shared-voices", {
+          headers: { "xi-api-key": apiKey },
+          params: { gender: "female", language: "es", page_size: 100, sort: "trending", page: 1 }
         }).catch(() => ({ data: { voices: [] } }))
       ]);
+
+      const allSharedRaw = [...(sharedPage1.data.voices || []), ...(sharedPage2.data.voices || [])];
+      const sharedDeduped = Array.from(new Map(allSharedRaw.map((v: any) => [v.voice_id, v])).values());
 
       const userVoices = userVoicesRes.data.voices.map((v: any) => ({
         voice_id: v.voice_id,
@@ -1607,7 +1614,7 @@ NO uses saludos formales. Sé directo y amigable.`
 
       const seenIds = new Set(userVoices.map((v: any) => v.voice_id));
 
-      const sharedVoices = (sharedVoicesRes.data.voices || [])
+      const sharedVoices = sharedDeduped
         .filter((v: any) => !seenIds.has(v.voice_id || v.public_owner_id))
         .map((v: any) => ({
           voice_id: v.voice_id,
