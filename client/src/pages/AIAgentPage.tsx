@@ -133,6 +133,7 @@ export default function AIAgentPage() {
     category: string;
     labels: Record<string, string>;
     preview_url: string;
+    source?: "library" | "shared";
   }
 
   const { data: elevenLabsVoices = [], isLoading: elVoicesLoading, isError: elVoicesError } = useQuery<ElevenLabsVoice[]>({
@@ -643,7 +644,7 @@ export default function AIAgentPage() {
                         <p className="text-sm text-violet-300">Cargando voces de ElevenLabs...</p>
                       </div>
                     ) : (
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-64 overflow-y-auto pr-1">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-72 overflow-y-auto pr-1">
                         {elevenLabsVoices.map((voice) => (
                           <button
                             key={voice.voice_id}
@@ -655,12 +656,19 @@ export default function AIAgentPage() {
                             className={`p-3 rounded-xl border-2 text-left transition-all ${
                               elevenlabsVoiceId === voice.voice_id
                                 ? "border-violet-500 bg-violet-500/20 shadow-lg shadow-violet-500/20"
-                                : "border-slate-600/50 bg-slate-800/50 hover:border-violet-500/50 hover:bg-slate-700/50"
+                                : voice.source === "shared"
+                                  ? "border-pink-500/30 bg-pink-500/5 hover:border-pink-500/60"
+                                  : "border-slate-600/50 bg-slate-800/50 hover:border-violet-500/50"
                             }`}
                             data-testid={`voice-el-${voice.voice_id}`}
                           >
-                            <div className="font-semibold text-sm text-white">{voice.name}</div>
-                            <div className="text-xs text-violet-400">{voice.labels?.accent || voice.category || "Custom"}</div>
+                            <div className="font-semibold text-sm text-white flex items-center gap-1.5">
+                              {voice.name}
+                              {voice.source === "shared" && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-pink-500/20 text-pink-400 font-normal">Latina</span>
+                              )}
+                            </div>
+                            <div className="text-xs text-violet-400">{voice.labels?.accent || voice.labels?.gender || voice.category || "Custom"}</div>
                           </button>
                         ))}
                       </div>

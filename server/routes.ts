@@ -1581,21 +1581,44 @@ NO uses saludos formales. Sé directo y amigable.`
     content: z.string().min(1),
   });
 
-  // Get ElevenLabs available voices
+  // Get ElevenLabs available voices (user's own + shared Latin American female voices)
   app.get("/api/elevenlabs/voices", requireAuth, async (req, res) => {
     try {
       const apiKey = await getElevenLabsApiKey();
-      const response = await axios.get("https://api.elevenlabs.io/v1/voices", {
-        headers: { "xi-api-key": apiKey }
-      });
-      const voices = response.data.voices.map((v: any) => ({
+      
+      const [userVoicesRes, sharedVoicesRes] = await Promise.all([
+        axios.get("https://api.elevenlabs.io/v1/voices", {
+          headers: { "xi-api-key": apiKey }
+        }),
+        axios.get("https://api.elevenlabs.io/v1/shared-voices", {
+          headers: { "xi-api-key": apiKey },
+          params: { gender: "female", language: "es", page_size: 30, sort: "usage_character_count_7d" }
+        }).catch(() => ({ data: { voices: [] } }))
+      ]);
+
+      const userVoices = userVoicesRes.data.voices.map((v: any) => ({
         voice_id: v.voice_id,
         name: v.name,
-        category: v.category,
-        labels: v.labels,
+        category: v.category || "user",
+        labels: v.labels || {},
         preview_url: v.preview_url,
+        source: "library" as const,
       }));
-      res.json(voices);
+
+      const seenIds = new Set(userVoices.map((v: any) => v.voice_id));
+
+      const sharedVoices = (sharedVoicesRes.data.voices || [])
+        .filter((v: any) => !seenIds.has(v.voice_id || v.public_owner_id))
+        .map((v: any) => ({
+          voice_id: v.voice_id,
+          name: v.name,
+          category: v.category || "shared",
+          labels: { accent: v.accent || "latin american", gender: "female", ...(v.labels || {}) },
+          preview_url: v.preview_url,
+          source: "shared" as const,
+        }));
+
+      res.json([...userVoices, ...sharedVoices]);
     } catch (error: any) {
       console.error("Error fetching ElevenLabs voices:", error.message);
       res.status(500).json({ message: "Error fetching ElevenLabs voices" });
