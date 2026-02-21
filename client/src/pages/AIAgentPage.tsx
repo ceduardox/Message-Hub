@@ -668,7 +668,7 @@ export default function AIAgentPage() {
                                 <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-pink-500/20 text-pink-400 font-normal">Latina</span>
                               )}
                             </div>
-                            <div className="text-xs text-violet-400">{voice.labels?.accent || voice.labels?.gender || voice.category || "Custom"}</div>
+                            <div className="text-xs text-violet-400 truncate">{voice.labels?.description || voice.labels?.accent || voice.labels?.use_case || voice.category || "Custom"}</div>
                           </button>
                         ))}
                       </div>

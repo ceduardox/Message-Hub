@@ -1586,7 +1586,7 @@ NO uses saludos formales. Sé directo y amigable.`
     try {
       const apiKey = await getElevenLabsApiKey();
       
-      const [userVoicesRes, sharedPage1, sharedPage2] = await Promise.all([
+      const [userVoicesRes, sharedPopular, sharedTrending, sharedConversational, sharedAndrea] = await Promise.all([
         axios.get("https://api.elevenlabs.io/v1/voices", {
           headers: { "xi-api-key": apiKey }
         }),
@@ -1596,11 +1596,24 @@ NO uses saludos formales. Sé directo y amigable.`
         }).catch(() => ({ data: { voices: [] } })),
         axios.get("https://api.elevenlabs.io/v1/shared-voices", {
           headers: { "xi-api-key": apiKey },
-          params: { gender: "female", language: "es", page_size: 100, sort: "trending", page: 1 }
+          params: { gender: "female", language: "es", page_size: 100, sort: "trending" }
+        }).catch(() => ({ data: { voices: [] } })),
+        axios.get("https://api.elevenlabs.io/v1/shared-voices", {
+          headers: { "xi-api-key": apiKey },
+          params: { gender: "female", language: "es", use_cases: "conversational", page_size: 100, sort: "usage_character_count_7d" }
+        }).catch(() => ({ data: { voices: [] } })),
+        axios.get("https://api.elevenlabs.io/v1/shared-voices", {
+          headers: { "xi-api-key": apiKey },
+          params: { language: "es", search: "andrea", page_size: 50 }
         }).catch(() => ({ data: { voices: [] } }))
       ]);
 
-      const allSharedRaw = [...(sharedPage1.data.voices || []), ...(sharedPage2.data.voices || [])];
+      const allSharedRaw = [
+        ...(sharedPopular.data.voices || []),
+        ...(sharedTrending.data.voices || []),
+        ...(sharedConversational.data.voices || []),
+        ...(sharedAndrea.data.voices || []),
+      ];
       const sharedDeduped = Array.from(new Map(allSharedRaw.map((v: any) => [v.voice_id, v])).values());
 
       const userVoices = userVoicesRes.data.voices.map((v: any) => ({
@@ -1620,7 +1633,7 @@ NO uses saludos formales. Sé directo y amigable.`
           voice_id: v.voice_id,
           name: v.name,
           category: v.category || "shared",
-          labels: { accent: v.accent || "latin american", gender: "female", ...(v.labels || {}) },
+          labels: { accent: v.accent || "latin american", gender: v.gender || "female", use_case: v.use_case || "", description: v.description || "", ...(v.labels || {}) },
           preview_url: v.preview_url,
           source: "shared" as const,
         }));
