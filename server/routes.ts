@@ -295,15 +295,19 @@ async function getElevenLabsApiKey(): Promise<string> {
   return conn.settings.api_key;
 }
 
-// Generate audio buffer using ElevenLabs TTS
+// Generate audio buffer using ElevenLabs TTS (optimized for speed)
 async function generateElevenLabsAudio(text: string, voiceId: string): Promise<Buffer> {
   const apiKey = await getElevenLabsApiKey();
   const response = await axios.post(
-    `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
+    `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_22050_32&optimize_streaming_latency=4`,
     {
       text,
       model_id: "eleven_flash_v2_5",
-      output_format: "mp3_44100_128",
+      voice_settings: {
+        stability: 0.5,
+        similarity_boost: 0.75,
+        use_speaker_boost: false,
+      },
     },
     {
       headers: {
