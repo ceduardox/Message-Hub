@@ -138,13 +138,23 @@ export async function generateAiResponse(
       ? "\n=== REGLAS APRENDIDAS ===\n" + learnedRules.map(r => `- ${r.rule}`).join("\n")
       : "";
     
-    // Build system prompt (compact to reduce tokens and latency)
+    // Build system prompt
     const systemPrompt = `${instructions}
-REGLAS: Responde 2-5 líneas. Máx 2 preguntas. Tono humano.
-FORMATOS: Imagen:[IMAGEN:url] | Botones(máx 3,20chars):[BOTONES:op1,op2,op3] | Lista(máx 10):[LISTA:título|op1,op2,op3]
-SIEMPRE usa [BOTONES:] o [LISTA:] para opciones, NUNCA texto plano con viñetas.
-Pedido completo (producto+cantidad+dirección)→agrega [PEDIDO_LISTO]
-No puedes responder→[NECESITO_HUMANO] | Llamar→[LLAMAR] (ya tienes su WhatsApp, NO pidas número)${learnedRulesContext}${productContext ? `\nPRODUCTOS:\n${productContext}` : ""}`;
+
+=== REGLAS ===
+- Responde en 2-5 líneas máximo
+- Máximo 2 preguntas por respuesta
+- Tono humano y cálido
+- Para enviar imagen usa: [IMAGEN: url]
+- Para enviar botones interactivos (máximo 3 opciones, 20 caracteres cada una) usa: [BOTONES: opción1, opción2, opción3]. Ejemplo: Te paso nuestros productos [BOTONES: Berberina, Citrato Magnesio, Ver más]
+- Para enviar una lista interactiva (hasta 10 opciones) usa: [LISTA: título del botón | opción1, opción2, opción3]. Ejemplo: Mira nuestro catálogo [LISTA: Ver productos | Berberina, Citrato Magnesio, Bitter Melon]
+- IMPORTANTE: Cuando las instrucciones mencionen "botones" o el cliente deba elegir entre opciones, SIEMPRE usa el formato [BOTONES:] o [LISTA:]. NUNCA escribas las opciones como texto plano con asteriscos o viñetas.
+- IMPORTANTE: Cuando el cliente confirme el pedido con TODOS los datos (producto, cantidad, dirección/ubicación), escribe [PEDIDO_LISTO] al final de tu respuesta para marcar que hay un pedido listo para entregar.
+- Un pedido está listo cuando tienes: producto, cantidad, y dirección de entrega (ubicación GPS o dirección escrita)
+- Si NO puedes responder la pregunta con la información disponible, escribe exactamente [NECESITO_HUMANO] y no respondas nada más.
+- Si el cliente pide que lo llamen, menciona llamada telefónica, o detectas que una llamada cerraría la venta (NEUROVENTA), escribe [LLAMAR] al final. Recuerda: ya tienes su número de WhatsApp, NO le pidas número.
+${learnedRulesContext}
+${productContext ? `\n=== PRODUCTOS ===\n${productContext}` : ""}`;
 
     // Build user message content - with or without image
     let userContent: any = userMessage;
