@@ -416,7 +416,7 @@ export function KanbanView({ conversations, isLoading, daysToShow, onDaysChange,
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [activeId, setActiveId] = useState<number | null>(null);
-  const [mobileTab, setMobileTab] = useState<TabType>("humano");
+  const [mobileTab, setMobileTab] = useState<TabType>("nuevo");
   const [filterLabelId, setFilterLabelId] = useState<number | null>(null);
   const [draggingConversationId, setDraggingConversationId] = useState<number | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<TabType | null>(null);

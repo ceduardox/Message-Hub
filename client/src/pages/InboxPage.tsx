@@ -1,4 +1,5 @@
-﻿import { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
+import { useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useConversations } from "@/hooks/use-inbox";
 import { NotificationBell } from "@/components/NotificationBell";
@@ -17,39 +18,50 @@ const pulseLineAnimation = `
 `;
 
 export default function InboxPage() {
+  const INITIAL_VISIBLE_CONVERSATIONS = 50;
+  const LOAD_MORE_STEP = 20;
   const { logout, user, isAdmin } = useAuth();
   const [daysToShow, setDaysToShow] = useState(7);
   const [location] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
+  const [visibleConversations, setVisibleConversations] = useState(INITIAL_VISIBLE_CONVERSATIONS);
   const maxDays = 30;
   
   const { data: conversations = [], isLoading: loadingList } = useConversations();
 
-  const filteredConversations = useMemo(() => {
+  const filteredByRangeAndSearch = useMemo(() => {
     const now = new Date();
     const cutoff = new Date(now.getTime() - daysToShow * 24 * 60 * 60 * 1000);
     const query = searchQuery.toLowerCase().trim();
     
     return conversations
       .filter(c => {
-        // Si hay bÃºsqueda, buscar en nombre y Ãºltimo mensaje (sin lÃ­mite de tiempo)
+        // Si hay búsqueda, buscar en nombre y último mensaje (sin límite de tiempo)
         if (query) {
           const nameMatch = c.contactName?.toLowerCase().includes(query);
           const messageMatch = c.lastMessage?.toLowerCase().includes(query);
           const phoneMatch = c.waId?.includes(query);
           return nameMatch || messageMatch || phoneMatch;
         }
-        // Sin bÃºsqueda, aplicar filtro de tiempo
+        // Sin búsqueda, aplicar filtro de tiempo
         if (!c.lastMessageTimestamp) return true;
         return new Date(c.lastMessageTimestamp) >= cutoff;
-      })
-      .slice(0, query ? 100 : 50 * daysToShow);
+      });
   }, [conversations, daysToShow, searchQuery]);
 
+  const filteredConversations = useMemo(
+    () => filteredByRangeAndSearch.slice(0, visibleConversations),
+    [filteredByRangeAndSearch, visibleConversations],
+  );
+
+  const hasMoreConversations = filteredByRangeAndSearch.length > visibleConversations;
+
+  useEffect(() => {
+    setVisibleConversations(INITIAL_VISIBLE_CONVERSATIONS);
+  }, [daysToShow, searchQuery]);
+
   const handleLoadMore = () => {
-    if (daysToShow < maxDays) {
-      setDaysToShow(d => d + 1);
-    }
+    setVisibleConversations((count) => count + LOAD_MORE_STEP);
   };
 
   return (
@@ -150,6 +162,18 @@ export default function InboxPage() {
           onClearSearch={() => setSearchQuery("")}
         />
       </div>
+      {!loadingList && hasMoreConversations && (
+        <div className="flex justify-center px-3 py-2 border-t border-slate-700/40 bg-slate-900/80">
+          <Button
+            onClick={handleLoadMore}
+            variant="outline"
+            className="h-9 border-slate-600 text-slate-200 hover:bg-slate-800"
+            data-testid="button-load-more-conversations"
+          >
+            Ver mas (+20)
+          </Button>
+        </div>
+      )}
 
       {/* Mobile Bottom Navigation - Futuristic */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-xl border-t border-emerald-500/20 flex justify-around items-center py-2 px-1 z-50">
@@ -193,4 +217,7 @@ export default function InboxPage() {
     </div>
   );
 }
+
+
+
 
