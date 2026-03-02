@@ -197,6 +197,12 @@ export default function InboxPage() {
                 <span className="text-[10px] mt-0.5 font-medium">Seguir</span>
               </button>
             </Link>
+            <Link href="/agents">
+              <button className={`flex flex-col items-center px-3 py-1.5 rounded-xl transition-all ${location === '/agents' ? 'text-violet-400 bg-violet-500/20' : 'text-slate-500'}`}>
+                <Users className="h-5 w-5" />
+                <span className="text-[10px] mt-0.5 font-medium">Agentes</span>
+              </button>
+            </Link>
           </>
         )}
         <Link href="/analytics">
