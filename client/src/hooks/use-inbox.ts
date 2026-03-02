@@ -3,7 +3,7 @@ import { api, buildUrl } from "@shared/routes";
 import type { SendMessageRequest } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 
-const POLL_INTERVAL = 1000;
+const POLL_INTERVAL = 5000;
 
 export function useConversations() {
   return useQuery({
