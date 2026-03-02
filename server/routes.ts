@@ -452,7 +452,7 @@ const pushLogs: Array<{timestamp: string, title: string, message: string, event:
 // Send push notification via OneSignal
 async function sendPushNotification(title: string, message: string, data?: Record<string, string>) {
   const apiKey = process.env.ONESIGNAL_REST_API_KEY;
-  const appId = "07dfe1e4-83b1-4623-b57c-e6e33232d4eb";
+  const appId = process.env.ONESIGNAL_APP_ID || "07dfe1e4-83b1-4623-b57c-e6e33232d4eb";
   const timestamp = new Date().toISOString();
   const event = data?.event || "unknown";
 

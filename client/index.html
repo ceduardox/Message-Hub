@@ -54,6 +54,12 @@
     <script type="module" src="/src/main.tsx"></script>
     <script>
       // OneSignal initialization with full configuration
+      const configuredOneSignalAppId = "%VITE_ONESIGNAL_APP_ID%";
+      const oneSignalAppId =
+        configuredOneSignalAppId && configuredOneSignalAppId !== "%VITE_ONESIGNAL_APP_ID%"
+          ? configuredOneSignalAppId
+          : "07dfe1e4-83b1-4623-b57c-e6e33232d4eb";
+
       window.OneSignalDeferred = window.OneSignalDeferred || [];
       window.oneSignalReady = false;
       window.oneSignalClient = null;
@@ -66,7 +72,7 @@
           window.OneSignalDeferred.push(async function(OneSignal) {
             try {
               await OneSignal.init({
-                appId: "07dfe1e4-83b1-4623-b57c-e6e33232d4eb",
+                appId: oneSignalAppId,
                 allowLocalhostAsSecureOrigin: true,
                 serviceWorkerPath: "/OneSignalSDKWorker.js",
                 serviceWorkerParam: { scope: "/" },
@@ -78,7 +84,7 @@
               window.oneSignalClient = OneSignal;
               window.oneSignalReady = true;
               window.oneSignalInitError = null;
-              console.log("[OneSignal] SDK initialized successfully");
+              console.log("[OneSignal] SDK initialized successfully. App ID:", oneSignalAppId);
               
               const permission = OneSignal.Notifications.permission;
               const subscribed = OneSignal.User.PushSubscription.optedIn;
