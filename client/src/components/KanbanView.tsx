@@ -711,6 +711,16 @@ export function KanbanView({ conversations, isLoading, daysToShow, onDaysChange,
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
+        {hasMoreConversations && (
+          <Button
+            onClick={onLoadMore}
+            variant="outline"
+            className="md:hidden h-9 border-slate-600/70 bg-slate-800/70 text-slate-200 hover:bg-slate-700/80"
+            data-testid="button-load-more-conversations-mobile"
+          >
+            Ver mas (+20)
+          </Button>
+        )}
       </div>
 
       {/* Mobile: Tab bar - Futuristic */}
@@ -799,18 +809,6 @@ export function KanbanView({ conversations, isLoading, daysToShow, onDaysChange,
               onDragOverColumn={handleDragOverColumn}
               onDropOnColumn={handleDropOnColumn}
             />
-            {hasMoreConversations && (
-              <div className="md:hidden sticky bottom-2 z-30 flex justify-center px-3 pb-2">
-                <Button
-                  onClick={onLoadMore}
-                  variant="outline"
-                  className="h-9 border-slate-600 bg-slate-900/95 text-slate-200 hover:bg-slate-800 shadow-lg"
-                  data-testid="button-load-more-conversations-mobile"
-                >
-                  Ver mas (+20)
-                </Button>
-              </div>
-            )}
           </>
         )}
         </div>
