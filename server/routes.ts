@@ -1277,6 +1277,32 @@ export async function registerRoutes(
     }
   });
 
+  // Agent self settings (global AI auto-reply toggle)
+  app.get("/api/agents/me/settings", requireAuth, async (req, res) => {
+    const session = req.session as any;
+    if (session.role !== "agent" || !session.agentId) {
+      return res.status(403).json({ message: "Agent access required" });
+    }
+    const agent = await storage.getAgent(session.agentId);
+    if (!agent) return res.status(404).json({ message: "Agent not found" });
+    res.json({ isAiAutoReplyEnabled: agent.isAiAutoReplyEnabled !== false });
+  });
+
+  app.patch("/api/agents/me/settings", requireAuth, async (req, res) => {
+    const session = req.session as any;
+    if (session.role !== "agent" || !session.agentId) {
+      return res.status(403).json({ message: "Agent access required" });
+    }
+    const parsed = z.object({ isAiAutoReplyEnabled: z.boolean() }).safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: "Invalid settings payload" });
+    }
+    const updated = await storage.updateAgent(session.agentId, {
+      isAiAutoReplyEnabled: parsed.data.isAiAutoReplyEnabled,
+    });
+    res.json({ isAiAutoReplyEnabled: updated.isAiAutoReplyEnabled !== false });
+  });
+
   // Reassign conversation to agent
   app.patch("/api/conversations/:id/assign", requireAdmin, async (req, res) => {
     const id = parseInt(req.params.id);

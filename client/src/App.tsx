@@ -12,6 +12,7 @@ const AIAgentPage = lazy(() => import("@/pages/AIAgentPage"));
 const FollowUpPage = lazy(() => import("@/pages/FollowUpPage"));
 const AnalyticsPage = lazy(() => import("@/pages/AnalyticsPage"));
 const AgentsPage = lazy(() => import("@/pages/AgentsPage"));
+const AgentAiPage = lazy(() => import("@/pages/AgentAiPage"));
 const PrivacyPolicyPage = lazy(() => import("@/pages/PrivacyPolicyPage"));
 const DataDeletionPage = lazy(() => import("@/pages/DataDeletionPage"));
 const NotFound = lazy(() => import("@/pages/not-found"));
@@ -51,6 +52,25 @@ function AdminRoute({ component: Component }: { component: React.ComponentType }
   return <Component />;
 }
 
+function AgentRoute({ component: Component }: { component: React.ComponentType }) {
+  const { user, isLoading, isAgent } = useAuth();
+  const [, setLocation] = useLocation();
+
+  if (isLoading) return null;
+
+  if (!user) {
+    setTimeout(() => setLocation("/login"), 0);
+    return null;
+  }
+
+  if (!isAgent) {
+    setTimeout(() => setLocation("/"), 0);
+    return null;
+  }
+
+  return <Component />;
+}
+
 function Router() {
   return (
     <Suspense fallback={null}>
@@ -66,6 +86,9 @@ function Router() {
         </Route>
         <Route path="/analytics">
           <ProtectedRoute component={AnalyticsPage} />
+        </Route>
+        <Route path="/agent-ai">
+          <AgentRoute component={AgentAiPage} />
         </Route>
         <Route path="/agents">
           <AdminRoute component={AgentsPage} />

@@ -5,7 +5,7 @@ import { useConversations } from "@/hooks/use-inbox";
 import { NotificationBell } from "@/components/NotificationBell";
 import { KanbanView } from "@/components/KanbanView";
 import { Button } from "@/components/ui/button";
-import { LogOut, Bot, ClipboardList, LayoutGrid, Sparkles, MessageSquare, Zap, Activity, BarChart3, Search, X, Users } from "lucide-react";
+import { LogOut, Bot, BotOff, ClipboardList, LayoutGrid, Sparkles, MessageSquare, Zap, Activity, BarChart3, Search, X, Users } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Link, useLocation } from "wouter";
 
@@ -21,6 +21,7 @@ export default function InboxPage() {
   const INITIAL_VISIBLE_CONVERSATIONS = 50;
   const LOAD_MORE_STEP = 20;
   const { logout, user, isAdmin } = useAuth();
+  const isAgent = user?.role === "agent";
   const [daysToShow, setDaysToShow] = useState(7);
   const [location] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
@@ -204,6 +205,14 @@ export default function InboxPage() {
               </button>
             </Link>
           </>
+        )}
+        {isAgent && (
+          <Link href="/agent-ai">
+            <button className={`flex flex-col items-center px-3 py-1.5 rounded-xl transition-all ${location === '/agent-ai' ? 'text-emerald-400 bg-emerald-500/20' : 'text-slate-500'}`}>
+              <Bot className="h-5 w-5" />
+              <span className="text-[10px] mt-0.5 font-medium">IA Global</span>
+            </button>
+          </Link>
         )}
         <Link href="/analytics">
           <button className={`flex flex-col items-center px-3 py-1.5 rounded-xl transition-all ${location === '/analytics' ? 'text-cyan-400 bg-cyan-500/20' : 'text-slate-500'}`}>
