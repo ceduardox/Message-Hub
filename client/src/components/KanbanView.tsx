@@ -750,7 +750,7 @@ export function KanbanView({ conversations, isLoading, daysToShow, onDaysChange,
 
       {/* Mobile: Single column view */}
       <div
-        className="md:hidden flex-1 overflow-hidden"
+        className="md:hidden flex-1 overflow-hidden relative"
         onTouchStart={handleMobileTouchStart}
         onTouchMove={handleMobileTouchMove}
         onTouchEnd={handleMobileTouchEnd}
@@ -767,11 +767,11 @@ export function KanbanView({ conversations, isLoading, daysToShow, onDaysChange,
           <div className="h-full flex flex-col bg-slate-900">
             <button
               onClick={() => setActiveId(null)}
-              className="px-3 py-2.5 border-b border-slate-700 text-left text-sm text-emerald-400 font-medium flex items-center gap-2 bg-slate-800/50 select-none transition-transform duration-100 active:scale-95"
+              className="group px-3 py-2.5 border-b border-slate-700 text-left text-sm text-emerald-400 font-medium flex items-center gap-2 bg-slate-800/50 select-none transition-all duration-75 active:scale-90 active:bg-slate-700 active:text-emerald-200 active:shadow-inner active:brightness-90"
               data-testid="button-back-kanban"
             >
-              <ArrowLeft className="h-4 w-4" />
-              Volver al Kanban
+              <ArrowLeft className="h-4 w-4 transition-transform duration-100 group-active:-translate-x-0.5" />
+              <span className="transition-transform duration-100 group-active:translate-x-0.5">Volver al Kanban</span>
             </button>
             <div className="flex-1 overflow-hidden">
               <ChatArea
@@ -799,21 +799,21 @@ export function KanbanView({ conversations, isLoading, daysToShow, onDaysChange,
               onDragOverColumn={handleDragOverColumn}
               onDropOnColumn={handleDropOnColumn}
             />
-            {hasMoreConversations && (
-              <div className="md:hidden fixed left-0 right-0 bottom-16 z-50 flex justify-center px-3">
-                <Button
-                  onClick={onLoadMore}
-                  variant="outline"
-                  className="h-9 border-slate-600 bg-slate-900/95 text-slate-200 hover:bg-slate-800 shadow-lg"
-                  data-testid="button-load-more-conversations-mobile"
-                >
-                  Ver mas (+20)
-                </Button>
-              </div>
-            )}
           </>
         )}
         </div>
+        {!activeId && hasMoreConversations && (
+          <div className="md:hidden absolute left-0 right-0 bottom-2 z-40 flex justify-center px-3 pointer-events-none">
+            <Button
+              onClick={onLoadMore}
+              variant="outline"
+              className="h-9 border-slate-600 bg-slate-900/95 text-slate-200 hover:bg-slate-800 shadow-lg pointer-events-auto"
+              data-testid="button-load-more-conversations-mobile"
+            >
+              Ver mas (+20)
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Desktop: Grid view with glassmorphism */}

@@ -399,7 +399,7 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
             <span className="text-xs text-muted-foreground">+{conversation.waId}</span>
           </div>
         </div>
-        <div className="mt-1 w-full grid grid-cols-4 gap-1 md:mt-0 md:w-auto md:flex md:flex-wrap md:items-center md:gap-1">
+        <div className="mt-1 w-full flex items-center justify-center gap-1 overflow-x-auto md:mt-0 md:w-auto md:justify-start md:overflow-visible">
         {/* Reassign Agent Dropdown (admin only) */}
         {isAdmin && (
           <DropdownMenu>
