@@ -52,6 +52,7 @@ interface KanbanViewProps {
   daysToShow: number;
   onDaysChange: (days: number) => void;
   onLoadMore: () => void;
+  hasMoreConversations: boolean;
   maxDays: number;
   searchQuery: string;
   onSearchChange: (value: string) => void;
@@ -411,7 +412,7 @@ const tabConfig: { key: TabType; label: string; shortLabel: string; icon: typeof
   { key: "entregado", label: "Enviados y Entregados", shortLabel: "Enviado", icon: Truck },
 ];
 
-export function KanbanView({ conversations, isLoading, daysToShow, onDaysChange, onLoadMore, maxDays, searchQuery, onSearchChange, onClearSearch }: KanbanViewProps) {
+export function KanbanView({ conversations, isLoading, daysToShow, onDaysChange, onLoadMore, hasMoreConversations, maxDays, searchQuery, onSearchChange, onClearSearch }: KanbanViewProps) {
   const { isAdmin } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -433,6 +434,7 @@ export function KanbanView({ conversations, isLoading, daysToShow, onDaysChange,
     entregado: null,
   });
   const { data: activeConversation } = useConversation(activeId);
+  const isMobileChatOpen = !!(activeId && activeConversation);
   const { data: labels = [] } = useQuery<Label[]>({ queryKey: ["/api/labels"] });
   const { data: agents = [] } = useQuery<AgentListItem[]>({
     queryKey: ["/api/agents"],
@@ -622,7 +624,10 @@ export function KanbanView({ conversations, isLoading, daysToShow, onDaysChange,
         <div className="absolute inset-0 bg-[linear-gradient(rgba(16,185,129,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(16,185,129,0.02)_1px,transparent_1px)] bg-[size:60px_60px]" />
       </div>
       
-      <div className="relative z-10 flex items-center gap-2 px-3 py-2 bg-slate-800/50 backdrop-blur-lg border-b border-slate-700/30">
+      <div className={cn(
+        "relative z-10 flex items-center gap-2 px-3 py-2 bg-slate-800/50 backdrop-blur-lg border-b border-slate-700/30",
+        isMobileChatOpen && "hidden md:flex",
+      )}>
         <div className="md:hidden relative flex-1 min-w-0">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
           <Input
@@ -709,7 +714,10 @@ export function KanbanView({ conversations, isLoading, daysToShow, onDaysChange,
       </div>
 
       {/* Mobile: Tab bar - Futuristic */}
-      <div className="md:hidden flex overflow-x-auto bg-slate-800/80 backdrop-blur-lg border-b border-slate-700/50 gap-1 p-2">
+      <div className={cn(
+        "md:hidden flex overflow-x-auto bg-slate-800/80 backdrop-blur-lg border-b border-slate-700/50 gap-1 p-2",
+        isMobileChatOpen && "hidden",
+      )}>
         {tabConfig.map((tab) => {
           const Icon = tab.icon;
           const count = columnData[tab.key].items.length;
@@ -759,7 +767,7 @@ export function KanbanView({ conversations, isLoading, daysToShow, onDaysChange,
           <div className="h-full flex flex-col bg-slate-900">
             <button
               onClick={() => setActiveId(null)}
-              className="p-3 border-b border-slate-700 text-left text-sm text-emerald-400 font-medium flex items-center gap-2 bg-slate-800/50 select-none transition-transform duration-100 active:scale-95"
+              className="px-3 py-1.5 border-b border-slate-700 text-left text-sm text-emerald-400 font-medium flex items-center gap-2 bg-slate-800/50 select-none transition-transform duration-100 active:scale-95"
               data-testid="button-back-kanban"
             >
               <ArrowLeft className="h-4 w-4" />
@@ -790,6 +798,18 @@ export function KanbanView({ conversations, isLoading, daysToShow, onDaysChange,
             onDragOverColumn={handleDragOverColumn}
             onDropOnColumn={handleDropOnColumn}
           />
+        )}
+        {!activeId && hasMoreConversations && (
+          <div className="md:hidden fixed left-0 right-0 bottom-16 z-50 flex justify-center px-3">
+            <Button
+              onClick={onLoadMore}
+              variant="outline"
+              className="h-9 border-slate-600 bg-slate-900/95 text-slate-200 hover:bg-slate-800 shadow-lg"
+              data-testid="button-load-more-conversations-mobile"
+            >
+              Ver mas (+20)
+            </Button>
+          </div>
         )}
         </div>
       </div>
