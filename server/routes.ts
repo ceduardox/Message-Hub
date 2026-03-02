@@ -52,6 +52,10 @@ async function processAiResponse(data: BufferedMessage) {
   const { conversationId, messageForAi, from, name, imageBase64ForAi, wasAudioMessage } = data;
   const conversation = await storage.getConversation(conversationId);
   if (!conversation || conversation.aiDisabled) return;
+  if (conversation.assignedAgentId) {
+    const assignedAgent = await storage.getAgent(conversation.assignedAgentId);
+    if (assignedAgent && assignedAgent.isAiAutoReplyEnabled === false) return;
+  }
 
   try {
     const recentMessages = await storage.getMessages(conversationId);
@@ -916,7 +920,14 @@ export async function registerRoutes(
               });
 
               // 5. AI Auto-Response with debounce buffer (groups rapid messages)
-              if (messageForAi && !conversation.aiDisabled) {
+              let agentAllowsAi = true;
+              if (conversation.assignedAgentId) {
+                const assignedAgent = await storage.getAgent(conversation.assignedAgentId);
+                if (assignedAgent && assignedAgent.isAiAutoReplyEnabled === false) {
+                  agentAllowsAi = false;
+                }
+              }
+              if (messageForAi && !conversation.aiDisabled && agentAllowsAi) {
                 const bufferedMsg: BufferedMessage = {
                   messageForAi,
                   imageBase64ForAi,
@@ -1996,6 +2007,7 @@ Máximo 2 líneas. Sé específico y práctico.`;
           a.username,
           a.password,
           a.is_active AS "isActive",
+          a.is_ai_auto_reply_enabled AS "isAiAutoReplyEnabled",
           a.weight,
           a.created_at AS "createdAt",
           COALESCE(s.assigned_conversations, 0) AS "assignedConversations",
@@ -2033,7 +2045,7 @@ Máximo 2 líneas. Sé específico y práctico.`;
 
   app.post("/api/agents", requireAdmin, async (req, res) => {
     try {
-      const { name, username, password, weight } = req.body;
+      const { name, username, password, weight, isAiAutoReplyEnabled } = req.body;
       if (!name || !username || !password) {
         return res.status(400).json({ message: "Name, username and password are required" });
       }
@@ -2041,7 +2053,14 @@ Máximo 2 líneas. Sé específico y práctico.`;
       if (existing) {
         return res.status(400).json({ message: "Username already exists" });
       }
-      const agent = await storage.createAgent({ name, username, password, isActive: true, weight: weight || 1 });
+      const agent = await storage.createAgent({
+        name,
+        username,
+        password,
+        isActive: true,
+        isAiAutoReplyEnabled: typeof isAiAutoReplyEnabled === "boolean" ? isAiAutoReplyEnabled : true,
+        weight: weight || 1,
+      });
       res.json(agent);
     } catch (error) {
       res.status(500).json({ message: "Error creating agent" });

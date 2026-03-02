@@ -18,6 +18,8 @@ import {
   Save,
   X,
   Zap,
+  Bot,
+  BotOff,
   MessageSquare,
   Clock,
   TrendingUp,
@@ -127,6 +129,13 @@ export default function AgentsPage() {
 
   const toggleActive = (agent: Agent) => {
     updateMutation.mutate({ id: agent.id, isActive: !agent.isActive });
+  };
+
+  const toggleAgentAiAutoReply = (agent: Agent) => {
+    updateMutation.mutate({
+      id: agent.id,
+      isAiAutoReplyEnabled: !agent.isAiAutoReplyEnabled,
+    });
   };
 
   const activeAgents = agents.filter(a => a.isActive);
@@ -387,6 +396,7 @@ export default function AgentsPage() {
                       showPassword={showPasswords[agent.id] || false}
                       togglePassword={() => setShowPasswords(p => ({ ...p, [agent.id]: !p[agent.id] }))}
                       onToggleActive={() => toggleActive(agent)}
+                      onToggleAgentAiAutoReply={() => toggleAgentAiAutoReply(agent)}
                       onDelete={() => {
                         if (confirm(`¿Eliminar agente "${agent.name}"?`)) {
                           deleteMutation.mutate(agent.id);
@@ -422,6 +432,7 @@ export default function AgentsPage() {
                       showPassword={showPasswords[agent.id] || false}
                       togglePassword={() => setShowPasswords(p => ({ ...p, [agent.id]: !p[agent.id] }))}
                       onToggleActive={() => toggleActive(agent)}
+                      onToggleAgentAiAutoReply={() => toggleAgentAiAutoReply(agent)}
                       onDelete={() => {
                         if (confirm(`¿Eliminar agente "${agent.name}"?`)) {
                           deleteMutation.mutate(agent.id);
@@ -448,6 +459,7 @@ function AgentCard({
   showPassword,
   togglePassword,
   onToggleActive,
+  onToggleAgentAiAutoReply,
   onDelete,
   onUpdate,
   isPending,
@@ -458,6 +470,7 @@ function AgentCard({
   showPassword: boolean;
   togglePassword: () => void;
   onToggleActive: () => void;
+  onToggleAgentAiAutoReply: () => void;
   onDelete: () => void;
   onUpdate: (updates: Record<string, any>) => void;
   isPending: boolean;
@@ -580,6 +593,13 @@ function AgentCard({
                     <span className={cn("w-1.5 h-1.5 rounded-full", agent.isActive ? "bg-emerald-500 animate-pulse" : "bg-red-500")} />
                     {agent.isActive ? "Activo" : "Inactivo"}
                   </span>
+                  <span className={cn(
+                    "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium border border-current/20",
+                    agent.isAiAutoReplyEnabled ? "bg-cyan-500/20 text-cyan-400" : "bg-slate-500/20 text-slate-300"
+                  )}>
+                    {agent.isAiAutoReplyEnabled ? <Bot className="h-3 w-3" /> : <BotOff className="h-3 w-3" />}
+                    {agent.isAiAutoReplyEnabled ? "IA auto ON" : "IA auto OFF"}
+                  </span>
                 </div>
                 <div className="mt-3 grid grid-cols-2 lg:grid-cols-4 gap-2.5">
                   <div className="group relative overflow-hidden rounded-xl border border-slate-700/80 bg-slate-900/70 px-3 py-2.5">
@@ -645,6 +665,16 @@ function AgentCard({
               data-testid={`button-edit-agent-${agent.id}`}
             >
               <Pencil className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onToggleAgentAiAutoReply}
+              title={agent.isAiAutoReplyEnabled ? "Desactivar IA automática" : "Activar IA automática"}
+              className={agent.isAiAutoReplyEnabled ? "text-cyan-400" : "text-slate-400"}
+              data-testid={`button-toggle-agent-ai-${agent.id}`}
+            >
+              {agent.isAiAutoReplyEnabled ? <Bot className="h-4 w-4" /> : <BotOff className="h-4 w-4" />}
             </Button>
             <Button
               variant="ghost"

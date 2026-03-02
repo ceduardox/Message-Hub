@@ -25,6 +25,7 @@ export const agents = pgTable("agents", {
   username: varchar("username", { length: 50 }).notNull().unique(),
   password: varchar("password", { length: 100 }).notNull(),
   isActive: boolean("is_active").default(true),
+  isAiAutoReplyEnabled: boolean("is_ai_auto_reply_enabled").default(true),
   weight: integer("weight").default(1),
   createdAt: timestamp("created_at").defaultNow(),
 });
