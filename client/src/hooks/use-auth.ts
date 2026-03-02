@@ -38,7 +38,6 @@ export function useAuth() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: [api.auth.me.path] });
       await queryClient.refetchQueries({ queryKey: [api.auth.me.path] });
-      toast({ title: "Bienvenido", description: "Inicio de sesión exitoso" });
       setLocation("/");
     },
     onError: (error) => {
@@ -79,3 +78,4 @@ export function useAuth() {
     role: userQuery.data?.role,
   };
 }
+

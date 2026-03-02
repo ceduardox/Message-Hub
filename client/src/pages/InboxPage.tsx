@@ -163,12 +163,24 @@ export default function InboxPage() {
         />
       </div>
       {!loadingList && hasMoreConversations && (
-        <div className="flex justify-center px-3 py-2 border-t border-slate-700/40 bg-slate-900/80">
+        <div className="hidden md:flex justify-center px-3 py-2 border-t border-slate-700/40 bg-slate-900/80">
           <Button
             onClick={handleLoadMore}
             variant="outline"
             className="h-9 border-slate-600 text-slate-200 hover:bg-slate-800"
             data-testid="button-load-more-conversations"
+          >
+            Ver mas (+20)
+          </Button>
+        </div>
+      )}
+      {!loadingList && hasMoreConversations && (
+        <div className="md:hidden fixed left-0 right-0 bottom-16 z-50 flex justify-center px-3">
+          <Button
+            onClick={handleLoadMore}
+            variant="outline"
+            className="h-9 border-slate-600 bg-slate-900/95 text-slate-200 hover:bg-slate-800 shadow-lg"
+            data-testid="button-load-more-conversations-mobile"
           >
             Ver mas (+20)
           </Button>
