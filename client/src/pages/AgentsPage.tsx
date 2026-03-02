@@ -479,6 +479,7 @@ function AgentCard({
   const [editName, setEditName] = useState(agent.name);
   const [editWeight, setEditWeight] = useState(agent.weight || 1);
   const [editPassword, setEditPassword] = useState(agent.password);
+  const [showMobileStats, setShowMobileStats] = useState(false);
   const formatLastActivity = (value?: string | null) => {
     if (!value) return "Sin actividad";
     const date = new Date(value);
@@ -509,8 +510,8 @@ function AgentCard({
       )}
       data-testid={`agent-card-${agent.id}`}
     >
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-3 min-w-0 flex-1">
+      <div className="flex flex-col gap-3">
+        <div className="flex items-start gap-3 min-w-0 w-full">
           <div className={cn(
             "w-11 h-11 rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-lg",
             agent.isActive
@@ -601,7 +602,23 @@ function AgentCard({
                     {agent.isAiAutoReplyEnabled ? "IA auto ON" : "IA auto OFF"}
                   </span>
                 </div>
-                <div className="mt-3 grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+                {!isEditing && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowMobileStats((prev) => !prev)}
+                    className="md:hidden mt-2 h-7 px-2 text-xs text-cyan-300"
+                    data-testid={`button-toggle-agent-stats-${agent.id}`}
+                  >
+                    {showMobileStats ? "Ocultar info" : "Ver info"}
+                  </Button>
+                )}
+                <div className={cn(
+                  "mt-3 gap-2.5",
+                  showMobileStats ? "grid grid-cols-1" : "hidden",
+                  "md:grid md:grid-cols-2 lg:grid-cols-4",
+                )}>
                   <div className="group relative overflow-hidden rounded-xl border border-slate-700/80 bg-slate-900/70 px-3 py-2.5">
                     <div className="absolute left-0 top-0 h-0.5 w-full bg-cyan-400/80" />
                     <p className="text-[10px] uppercase tracking-[0.14em] text-slate-400 flex items-center gap-1">
@@ -655,7 +672,7 @@ function AgentCard({
         </div>
 
         {!isEditing && (
-          <div className="flex items-center gap-1 flex-shrink-0">
+          <div className="flex items-center gap-1 self-end md:self-auto">
             <Button
               variant="ghost"
               size="icon"

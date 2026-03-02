@@ -46,6 +46,7 @@ const LABEL_COLORS = [
 export function ChatArea({ conversation, messages }: ChatAreaProps) {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
+  const canToggleConversationAi = user?.role === "admin" || user?.role === "agent";
   const [text, setText] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [showImageInput, setShowImageInput] = useState(false);
@@ -314,6 +315,11 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
     toast({ title: "Copiado", description: "URL copiada al portapapeles" });
   };
 
+  const getWaMeLink = () => {
+    const phone = (conversation.waId || "").replace(/\D/g, "");
+    return `wa.me/${phone}`;
+  };
+
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -396,7 +402,15 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
                 </Badge>
               )}
             </div>
-            <span className="text-xs text-muted-foreground">+{conversation.waId}</span>
+            <button
+              type="button"
+              onClick={() => copyToClipboard(getWaMeLink())}
+              className="text-xs text-muted-foreground hover:text-emerald-500 transition-colors text-left"
+              data-testid="button-copy-wa-link"
+              title="Copiar enlace wa.me"
+            >
+              +{conversation.waId}
+            </button>
           </div>
         </div>
         <div className="mt-1 w-full flex items-center justify-center gap-1 overflow-x-auto md:mt-0 md:w-auto md:justify-start md:overflow-visible">
@@ -476,20 +490,22 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
           </DialogContent>
         </Dialog>
 
-        {/* AI Toggle Button */}
-        <Button 
-          variant={conversation.aiDisabled ? "default" : "ghost"} 
-          size="icon" 
-          className={cn(
-            "flex-shrink-0",
-            conversation.aiDisabled && "bg-orange-500 text-white"
-          )}
-          onClick={() => toggleAiMutation.mutate(!conversation.aiDisabled)}
-          title={conversation.aiDisabled ? "IA desactivada - Click para activar" : "IA activa - Click para desactivar"}
-          data-testid="button-ai-toggle"
-        >
-          {conversation.aiDisabled ? <BotOff className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
-        </Button>
+        {/* AI Toggle Button (admin and agents) */}
+        {canToggleConversationAi && (
+          <Button 
+            variant={conversation.aiDisabled ? "default" : "ghost"} 
+            size="icon" 
+            className={cn(
+              "flex-shrink-0",
+              conversation.aiDisabled && "bg-orange-500 text-white"
+            )}
+            onClick={() => toggleAiMutation.mutate(!conversation.aiDisabled)}
+            title={conversation.aiDisabled ? "IA desactivada - Click para activar" : "IA activa - Click para desactivar"}
+            data-testid="button-ai-toggle"
+          >
+            {conversation.aiDisabled ? <BotOff className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
+          </Button>
+        )}
 
         {/* Human Attention Alert */}
         {conversation.needsHumanAttention && (
