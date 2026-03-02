@@ -119,6 +119,7 @@ export const updateOrderStatusSchema = z.object({
 export const loginSchema = z.object({
   username: z.string(),
   password: z.string(),
+  remember: z.boolean().optional(),
 });
 
 export type LoginRequest = z.infer<typeof loginSchema>;

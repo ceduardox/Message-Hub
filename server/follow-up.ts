@@ -1,14 +1,14 @@
 import { storage } from "./storage";
 import { db } from "./db";
-import { conversations, messages } from "@shared/schema";
+import { conversations } from "@shared/schema";
 import { eq, desc, and, isNull, lte, gte, sql } from "drizzle-orm";
 import { generateAiResponse } from "./ai-service";
 
 let sendAiResponseFn: ((to: string, responseText: string) => Promise<any>) | null = null;
 
 export function initFollowUp(
-  _sendToWhatsApp: (to: string, type: 'text' | 'image' | 'interactive', content: any) => Promise<any>,
-  sendAiResponse: (to: string, responseText: string) => Promise<any>
+  _sendToWhatsApp: (to: string, type: "text" | "image" | "interactive", content: any) => Promise<any>,
+  sendAiResponse: (to: string, responseText: string) => Promise<any>,
 ) {
   sendAiResponseFn = sendAiResponse;
 
@@ -27,19 +27,25 @@ async function checkAndSendFollowUps() {
   const settings = await storage.getAiSettings();
   if (!settings?.followUpEnabled || !settings?.enabled) return;
 
+  const now = Date.now();
   const waitMinutes = settings.followUpMinutes || 20;
-  const cutoff = new Date(Date.now() - waitMinutes * 60 * 1000);
-  const maxAge = new Date(Date.now() - 72 * 60 * 60 * 1000);
+  const cutoff = new Date(now - waitMinutes * 60 * 1000);
+  const window24hStart = new Date(now - 24 * 60 * 60 * 1000);
 
-  const candidates = await db.select().from(conversations).where(
-    and(
-      isNull(conversations.lastFollowUpAt),
-      eq(conversations.aiDisabled, false),
-      gte(conversations.lastMessageTimestamp, maxAge),
-      lte(conversations.lastMessageTimestamp, cutoff),
-      sql`${conversations.orderStatus} IS DISTINCT FROM 'delivered'`
+  const candidates = await db
+    .select()
+    .from(conversations)
+    .where(
+      and(
+        isNull(conversations.lastFollowUpAt),
+        eq(conversations.aiDisabled, false),
+        gte(conversations.lastMessageTimestamp, window24hStart),
+        lte(conversations.lastMessageTimestamp, cutoff),
+        sql`${conversations.orderStatus} IS DISTINCT FROM 'delivered'`,
+      ),
     )
-  ).orderBy(desc(conversations.lastMessageTimestamp)).limit(10);
+    .orderBy(desc(conversations.lastMessageTimestamp))
+    .limit(10);
 
   if (candidates.length === 0) return;
 
@@ -49,19 +55,21 @@ async function checkAndSendFollowUps() {
       if (msgs.length === 0) continue;
 
       const lastMsg = msgs[msgs.length - 1];
-      if (lastMsg.direction !== 'out') continue;
-      if (lastMsg.status !== 'read' && lastMsg.status !== 'delivered') continue;
+      if (lastMsg.direction !== "out") continue;
 
-      const recentMessages = msgs.slice(-5);
+      // Enforce 24h window from the last inbound customer message.
+      const lastInbound = [...msgs].reverse().find((m) => m.direction === "in");
+      if (!lastInbound?.createdAt) continue;
+      if (new Date(lastInbound.createdAt).getTime() < window24hStart.getTime()) continue;
 
+      const recentMessages = msgs.slice(-10);
       const result = await generateAiResponse(
         conv.id,
-        "[SISTEMA: El cliente leyó tu último mensaje hace más de " + waitMinutes + " minutos pero no respondió. Genera UN mensaje corto de re-enganche para retomar la conversación y llevarlo a la compra. No saludes de nuevo, sé natural como si continuaras la plática.]",
-        recentMessages
+        `[SISTEMA: Seguimiento automatico dentro de ventana de 24 horas. El cliente no respondio en ${waitMinutes} minutos. Genera UN mensaje corto de reenganche, natural y no invasivo. No saludes de nuevo.]`,
+        recentMessages,
       );
 
       if (!result?.response) continue;
-
       if (!sendAiResponseFn) continue;
 
       try {
@@ -93,3 +101,4 @@ async function checkAndSendFollowUps() {
     }
   }
 }
+

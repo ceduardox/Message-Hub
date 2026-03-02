@@ -1,11 +1,20 @@
-import { useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import type { Conversation, Label } from "@shared/schema";
 import { useConversation } from "@/hooks/use-inbox";
+import { useAuth } from "@/hooks/use-auth";
 import { ChatArea } from "./ChatArea";
-import { Phone, Clock, ChevronDown, AlertCircle, Truck, CheckCircle, Zap, ArrowLeft, Tag, Filter, Package } from "lucide-react";
+import { Phone, Clock, AlertCircle, Truck, CheckCircle, Check, Zap, ArrowLeft, Tag, Package, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { useQuery } from "@tanstack/react-query";
+import { Input } from "@/components/ui/input";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 // CSS animation keyframes - Futuristic style
 const pulseAnimation = `
@@ -44,6 +53,9 @@ interface KanbanViewProps {
   onDaysChange: (days: number) => void;
   onLoadMore: () => void;
   maxDays: number;
+  searchQuery: string;
+  onSearchChange: (value: string) => void;
+  onClearSearch: () => void;
 }
 
 interface ColumnProps {
@@ -53,6 +65,20 @@ interface ColumnProps {
   onSelect: (id: number) => void;
   columnType: "humano" | "nuevo" | "llamar" | "proceso" | "listo" | "entregado";
   labels: Label[];
+  showAgentAssignment: boolean;
+  getAssignedAgentName: (assignedAgentId: number | null) => string | null;
+  enableDrag: boolean;
+  draggingConversationId: number | null;
+  isDropTarget: boolean;
+  onDragStartCard: (conversationId: number) => void;
+  onDragEndCard: () => void;
+  onDragOverColumn: (columnType: TabType) => void;
+  onDropOnColumn: (columnType: TabType) => void;
+}
+
+interface AgentListItem {
+  id: number;
+  name: string;
 }
 
 function getInitials(name: string): string {
@@ -85,13 +111,25 @@ function KanbanCard({
   isActive, 
   onSelect,
   columnType,
-  labels
+  labels,
+  showAgentAssignment,
+  assignedAgentName,
+  enableDrag,
+  isDragging,
+  onDragStartCard,
+  onDragEndCard,
 }: { 
   conv: Conversation; 
   isActive: boolean; 
   onSelect: () => void;
   columnType: "humano" | "nuevo" | "llamar" | "proceso" | "listo" | "entregado";
   labels: Label[];
+  showAgentAssignment: boolean;
+  assignedAgentName: string | null;
+  enableDrag: boolean;
+  isDragging: boolean;
+  onDragStartCard: (conversationId: number) => void;
+  onDragEndCard: () => void;
 }) {
   const name = conv.contactName || conv.waId;
   
@@ -146,14 +184,19 @@ function KanbanCard({
   
   return (
     <div
+      draggable={enableDrag}
+      onDragStart={() => onDragStartCard(conv.id)}
+      onDragEnd={onDragEndCard}
       onClick={onSelect}
       className={cn(
         "rounded-xl p-4 cursor-pointer backdrop-blur-sm select-none",
+        enableDrag && "cursor-grab active:cursor-grabbing",
         "border border-slate-700/50 shadow-lg shadow-black/20",
         "transition-transform duration-100 active:scale-[0.97]",
         getCardStyle(),
         isActive && "ring-2 ring-emerald-500/50 shadow-emerald-500/20",
-        isUrgent && "animate-ring-pulse"
+        isUrgent && "animate-ring-pulse",
+        isDragging && "opacity-40 scale-[0.98]"
       )}
       data-testid={`kanban-card-${conv.id}`}
     >
@@ -195,6 +238,13 @@ function KanbanCard({
               {badge.text}
             </div>
           )}
+
+          {showAgentAssignment && (
+            <div className="mt-1.5 inline-flex items-center gap-1.5 rounded-full border border-violet-400/30 bg-violet-500/10 px-2 py-0.5 text-[11px] text-violet-200">
+              <span className="h-1.5 w-1.5 rounded-full bg-violet-300" />
+              {assignedAgentName ? `Agente: ${assignedAgentName}` : "Sin agente"}
+            </div>
+          )}
           
           {conv.labelId && (() => {
             const label = labels.find(l => l.id === conv.labelId);
@@ -224,6 +274,11 @@ function KanbanCard({
           <div className="flex items-center gap-1 mt-2 text-xs text-slate-500">
             {columnType === "nuevo" && <Clock className="h-3 w-3" />}
             <span>{formatDate(conv.lastMessageTimestamp)}</span>
+            {enableDrag && (
+              <span className="ml-auto rounded-full border border-slate-600/60 bg-slate-900/70 px-1.5 py-0.5 text-[10px] text-slate-400">
+                arrastrar
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -231,7 +286,7 @@ function KanbanCard({
   );
 }
 
-function KanbanColumn({ title, items, activeId, onSelect, columnType, labels }: ColumnProps) {
+function KanbanColumn({ title, items, activeId, onSelect, columnType, labels, showAgentAssignment, getAssignedAgentName, enableDrag, draggingConversationId, isDropTarget, onDragStartCard, onDragEndCard, onDragOverColumn, onDropOnColumn }: ColumnProps) {
   const getColumnHeaderStyle = () => {
     switch (columnType) {
       case "humano":
@@ -281,8 +336,20 @@ function KanbanColumn({ title, items, activeId, onSelect, columnType, labels }: 
     <div className={cn(
       "flex flex-col h-full min-w-0 flex-1 mx-1.5 first:ml-0 last:mr-0",
       "bg-slate-800/30 backdrop-blur-xl rounded-2xl border border-slate-700/30",
-      "shadow-xl", getColumnGlow()
-    )}>
+      "shadow-xl", getColumnGlow(),
+      isDropTarget && "ring-2 ring-emerald-400/70 border-emerald-400/60"
+    )}
+      onDragOver={(e) => {
+        if (!enableDrag || draggingConversationId === null) return;
+        e.preventDefault();
+        onDragOverColumn(columnType);
+      }}
+      onDrop={(e) => {
+        if (!enableDrag || draggingConversationId === null) return;
+        e.preventDefault();
+        onDropOnColumn(columnType);
+      }}
+    >
       <div className={cn(
         "flex items-center gap-2 px-4 py-3 rounded-t-2xl relative overflow-hidden",
         "bg-gradient-to-r backdrop-blur-sm text-white",
@@ -298,6 +365,11 @@ function KanbanColumn({ title, items, activeId, onSelect, columnType, labels }: 
         </div>
       </div>
       <div className="flex-1 overflow-y-auto p-2.5 space-y-2.5">
+        {isDropTarget && draggingConversationId !== null && (
+          <div className="rounded-xl border border-dashed border-emerald-400/60 bg-emerald-500/10 px-3 py-2 text-xs font-medium text-emerald-300">
+            Suelta aqui para mover
+          </div>
+        )}
         {items.length === 0 ? (
           <div className="text-center py-10">
             <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-slate-800/50 flex items-center justify-center border border-slate-700/50">
@@ -314,6 +386,12 @@ function KanbanColumn({ title, items, activeId, onSelect, columnType, labels }: 
               onSelect={() => onSelect(conv.id)}
               columnType={columnType}
               labels={labels}
+              showAgentAssignment={showAgentAssignment}
+              assignedAgentName={getAssignedAgentName(conv.assignedAgentId)}
+              enableDrag={enableDrag}
+              isDragging={draggingConversationId === conv.id}
+              onDragStartCard={onDragStartCard}
+              onDragEndCard={onDragEndCard}
             />
           ))
         )}
@@ -325,7 +403,7 @@ function KanbanColumn({ title, items, activeId, onSelect, columnType, labels }: 
 type TabType = "humano" | "nuevo" | "llamar" | "proceso" | "listo" | "entregado";
 
 const tabConfig: { key: TabType; label: string; shortLabel: string; icon: typeof AlertCircle }[] = [
-  { key: "humano", label: "Interacción Humana", shortLabel: "Humano", icon: AlertCircle },
+  { key: "humano", label: "Interaccion Humana", shortLabel: "Humano", icon: AlertCircle },
   { key: "nuevo", label: "Esperando Confirmaci.", shortLabel: "Nuevos", icon: Clock },
   { key: "llamar", label: "Llamar", shortLabel: "Llamar", icon: Phone },
   { key: "proceso", label: "Pedido en Proceso", shortLabel: "Proceso", icon: Package },
@@ -333,12 +411,73 @@ const tabConfig: { key: TabType; label: string; shortLabel: string; icon: typeof
   { key: "entregado", label: "Enviados y Entregados", shortLabel: "Enviado", icon: Truck },
 ];
 
-export function KanbanView({ conversations, isLoading, daysToShow, onDaysChange, onLoadMore, maxDays }: KanbanViewProps) {
+export function KanbanView({ conversations, isLoading, daysToShow, onDaysChange, onLoadMore, maxDays, searchQuery, onSearchChange, onClearSearch }: KanbanViewProps) {
+  const { isAdmin } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [activeId, setActiveId] = useState<number | null>(null);
   const [mobileTab, setMobileTab] = useState<TabType>("humano");
   const [filterLabelId, setFilterLabelId] = useState<number | null>(null);
+  const [draggingConversationId, setDraggingConversationId] = useState<number | null>(null);
+  const [dragOverColumn, setDragOverColumn] = useState<TabType | null>(null);
+  const [swipeOffset, setSwipeOffset] = useState(0);
+  const [isSwiping, setIsSwiping] = useState(false);
+  const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
+  const tabRefs = useRef<Record<TabType, HTMLButtonElement | null>>({
+    humano: null,
+    nuevo: null,
+    llamar: null,
+    proceso: null,
+    listo: null,
+    entregado: null,
+  });
   const { data: activeConversation } = useConversation(activeId);
   const { data: labels = [] } = useQuery<Label[]>({ queryKey: ["/api/labels"] });
+  const { data: agents = [] } = useQuery<AgentListItem[]>({
+    queryKey: ["/api/agents"],
+    enabled: isAdmin,
+  });
+
+  const agentNameById = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const agent of agents) {
+      map.set(agent.id, agent.name);
+    }
+    return map;
+  }, [agents]);
+
+  const getAssignedAgentName = (assignedAgentId: number | null) => {
+    if (!assignedAgentId) return null;
+    return agentNameById.get(assignedAgentId) || null;
+  };
+
+  const getConversationColumn = (conv: Conversation): TabType => {
+    if (conv.needsHumanAttention) return "humano";
+    if (conv.orderStatus === "delivered") return "entregado";
+    if (conv.orderStatus === "ready") return "listo";
+    if (conv.orderStatus === "pending") return "proceso";
+    if (conv.shouldCall) return "llamar";
+    return "nuevo";
+  };
+
+  const moveCardMutation = useMutation({
+    mutationFn: async ({ conversationId, targetColumn }: { conversationId: number; targetColumn: TabType }) => {
+      const res = await fetch(`/api/conversations/${conversationId}/kanban-status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ column: targetColumn }),
+      });
+      if (!res.ok) throw new Error("No se pudo mover la tarjeta");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error al mover", description: error.message, variant: "destructive" });
+    },
+  });
 
   const filtered = filterLabelId ? conversations.filter(c => c.labelId === filterLabelId) : conversations;
 
@@ -356,7 +495,7 @@ export function KanbanView({ conversations, isLoading, daysToShow, onDaysChange,
   );
 
   const columnData: Record<TabType, { items: Conversation[]; title: string }> = {
-    humano: { items: humano, title: "Interacción Humana" },
+    humano: { items: humano, title: "Interaccion Humana" },
     nuevo: { items: nuevos, title: "Esperando Confirmaci." },
     llamar: { items: llamar, title: "Llamar" },
     proceso: { items: enProceso, title: "Pedido en Proceso" },
@@ -374,6 +513,90 @@ export function KanbanView({ conversations, isLoading, daysToShow, onDaysChange,
       entregado: isActive ? "bg-slate-500/20 text-slate-400 border-slate-500/50" : "text-slate-500 border-transparent",
     };
     return colors[tab];
+  };
+
+  const moveMobileTab = (direction: "next" | "prev") => {
+    const order: TabType[] = ["humano", "nuevo", "llamar", "proceso", "listo", "entregado"];
+    const currentIndex = order.indexOf(mobileTab);
+    const nextIndex = direction === "next"
+      ? Math.min(order.length - 1, currentIndex + 1)
+      : Math.max(0, currentIndex - 1);
+    if (nextIndex !== currentIndex) {
+      setMobileTab(order[nextIndex]);
+    }
+  };
+
+  const handleMobileTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    touchStartX.current = e.changedTouches[0]?.clientX ?? null;
+    touchStartY.current = e.changedTouches[0]?.clientY ?? null;
+    setIsSwiping(true);
+  };
+
+  const handleMobileTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (touchStartX.current === null || touchStartY.current === null) return;
+    const currentX = e.changedTouches[0]?.clientX ?? touchStartX.current;
+    const currentY = e.changedTouches[0]?.clientY ?? touchStartY.current;
+    const dx = currentX - touchStartX.current;
+    const dy = currentY - touchStartY.current;
+    if (Math.abs(dx) > Math.abs(dy)) {
+      const resisted = Math.max(-56, Math.min(56, dx * 0.35));
+      setSwipeOffset(resisted);
+    }
+  };
+
+  const handleMobileTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (touchStartX.current === null || touchStartY.current === null) return;
+    const endX = e.changedTouches[0]?.clientX ?? touchStartX.current;
+    const endY = e.changedTouches[0]?.clientY ?? touchStartY.current;
+    const dx = endX - touchStartX.current;
+    const dy = endY - touchStartY.current;
+    touchStartX.current = null;
+    touchStartY.current = null;
+    setIsSwiping(false);
+    setSwipeOffset(0);
+    if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy)) return;
+    if (dx < 0) moveMobileTab("next");
+    if (dx > 0) moveMobileTab("prev");
+  };
+
+  const handleMobileTouchCancel = () => {
+    touchStartX.current = null;
+    touchStartY.current = null;
+    setIsSwiping(false);
+    setSwipeOffset(0);
+  };
+
+  useEffect(() => {
+    const activeTab = tabRefs.current[mobileTab];
+    activeTab?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+  }, [mobileTab]);
+
+  const handleDragStartCard = (conversationId: number) => {
+    if (!isAdmin) return;
+    setDraggingConversationId(conversationId);
+  };
+
+  const handleDragEndCard = () => {
+    setDraggingConversationId(null);
+    setDragOverColumn(null);
+  };
+
+  const handleDragOverColumn = (columnType: TabType) => {
+    setDragOverColumn(columnType);
+  };
+
+  const handleDropOnColumn = (targetColumn: TabType) => {
+    if (!isAdmin || draggingConversationId === null) return;
+    const conversation = conversations.find((c) => c.id === draggingConversationId);
+    if (!conversation) {
+      handleDragEndCard();
+      return;
+    }
+    const currentColumn = getConversationColumn(conversation);
+    if (currentColumn !== targetColumn) {
+      moveCardMutation.mutate({ conversationId: draggingConversationId, targetColumn });
+    }
+    handleDragEndCard();
   };
 
   if (isLoading) {
@@ -399,62 +622,90 @@ export function KanbanView({ conversations, isLoading, daysToShow, onDaysChange,
         <div className="absolute inset-0 bg-[linear-gradient(rgba(16,185,129,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(16,185,129,0.02)_1px,transparent_1px)] bg-[size:60px_60px]" />
       </div>
       
-      {labels.length > 0 && (
-        <div className="relative z-10 flex items-center gap-2 px-3 py-2 bg-slate-800/60 backdrop-blur-lg border-b border-slate-700/30 overflow-x-auto">
-          <Filter className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
-          <button
-            onClick={() => setFilterLabelId(null)}
-            className={cn(
-              "px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap select-none transition-transform duration-100 active:scale-95 border",
-              !filterLabelId ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/50" : "text-slate-400 border-slate-600/50"
-            )}
-            data-testid="filter-label-all"
-          >
-            Todas
-          </button>
-          {labels.map(label => {
-            const colorMap: Record<string, string> = {
-              blue: "bg-blue-500/20 text-blue-400 border-blue-500/50",
-              green: "bg-green-500/20 text-green-400 border-green-500/50",
-              yellow: "bg-yellow-500/20 text-yellow-400 border-yellow-500/50",
-              red: "bg-red-500/20 text-red-400 border-red-500/50",
-              purple: "bg-purple-500/20 text-purple-400 border-purple-500/50",
-              orange: "bg-orange-500/20 text-orange-400 border-orange-500/50",
-            };
-            const activeColor = colorMap[label.color] || "bg-slate-500/20 text-slate-400 border-slate-500/50";
-            return (
-              <button
+      <div className="relative z-10 flex items-center gap-2 px-3 py-2 bg-slate-800/50 backdrop-blur-lg border-b border-slate-700/30">
+        <div className="md:hidden relative flex-1 min-w-0">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+          <Input
+            type="text"
+            placeholder="Buscar chat..."
+            value={searchQuery}
+            onChange={(e) => onSearchChange(e.target.value)}
+            className="h-9 pl-8 pr-7 bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-400 focus:border-emerald-500"
+            data-testid="input-search-mobile-inline"
+          />
+          {searchQuery && (
+            <button
+              onClick={onClearSearch}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-9 w-9 border-slate-600/70 bg-slate-800/70 text-slate-200 hover:bg-slate-700/80"
+              data-testid="button-filter-labels"
+              title="Etiquetas"
+            >
+              <Tag className="h-4 w-4 text-slate-300" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-56 !bg-slate-900 !border-slate-700 !text-slate-200 [&_svg]:!text-slate-300">
+            <DropdownMenuItem onClick={() => setFilterLabelId(null)} data-testid="filter-label-all" className="!text-slate-300 focus:bg-slate-700 !focus:text-slate-100 data-[highlighted]:bg-slate-700 !data-[highlighted]:text-slate-100">
+              <span className={cn("mr-2 inline-flex", !filterLabelId ? "text-emerald-400" : "text-transparent")}>
+                <Check className="h-3.5 w-3.5" />
+              </span>
+              Todas
+            </DropdownMenuItem>
+            {labels.map((label) => (
+              <DropdownMenuItem
                 key={label.id}
                 onClick={() => setFilterLabelId(filterLabelId === label.id ? null : label.id)}
-                className={cn(
-                  "px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap select-none transition-transform duration-100 active:scale-95 border flex items-center gap-1",
-                  filterLabelId === label.id ? activeColor : "text-slate-400 border-slate-600/50"
-                )}
                 data-testid={`filter-label-${label.id}`}
+                className="!text-slate-300 focus:bg-slate-700 !focus:text-slate-100 data-[highlighted]:bg-slate-700 !data-[highlighted]:text-slate-100"
               >
-                <Tag className="h-2.5 w-2.5" />
+                <span className={cn("mr-2 inline-flex", filterLabelId === label.id ? "text-emerald-400" : "text-transparent")}>
+                  <Check className="h-3.5 w-3.5" />
+                </span>
                 {label.name}
-              </button>
-            );
-          })}
-        </div>
-      )}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
 
-      <div className="relative z-10 flex items-center gap-2 px-3 py-1.5 bg-slate-800/40 backdrop-blur-lg border-b border-slate-700/30 overflow-x-auto">
-        <Clock className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
-        {[7, 14, 30].map(d => (
-          <button
-            key={d}
-            onClick={() => onDaysChange(d)}
-            className={cn(
-              "px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap select-none transition-transform duration-100 active:scale-95 border",
-              daysToShow === d ? "bg-cyan-500/20 text-cyan-400 border-cyan-500/50" : "text-slate-400 border-slate-600/50"
-            )}
-            data-testid={`filter-days-${d}`}
-          >
-            {d}d
-          </button>
-        ))}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-9 w-9 border-slate-600/70 bg-slate-800/70 text-slate-200 hover:bg-slate-700/80"
+              data-testid="button-filter-dates"
+              title="Filtro fechas"
+            >
+              <Clock className="h-4 w-4 text-slate-300" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-48 !bg-slate-900 !border-slate-700 !text-slate-200 [&_svg]:!text-slate-300">
+            {[7, 14, 30].map((d) => (
+              <DropdownMenuItem
+                key={d}
+                onClick={() => onDaysChange(d)}
+                data-testid={`filter-days-${d}`}
+                className="!text-slate-300 focus:bg-slate-700 !focus:text-slate-100 data-[highlighted]:bg-slate-700 !data-[highlighted]:text-slate-100"
+              >
+                <span className={cn("mr-2 inline-flex", daysToShow === d ? "text-cyan-400" : "text-transparent")}>
+                  <Check className="h-3.5 w-3.5" />
+                </span>
+                Ultimos {d} dias
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Mobile: Tab bar - Futuristic */}
@@ -465,6 +716,9 @@ export function KanbanView({ conversations, isLoading, daysToShow, onDaysChange,
           return (
             <button
               key={tab.key}
+              ref={(el) => {
+                tabRefs.current[tab.key] = el;
+              }}
               onClick={() => setMobileTab(tab.key)}
               className={cn(
                 "flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium whitespace-nowrap border select-none",
@@ -487,7 +741,20 @@ export function KanbanView({ conversations, isLoading, daysToShow, onDaysChange,
       </div>
 
       {/* Mobile: Single column view */}
-      <div className="md:hidden flex-1 overflow-hidden">
+      <div
+        className="md:hidden flex-1 overflow-hidden"
+        onTouchStart={handleMobileTouchStart}
+        onTouchMove={handleMobileTouchMove}
+        onTouchEnd={handleMobileTouchEnd}
+        onTouchCancel={handleMobileTouchCancel}
+      >
+        <div
+          className="h-full will-change-transform"
+          style={{
+            transform: `translateX(${swipeOffset}px)`,
+            transition: isSwiping ? "none" : "transform 180ms ease-out",
+          }}
+        >
         {activeId && activeConversation ? (
           <div className="h-full flex flex-col bg-slate-900">
             <button
@@ -513,20 +780,39 @@ export function KanbanView({ conversations, isLoading, daysToShow, onDaysChange,
             onSelect={setActiveId}
             columnType={mobileTab}
             labels={labels}
+            showAgentAssignment={isAdmin}
+            getAssignedAgentName={getAssignedAgentName}
+            enableDrag={false}
+            draggingConversationId={draggingConversationId}
+            isDropTarget={false}
+            onDragStartCard={handleDragStartCard}
+            onDragEndCard={handleDragEndCard}
+            onDragOverColumn={handleDragOverColumn}
+            onDropOnColumn={handleDropOnColumn}
           />
         )}
+        </div>
       </div>
 
       {/* Desktop: Grid view with glassmorphism */}
       <div className="hidden md:flex flex-1 min-h-0">
         <div className="flex-1 flex gap-0 min-h-0 overflow-hidden p-3">
           <KanbanColumn
-            title="Interacción Humana"
+            title="Interaccion Humana"
             items={humano}
             activeId={activeId}
             onSelect={setActiveId}
             columnType="humano"
             labels={labels}
+            showAgentAssignment={isAdmin}
+            getAssignedAgentName={getAssignedAgentName}
+            enableDrag={isAdmin}
+            draggingConversationId={draggingConversationId}
+            isDropTarget={dragOverColumn === "humano"}
+            onDragStartCard={handleDragStartCard}
+            onDragEndCard={handleDragEndCard}
+            onDragOverColumn={handleDragOverColumn}
+            onDropOnColumn={handleDropOnColumn}
           />
           <KanbanColumn
             title="Esperando Confirmaci."
@@ -535,6 +821,15 @@ export function KanbanView({ conversations, isLoading, daysToShow, onDaysChange,
             onSelect={setActiveId}
             columnType="nuevo"
             labels={labels}
+            showAgentAssignment={isAdmin}
+            getAssignedAgentName={getAssignedAgentName}
+            enableDrag={isAdmin}
+            draggingConversationId={draggingConversationId}
+            isDropTarget={dragOverColumn === "nuevo"}
+            onDragStartCard={handleDragStartCard}
+            onDragEndCard={handleDragEndCard}
+            onDragOverColumn={handleDragOverColumn}
+            onDropOnColumn={handleDropOnColumn}
           />
           <KanbanColumn
             title="Llamar"
@@ -543,6 +838,15 @@ export function KanbanView({ conversations, isLoading, daysToShow, onDaysChange,
             onSelect={setActiveId}
             columnType="llamar"
             labels={labels}
+            showAgentAssignment={isAdmin}
+            getAssignedAgentName={getAssignedAgentName}
+            enableDrag={isAdmin}
+            draggingConversationId={draggingConversationId}
+            isDropTarget={dragOverColumn === "llamar"}
+            onDragStartCard={handleDragStartCard}
+            onDragEndCard={handleDragEndCard}
+            onDragOverColumn={handleDragOverColumn}
+            onDropOnColumn={handleDropOnColumn}
           />
           <KanbanColumn
             title="Pedido en Proceso"
@@ -551,6 +855,15 @@ export function KanbanView({ conversations, isLoading, daysToShow, onDaysChange,
             onSelect={setActiveId}
             columnType="proceso"
             labels={labels}
+            showAgentAssignment={isAdmin}
+            getAssignedAgentName={getAssignedAgentName}
+            enableDrag={isAdmin}
+            draggingConversationId={draggingConversationId}
+            isDropTarget={dragOverColumn === "proceso"}
+            onDragStartCard={handleDragStartCard}
+            onDragEndCard={handleDragEndCard}
+            onDragOverColumn={handleDragOverColumn}
+            onDropOnColumn={handleDropOnColumn}
           />
           <KanbanColumn
             title="Listo para Enviar"
@@ -559,6 +872,15 @@ export function KanbanView({ conversations, isLoading, daysToShow, onDaysChange,
             onSelect={setActiveId}
             columnType="listo"
             labels={labels}
+            showAgentAssignment={isAdmin}
+            getAssignedAgentName={getAssignedAgentName}
+            enableDrag={isAdmin}
+            draggingConversationId={draggingConversationId}
+            isDropTarget={dragOverColumn === "listo"}
+            onDragStartCard={handleDragStartCard}
+            onDragEndCard={handleDragEndCard}
+            onDragOverColumn={handleDragOverColumn}
+            onDropOnColumn={handleDropOnColumn}
           />
           <KanbanColumn
             title="Enviados y Entregados"
@@ -567,6 +889,15 @@ export function KanbanView({ conversations, isLoading, daysToShow, onDaysChange,
             onSelect={setActiveId}
             columnType="entregado"
             labels={labels}
+            showAgentAssignment={isAdmin}
+            getAssignedAgentName={getAssignedAgentName}
+            enableDrag={isAdmin}
+            draggingConversationId={draggingConversationId}
+            isDropTarget={dragOverColumn === "entregado"}
+            onDragStartCard={handleDragStartCard}
+            onDragEndCard={handleDragEndCard}
+            onDragOverColumn={handleDragOverColumn}
+            onDropOnColumn={handleDropOnColumn}
           />
         </div>
 
@@ -584,3 +915,6 @@ export function KanbanView({ conversations, isLoading, daysToShow, onDaysChange,
     </div>
   );
 }
+
+
+

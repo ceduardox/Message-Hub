@@ -15,6 +15,7 @@ import fs from "fs";
 import path from "path";
 import os from "os";
 import multer from "multer";
+import { sql } from "drizzle-orm";
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
@@ -889,6 +890,7 @@ export async function registerRoutes(
                   contactName: name,
                   lastMessage: messageText || `[${msg.type}]`,
                   lastMessageTimestamp: new Date(parseInt(msg.timestamp) * 1000),
+                  lastFollowUpAt: null,
                 });
               }
 
@@ -1328,6 +1330,38 @@ export async function registerRoutes(
     res.json(updated);
   });
 
+  // Set kanban column status in one operation (used by drag & drop)
+  app.patch("/api/conversations/:id/kanban-status", requireAuth, async (req, res) => {
+    const id = parseInt(req.params.id);
+    const parsed = z.object({
+      column: z.enum(["humano", "nuevo", "llamar", "proceso", "listo", "entregado"]),
+    }).safeParse(req.body);
+
+    if (!parsed.success) {
+      return res.status(400).json({ error: "Invalid column" });
+    }
+
+    const { column } = parsed.data;
+    let updates: Record<string, any>;
+
+    if (column === "humano") {
+      updates = { needsHumanAttention: true, shouldCall: false, orderStatus: null };
+    } else if (column === "nuevo") {
+      updates = { needsHumanAttention: false, shouldCall: false, orderStatus: null };
+    } else if (column === "llamar") {
+      updates = { needsHumanAttention: false, shouldCall: true, orderStatus: null };
+    } else if (column === "proceso") {
+      updates = { needsHumanAttention: false, shouldCall: false, orderStatus: "pending" };
+    } else if (column === "listo") {
+      updates = { needsHumanAttention: false, shouldCall: false, orderStatus: "ready" };
+    } else {
+      updates = { needsHumanAttention: false, shouldCall: false, orderStatus: "delivered" };
+    }
+
+    const updated = await storage.updateConversation(id, updates);
+    res.json(updated);
+  });
+
   // Toggle should call (purchase probability indicator)
   app.patch("/api/conversations/:id/should-call", requireAuth, async (req, res) => {
     const id = parseInt(req.params.id);
@@ -1339,49 +1373,74 @@ export async function registerRoutes(
   // Get follow-up conversations (those where we sent last message and customer didn't respond)
   app.get("/api/follow-up", requireAuth, async (req, res) => {
     const { timeFilter } = req.query; // 'today', 'yesterday', 'before_yesterday'
-    const conversations = await storage.getConversations();
     
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
     const beforeYesterday = new Date(today.getTime() - 48 * 60 * 60 * 1000);
-    
-    // Filter conversations where:
-    // 1. We sent the last message (direction = out)
-    // 2. Customer hasn't responded for the specified time period
-    const filtered = [];
-    
-    for (const conv of conversations) {
-      const messages = await storage.getMessages(conv.id);
-      if (messages.length === 0) continue;
-      
-      const lastMsg = messages[messages.length - 1];
-      if (lastMsg.direction !== 'out') continue; // Skip if customer sent last message
-      
-      const lastMsgTime = lastMsg.createdAt ? new Date(lastMsg.createdAt) : null;
-      if (!lastMsgTime) continue;
-      
-      let include = false;
-      if (timeFilter === 'today') {
-        include = lastMsgTime >= today;
-      } else if (timeFilter === 'yesterday') {
-        include = lastMsgTime >= yesterday && lastMsgTime < today;
-      } else if (timeFilter === 'before_yesterday') {
-        include = lastMsgTime >= beforeYesterday && lastMsgTime < yesterday;
-      } else {
-        include = true; // No filter, return all
-      }
-      
-      if (include) {
-        filtered.push({
-          ...conv,
-          lastOutboundMessage: lastMsg,
-          messageCount: messages.length
-        });
-      }
+
+    const normalizedFilter = typeof timeFilter === "string" ? timeFilter : "";
+    let rangeStart: Date | null = null;
+    let rangeEnd: Date | null = null;
+
+    if (normalizedFilter === "today") {
+      rangeStart = today;
+    } else if (normalizedFilter === "yesterday") {
+      rangeStart = yesterday;
+      rangeEnd = today;
+    } else if (normalizedFilter === "before_yesterday") {
+      rangeStart = beforeYesterday;
+      rangeEnd = yesterday;
     }
-    
-    res.json(filtered);
+
+    const startClause = rangeStart ? sql`AND rm.created_at >= ${rangeStart}` : sql``;
+    const endClause = rangeEnd ? sql`AND rm.created_at < ${rangeEnd}` : sql``;
+
+    const result = await db.execute(sql`
+      WITH ranked_messages AS (
+        SELECT
+          m.id,
+          m.conversation_id,
+          m.body,
+          m.created_at,
+          m.direction,
+          COUNT(*) OVER (PARTITION BY m.conversation_id) AS message_count,
+          ROW_NUMBER() OVER (
+            PARTITION BY m.conversation_id
+            ORDER BY m.created_at DESC, m.id DESC
+          ) AS rn
+        FROM messages m
+      )
+      SELECT
+        c.id,
+        c.wa_id AS "waId",
+        c.contact_name AS "contactName",
+        c.label_id AS "labelId",
+        c.is_pinned AS "isPinned",
+        c.order_status AS "orderStatus",
+        c.ai_disabled AS "aiDisabled",
+        c.needs_human_attention AS "needsHumanAttention",
+        c.should_call AS "shouldCall",
+        c.last_follow_up_at AS "lastFollowUpAt",
+        c.assigned_agent_id AS "assignedAgentId",
+        c.last_message AS "lastMessage",
+        c.last_message_timestamp AS "lastMessageTimestamp",
+        c.updated_at AS "updatedAt",
+        rm.message_count AS "messageCount",
+        json_build_object(
+          'text', rm.body,
+          'createdAt', rm.created_at
+        ) AS "lastOutboundMessage"
+      FROM conversations c
+      JOIN ranked_messages rm ON rm.conversation_id = c.id
+      WHERE rm.rn = 1
+        AND rm.direction = 'out'
+        ${startClause}
+        ${endClause}
+      ORDER BY rm.created_at DESC
+    `);
+
+    res.json(result.rows);
   });
 
   // Analyze purchase probability for a conversation
@@ -1577,6 +1636,8 @@ NO uses saludos formales. Sé directo y amigable.`
     elevenlabsVoiceId: z.string().optional(),
     ttsSpeed: z.number().min(25).max(400).optional(),
     ttsInstructions: z.string().nullable().optional(),
+    followUpEnabled: z.boolean().optional(),
+    followUpMinutes: z.number().min(5).max(60).optional(),
   });
 
   const aiTrainingCreateSchema = z.object({
@@ -1928,7 +1989,42 @@ Máximo 2 líneas. Sé específico y práctico.`;
   // === AGENT MANAGEMENT (Admin only) ===
   app.get("/api/agents", requireAdmin, async (_req, res) => {
     try {
-      const agentsList = await storage.getAgents();
+      const statsResult = await db.execute(sql`
+        SELECT
+          a.id,
+          a.name,
+          a.username,
+          a.password,
+          a.is_active AS "isActive",
+          a.weight,
+          a.created_at AS "createdAt",
+          COALESCE(s.assigned_conversations, 0) AS "assignedConversations",
+          COALESCE(s.inbound_messages, 0) AS "inboundMessages",
+          COALESCE(s.should_call_count, 0) AS "shouldCallCount",
+          s.last_activity_at AS "lastActivityAt"
+        FROM agents a
+        LEFT JOIN (
+          SELECT
+            c.assigned_agent_id AS agent_id,
+            COUNT(DISTINCT c.id) AS assigned_conversations,
+            COUNT(m.id) FILTER (WHERE m.direction = 'in') AS inbound_messages,
+            COUNT(DISTINCT c.id) FILTER (WHERE c.should_call = true) AS should_call_count,
+            MAX(m.created_at) AS last_activity_at
+          FROM conversations c
+          LEFT JOIN messages m ON m.conversation_id = c.id
+          WHERE c.assigned_agent_id IS NOT NULL
+          GROUP BY c.assigned_agent_id
+        ) s ON s.agent_id = a.id
+        ORDER BY a.name ASC
+      `);
+
+      const agentsList = statsResult.rows.map((row: any) => ({
+        ...row,
+        assignedConversations: Number(row.assignedConversations || 0),
+        inboundMessages: Number(row.inboundMessages || 0),
+        shouldCallCount: Number(row.shouldCallCount || 0),
+      }));
+
       res.json(agentsList);
     } catch (error) {
       res.status(500).json({ message: "Error fetching agents" });

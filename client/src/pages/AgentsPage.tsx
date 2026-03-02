@@ -20,9 +20,29 @@ import {
   Zap,
   MessageSquare,
   Clock,
+  TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Agent } from "@shared/schema";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  CartesianGrid,
+} from "recharts";
+
+interface AgentWithStats extends Agent {
+  assignedConversations?: number;
+  inboundMessages?: number;
+  shouldCallCount?: number;
+  lastActivityAt?: string | null;
+}
 
 const glowAnimation = `
 @keyframes glow-line {
@@ -47,7 +67,7 @@ export default function AgentsPage() {
   const [weight, setWeight] = useState(1);
   const [showPasswords, setShowPasswords] = useState<Record<number, boolean>>({});
 
-  const { data: agents = [], isLoading } = useQuery<Agent[]>({
+  const { data: agents = [], isLoading } = useQuery<AgentWithStats[]>({
     queryKey: ["/api/agents"],
   });
 
@@ -111,6 +131,27 @@ export default function AgentsPage() {
 
   const activeAgents = agents.filter(a => a.isActive);
   const inactiveAgents = agents.filter(a => !a.isActive);
+  const totalAssignedConversations = agents.reduce((acc, agent) => acc + (agent.assignedConversations || 0), 0);
+  const totalInboundMessages = agents.reduce((acc, agent) => acc + (agent.inboundMessages || 0), 0);
+  const totalShouldCall = agents.reduce((acc, agent) => acc + (agent.shouldCallCount || 0), 0);
+
+  const performanceData = agents
+    .map((agent) => ({
+      name: agent.name.split(" ")[0],
+      mensajes: agent.inboundMessages || 0,
+      chats: agent.assignedConversations || 0,
+    }))
+    .sort((a, b) => b.mensajes - a.mensajes)
+    .slice(0, 8);
+
+  const distributionData = activeAgents
+    .map((agent) => ({
+      name: agent.name.split(" ")[0],
+      value: agent.assignedConversations || 0,
+    }))
+    .filter((item) => item.value > 0);
+
+  const pieColors = ["#10b981", "#06b6d4", "#0ea5e9", "#22d3ee", "#14b8a6", "#0891b2"];
 
   return (
     <div className="min-h-screen bg-slate-950 text-white relative overflow-hidden">
@@ -134,6 +175,25 @@ export default function AgentsPage() {
           <div>
             <h1 className="text-xl font-bold text-white">Gestión de Agentes</h1>
             <p className="text-xs text-slate-500">Crea y administra agentes que atienden mensajes</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+          <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-3">
+            <p className="text-[11px] uppercase tracking-wide text-emerald-300">Agentes activos</p>
+            <p className="text-2xl font-bold text-white mt-1">{activeAgents.length}</p>
+          </div>
+          <div className="rounded-2xl border border-cyan-500/30 bg-cyan-500/10 p-3">
+            <p className="text-[11px] uppercase tracking-wide text-cyan-300">Chats asignados</p>
+            <p className="text-2xl font-bold text-white mt-1">{totalAssignedConversations}</p>
+          </div>
+          <div className="rounded-2xl border border-sky-500/30 bg-sky-500/10 p-3">
+            <p className="text-[11px] uppercase tracking-wide text-sky-300">Mensajes cliente</p>
+            <p className="text-2xl font-bold text-white mt-1">{totalInboundMessages}</p>
+          </div>
+          <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3">
+            <p className="text-[11px] uppercase tracking-wide text-amber-300">Pendientes llamar</p>
+            <p className="text-2xl font-bold text-white mt-1">{totalShouldCall}</p>
           </div>
         </div>
 
@@ -238,6 +298,73 @@ export default function AgentsPage() {
           </div>
         ) : (
           <div className="space-y-4">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+              <div className="bg-slate-800/30 backdrop-blur-xl rounded-2xl border border-slate-700/30 shadow-xl p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <TrendingUp className="h-4 w-4 text-emerald-400" />
+                  <h3 className="text-sm font-semibold text-white">Mensajes por agente</h3>
+                </div>
+                <div className="h-56">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={performanceData} margin={{ left: 0, right: 0, top: 8, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.2)" />
+                      <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
+                      <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
+                      <Tooltip
+                        cursor={{ fill: "rgba(16,185,129,0.08)" }}
+                        contentStyle={{
+                          background: "rgba(15,23,42,0.95)",
+                          border: "1px solid rgba(148,163,184,0.25)",
+                          borderRadius: "12px",
+                          color: "#e2e8f0",
+                        }}
+                      />
+                      <Bar dataKey="mensajes" radius={[8, 8, 0, 0]} fill="#10b981" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              <div className="bg-slate-800/30 backdrop-blur-xl rounded-2xl border border-slate-700/30 shadow-xl p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Users className="h-4 w-4 text-cyan-400" />
+                  <h3 className="text-sm font-semibold text-white">Distribucion de chats (activos)</h3>
+                </div>
+                <div className="h-56">
+                  {distributionData.length === 0 ? (
+                    <div className="h-full flex items-center justify-center text-sm text-slate-500">
+                      Sin chats asignados aun
+                    </div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={distributionData}
+                          dataKey="value"
+                          nameKey="name"
+                          innerRadius={58}
+                          outerRadius={82}
+                          paddingAngle={2}
+                        >
+                          {distributionData.map((entry, index) => (
+                            <Cell key={`${entry.name}-${index}`} fill={pieColors[index % pieColors.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          contentStyle={{
+                            background: "rgba(15,23,42,0.95)",
+                            border: "1px solid rgba(148,163,184,0.25)",
+                            borderRadius: "12px",
+                            color: "#e2e8f0",
+                          }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  )}
+                </div>
+              </div>
+            </div>
+
             {activeAgents.length > 0 && (
               <div className="bg-slate-800/30 backdrop-blur-xl rounded-2xl border border-slate-700/30 shadow-xl shadow-emerald-500/10 overflow-hidden">
                 <div className="bg-gradient-to-r from-emerald-600/80 to-teal-600/80 px-4 py-3 relative overflow-hidden">
@@ -325,7 +452,7 @@ function AgentCard({
   onUpdate,
   isPending,
 }: {
-  agent: Agent;
+  agent: AgentWithStats;
   editingId: number | null;
   setEditingId: (id: number | null) => void;
   showPassword: boolean;
@@ -339,6 +466,17 @@ function AgentCard({
   const [editName, setEditName] = useState(agent.name);
   const [editWeight, setEditWeight] = useState(agent.weight || 1);
   const [editPassword, setEditPassword] = useState(agent.password);
+  const formatLastActivity = (value?: string | null) => {
+    if (!value) return "Sin actividad";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "Sin actividad";
+    return date.toLocaleString("es-MX", {
+      day: "2-digit",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
 
   const startEdit = () => {
     setEditName(agent.name);
@@ -442,6 +580,54 @@ function AgentCard({
                     <span className={cn("w-1.5 h-1.5 rounded-full", agent.isActive ? "bg-emerald-500 animate-pulse" : "bg-red-500")} />
                     {agent.isActive ? "Activo" : "Inactivo"}
                   </span>
+                </div>
+                <div className="mt-3 grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+                  <div className="group relative overflow-hidden rounded-xl border border-slate-700/80 bg-slate-900/70 px-3 py-2.5">
+                    <div className="absolute left-0 top-0 h-0.5 w-full bg-cyan-400/80" />
+                    <p className="text-[10px] uppercase tracking-[0.14em] text-slate-400 flex items-center gap-1">
+                      <Users className="h-3 w-3 text-cyan-300" />
+                      Chats asignados
+                    </p>
+                    <p className="mt-1 text-xl font-black text-white tabular-nums">{agent.assignedConversations || 0}</p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">conversaciones activas</p>
+                  </div>
+
+                  <div className="group relative overflow-hidden rounded-xl border border-slate-700/80 bg-slate-900/70 px-3 py-2.5">
+                    <div className="absolute left-0 top-0 h-0.5 w-full bg-emerald-400/80" />
+                    <p className="text-[10px] uppercase tracking-[0.14em] text-slate-400 flex items-center gap-1">
+                      <MessageSquare className="h-3 w-3 text-emerald-300" />
+                      Mensajes cliente
+                    </p>
+                    <p className="mt-1 text-xl font-black text-white tabular-nums">{agent.inboundMessages || 0}</p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">entrantes recibidos</p>
+                  </div>
+
+                  <div className="group relative overflow-hidden rounded-xl border border-slate-700/80 bg-slate-900/70 px-3 py-2.5">
+                    <div className="absolute left-0 top-0 h-0.5 w-full bg-amber-400/80" />
+                    <p className="text-[10px] uppercase tracking-[0.14em] text-slate-400">Por llamar</p>
+                    <div className="mt-1 flex items-center justify-between gap-2">
+                      <p className="text-xl font-black text-white tabular-nums">{agent.shouldCallCount || 0}</p>
+                      <span className={cn(
+                        "inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold border",
+                        (agent.shouldCallCount || 0) > 0
+                          ? "border-amber-400/40 bg-amber-500/15 text-amber-200"
+                          : "border-slate-600/60 bg-slate-800/70 text-slate-400"
+                      )}>
+                        {(agent.shouldCallCount || 0) > 0 ? "accion" : "ok"}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-slate-500 mt-0.5">seguimiento comercial</p>
+                  </div>
+
+                  <div className="group relative overflow-hidden rounded-xl border border-slate-700/80 bg-slate-900/70 px-3 py-2.5">
+                    <div className="absolute left-0 top-0 h-0.5 w-full bg-violet-300/70" />
+                    <p className="text-[10px] uppercase tracking-[0.14em] text-slate-400 flex items-center gap-1">
+                      <Clock className="h-3 w-3 text-violet-200" />
+                      Ultima actividad
+                    </p>
+                    <p className="mt-1 text-xs font-semibold text-slate-100 leading-tight">{formatLastActivity(agent.lastActivityAt)}</p>
+                    <p className="text-[10px] text-slate-500 mt-1">timestamp de mensajes</p>
+                  </div>
                 </div>
               </>
             )}

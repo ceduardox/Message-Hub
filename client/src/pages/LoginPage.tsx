@@ -4,6 +4,7 @@ import { loginSchema, type LoginRequest } from "@shared/schema";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { MessageSquare, Loader2, Sparkles, User, Lock, Zap } from "lucide-react";
 
@@ -27,16 +28,25 @@ const floatingAnimation = `
 
 export default function LoginPage() {
   const { login, isLoggingIn } = useAuth();
+  const savedUsername = typeof window !== "undefined" ? localStorage.getItem("login_saved_username") ?? "" : "";
   
   const form = useForm<LoginRequest>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      username: "",
+      username: savedUsername,
       password: "",
+      remember: savedUsername.length > 0,
     },
   });
 
   const onSubmit = (data: LoginRequest) => {
+    if (typeof window !== "undefined") {
+      if (data.remember) {
+        localStorage.setItem("login_saved_username", data.username);
+      } else {
+        localStorage.removeItem("login_saved_username");
+      }
+    }
     login(data);
   };
 
@@ -127,6 +137,25 @@ export default function LoginPage() {
                       </div>
                     </FormControl>
                     <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="remember"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value === true}
+                        onCheckedChange={(checked) => field.onChange(checked === true)}
+                        className="border-slate-500 data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500"
+                      />
+                    </FormControl>
+                    <FormLabel className="text-slate-300 text-sm font-normal cursor-pointer">
+                      Guardar datos
+                    </FormLabel>
                   </FormItem>
                 )}
               />

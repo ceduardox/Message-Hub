@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, buildUrl, type SendMessageRequest } from "@shared/routes";
+import { api, buildUrl } from "@shared/routes";
+import type { SendMessageRequest } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 
 const POLL_INTERVAL = 1000;
@@ -13,6 +14,7 @@ export function useConversations() {
       return api.conversations.list.responses[200].parse(await res.json());
     },
     refetchInterval: POLL_INTERVAL,
+    staleTime: 5 * 1000,
   });
 }
 
@@ -28,6 +30,7 @@ export function useConversation(id: number | null) {
       return api.conversations.get.responses[200].parse(await res.json());
     },
     refetchInterval: POLL_INTERVAL,
+    staleTime: 10 * 1000,
   });
 }
 

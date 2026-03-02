@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+﻿import { useState, useMemo } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useConversations } from "@/hooks/use-inbox";
 import { NotificationBell } from "@/components/NotificationBell";
@@ -32,14 +32,14 @@ export default function InboxPage() {
     
     return conversations
       .filter(c => {
-        // Si hay búsqueda, buscar en nombre y último mensaje (sin límite de tiempo)
+        // Si hay bÃºsqueda, buscar en nombre y Ãºltimo mensaje (sin lÃ­mite de tiempo)
         if (query) {
           const nameMatch = c.contactName?.toLowerCase().includes(query);
           const messageMatch = c.lastMessage?.toLowerCase().includes(query);
           const phoneMatch = c.waId?.includes(query);
           return nameMatch || messageMatch || phoneMatch;
         }
-        // Sin búsqueda, aplicar filtro de tiempo
+        // Sin bÃºsqueda, aplicar filtro de tiempo
         if (!c.lastMessageTimestamp) return true;
         return new Date(c.lastMessageTimestamp) >= cutoff;
       })
@@ -83,7 +83,7 @@ export default function InboxPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <Input
               type="text"
-              placeholder="Buscar por nombre, mensaje o teléfono..."
+              placeholder="Buscar por nombre, mensaje o telefono..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10 pr-8 bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-400 focus:border-emerald-500 focus:ring-emerald-500/20"
@@ -136,36 +136,7 @@ export default function InboxPage() {
           </Button>
         </div>
       </div>
-
-      {/* Mobile Header with Search */}
-      <div className="md:hidden px-3 py-2 bg-slate-800/80 backdrop-blur-lg border-b border-emerald-500/20">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-          <Input
-            type="text"
-            placeholder="Buscar chat..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 pr-8 h-9 bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-400 focus:border-emerald-500"
-            data-testid="input-search-mobile"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
-        </div>
-        {searchQuery && (
-          <p className="text-xs text-slate-400 mt-1 text-center">
-            {filteredConversations.length} resultado(s)
-          </p>
-        )}
-      </div>
-
-      {/* Kanban View - responsive para móvil y desktop */}
+      {/* Kanban View - responsive para movil y desktop */}
       <div className="flex flex-1 min-h-0 pb-14 md:pb-0">
         <KanbanView
           conversations={filteredConversations}
@@ -174,6 +145,9 @@ export default function InboxPage() {
           onDaysChange={setDaysToShow}
           onLoadMore={handleLoadMore}
           maxDays={maxDays}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onClearSearch={() => setSearchQuery("")}
         />
       </div>
 
@@ -219,3 +193,4 @@ export default function InboxPage() {
     </div>
   );
 }
+
