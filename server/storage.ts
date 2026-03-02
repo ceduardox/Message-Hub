@@ -105,6 +105,23 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  private mapFallbackAgentRow(row: any): Agent {
+    return {
+      id: Number(row.id),
+      name: row.name,
+      username: row.username,
+      password: row.password,
+      isActive: row.isActive,
+      isAiAutoReplyEnabled: row.isAiAutoReplyEnabled,
+      weight: row.weight,
+      createdAt: row.createdAt,
+    } as Agent;
+  }
+
+  private isMissingAgentAiColumnError(error: unknown): boolean {
+    return String((error as any)?.message || "").includes("is_ai_auto_reply_enabled");
+  }
+
   async validateAdmin(username: string, pass: string): Promise<boolean> {
     // Check against environment variables as requested
     const adminUser = process.env.ADMIN_USER;
@@ -304,17 +321,75 @@ export class DatabaseStorage implements IStorage {
 
   // Agents
   async getAgents(): Promise<Agent[]> {
-    return await db.select().from(agents).orderBy(asc(agents.name));
+    try {
+      return await db.select().from(agents).orderBy(asc(agents.name));
+    } catch (error) {
+      if (!this.isMissingAgentAiColumnError(error)) throw error;
+      const rows = await db.execute(sql`
+        SELECT
+          id,
+          name,
+          username,
+          password,
+          is_active AS "isActive",
+          true AS "isAiAutoReplyEnabled",
+          weight,
+          created_at AS "createdAt"
+        FROM agents
+        ORDER BY name ASC
+      `);
+      return (rows.rows as any[]).map((row) => this.mapFallbackAgentRow(row));
+    }
   }
 
   async getAgent(id: number): Promise<Agent | undefined> {
-    const [agent] = await db.select().from(agents).where(eq(agents.id, id));
-    return agent;
+    try {
+      const [agent] = await db.select().from(agents).where(eq(agents.id, id));
+      return agent;
+    } catch (error) {
+      if (!this.isMissingAgentAiColumnError(error)) throw error;
+      const rows = await db.execute(sql`
+        SELECT
+          id,
+          name,
+          username,
+          password,
+          is_active AS "isActive",
+          true AS "isAiAutoReplyEnabled",
+          weight,
+          created_at AS "createdAt"
+        FROM agents
+        WHERE id = ${id}
+        LIMIT 1
+      `);
+      const row = (rows.rows as any[])[0];
+      return row ? this.mapFallbackAgentRow(row) : undefined;
+    }
   }
 
   async getAgentByUsername(username: string): Promise<Agent | undefined> {
-    const [agent] = await db.select().from(agents).where(eq(agents.username, username));
-    return agent;
+    try {
+      const [agent] = await db.select().from(agents).where(eq(agents.username, username));
+      return agent;
+    } catch (error) {
+      if (!this.isMissingAgentAiColumnError(error)) throw error;
+      const rows = await db.execute(sql`
+        SELECT
+          id,
+          name,
+          username,
+          password,
+          is_active AS "isActive",
+          true AS "isAiAutoReplyEnabled",
+          weight,
+          created_at AS "createdAt"
+        FROM agents
+        WHERE username = ${username}
+        LIMIT 1
+      `);
+      const row = (rows.rows as any[])[0];
+      return row ? this.mapFallbackAgentRow(row) : undefined;
+    }
   }
 
   async createAgent(agent: InsertAgent): Promise<Agent> {
@@ -333,7 +408,26 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getActiveAgents(): Promise<Agent[]> {
-    return await db.select().from(agents).where(eq(agents.isActive, true)).orderBy(asc(agents.name));
+    try {
+      return await db.select().from(agents).where(eq(agents.isActive, true)).orderBy(asc(agents.name));
+    } catch (error) {
+      if (!this.isMissingAgentAiColumnError(error)) throw error;
+      const rows = await db.execute(sql`
+        SELECT
+          id,
+          name,
+          username,
+          password,
+          is_active AS "isActive",
+          true AS "isAiAutoReplyEnabled",
+          weight,
+          created_at AS "createdAt"
+        FROM agents
+        WHERE is_active = true
+        ORDER BY name ASC
+      `);
+      return (rows.rows as any[]).map((row) => this.mapFallbackAgentRow(row));
+    }
   }
 
   async assignConversationToAgent(conversationId: number, agentId: number): Promise<void> {
