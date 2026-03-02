@@ -767,7 +767,7 @@ export function KanbanView({ conversations, isLoading, daysToShow, onDaysChange,
           <div className="h-full flex flex-col bg-slate-900">
             <button
               onClick={() => setActiveId(null)}
-              className="px-3 py-1.5 border-b border-slate-700 text-left text-sm text-emerald-400 font-medium flex items-center gap-2 bg-slate-800/50 select-none transition-transform duration-100 active:scale-95"
+              className="px-3 py-2.5 border-b border-slate-700 text-left text-sm text-emerald-400 font-medium flex items-center gap-2 bg-slate-800/50 select-none transition-transform duration-100 active:scale-95"
               data-testid="button-back-kanban"
             >
               <ArrowLeft className="h-4 w-4" />
@@ -781,35 +781,37 @@ export function KanbanView({ conversations, isLoading, daysToShow, onDaysChange,
             </div>
           </div>
         ) : (
-          <KanbanColumn
-            title={columnData[mobileTab].title}
-            items={columnData[mobileTab].items}
-            activeId={activeId}
-            onSelect={setActiveId}
-            columnType={mobileTab}
-            labels={labels}
-            showAgentAssignment={isAdmin}
-            getAssignedAgentName={getAssignedAgentName}
-            enableDrag={false}
-            draggingConversationId={draggingConversationId}
-            isDropTarget={false}
-            onDragStartCard={handleDragStartCard}
-            onDragEndCard={handleDragEndCard}
-            onDragOverColumn={handleDragOverColumn}
-            onDropOnColumn={handleDropOnColumn}
-          />
-        )}
-        {!activeId && hasMoreConversations && (
-          <div className="md:hidden fixed left-0 right-0 bottom-16 z-50 flex justify-center px-3">
-            <Button
-              onClick={onLoadMore}
-              variant="outline"
-              className="h-9 border-slate-600 bg-slate-900/95 text-slate-200 hover:bg-slate-800 shadow-lg"
-              data-testid="button-load-more-conversations-mobile"
-            >
-              Ver mas (+20)
-            </Button>
-          </div>
+          <>
+            <KanbanColumn
+              title={columnData[mobileTab].title}
+              items={columnData[mobileTab].items}
+              activeId={activeId}
+              onSelect={setActiveId}
+              columnType={mobileTab}
+              labels={labels}
+              showAgentAssignment={isAdmin}
+              getAssignedAgentName={getAssignedAgentName}
+              enableDrag={false}
+              draggingConversationId={draggingConversationId}
+              isDropTarget={false}
+              onDragStartCard={handleDragStartCard}
+              onDragEndCard={handleDragEndCard}
+              onDragOverColumn={handleDragOverColumn}
+              onDropOnColumn={handleDropOnColumn}
+            />
+            {hasMoreConversations && (
+              <div className="md:hidden fixed left-0 right-0 bottom-16 z-50 flex justify-center px-3">
+                <Button
+                  onClick={onLoadMore}
+                  variant="outline"
+                  className="h-9 border-slate-600 bg-slate-900/95 text-slate-200 hover:bg-slate-800 shadow-lg"
+                  data-testid="button-load-more-conversations-mobile"
+                >
+                  Ver mas (+20)
+                </Button>
+              </div>
+            )}
+          </>
         )}
         </div>
       </div>

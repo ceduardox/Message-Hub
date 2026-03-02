@@ -379,7 +379,7 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
   return (
     <div className="flex flex-col h-full max-h-full bg-[#efeae2] dark:bg-[#0b141a] relative overflow-hidden">
       {/* Chat Header */}
-      <header className="h-16 flex-shrink-0 bg-[#f0f2f5] dark:bg-[#202c33] border-b border-border/30 flex items-center justify-between px-4 z-20">
+      <header className="flex-shrink-0 bg-[#f0f2f5] dark:bg-[#202c33] border-b border-border/30 flex flex-col md:flex-row md:items-center md:justify-between px-3 md:px-4 py-2 md:py-0 z-20">
         <div className="flex items-center gap-3 flex-1 min-w-0">
           <Avatar className="h-10 w-10 flex-shrink-0">
             <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${conversation.contactName || conversation.waId}`} />
@@ -399,7 +399,7 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
             <span className="text-xs text-muted-foreground">+{conversation.waId}</span>
           </div>
         </div>
-        
+        <div className="mt-1 w-full grid grid-cols-4 gap-1 md:mt-0 md:w-auto md:flex md:flex-wrap md:items-center md:gap-1">
         {/* Reassign Agent Dropdown (admin only) */}
         {isAdmin && (
           <DropdownMenu>
@@ -666,6 +666,7 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        </div>
       </header>
 
       {/* Messages List */}
