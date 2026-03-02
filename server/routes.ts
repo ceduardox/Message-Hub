@@ -453,6 +453,11 @@ const pushLogs: Array<{timestamp: string, title: string, message: string, event:
 async function sendPushNotification(title: string, message: string, data?: Record<string, string>) {
   const apiKey = process.env.ONESIGNAL_REST_API_KEY;
   const appId = process.env.ONESIGNAL_APP_ID;
+  const configuredSegmentsRaw = process.env.ONESIGNAL_SEGMENTS || process.env.ONESIGNAL_SEGMENT || "Subscribed Users";
+  const configuredSegments = configuredSegmentsRaw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
   const timestamp = new Date().toISOString();
   const event = data?.event || "unknown";
 
@@ -476,7 +481,7 @@ async function sendPushNotification(title: string, message: string, data?: Recor
   try {
     const payload = {
       app_id: appId,
-      included_segments: ["Subscribed Users"],
+      included_segments: configuredSegments,
       headings: { en: title },
       contents: { en: message },
       data: data || {},
@@ -504,8 +509,8 @@ async function sendPushNotification(title: string, message: string, data?: Recor
     console.error("[OneSignal] FAILED - Error:", error.response?.data || error.message);
     const errorMsg = JSON.stringify(error.response?.data) || error.message;
     
-    // If "Subscribed Users" segment fails, try "All" segment as fallback
-    if (error.response?.data?.errors?.includes("Segment 'Subscribed Users' was not found")) {
+    // If configured segment fails, try "All" segment as fallback
+    if (error.response?.data?.errors?.some?.((e: string) => typeof e === "string" && e.includes("Segment") && e.includes("was not found"))) {
       console.log("[OneSignal] Retrying with 'All' segment...");
       try {
         const fallbackResponse = await axios.post(
