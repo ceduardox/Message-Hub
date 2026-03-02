@@ -1254,8 +1254,8 @@ export async function registerRoutes(
         SELECT 
           a.id as agent_id, a.name as agent_name,
           DATE(m.created_at) as date,
-          COUNT(*) FILTER (WHERE m.direction = 'incoming') as incoming,
-          COUNT(*) FILTER (WHERE m.direction = 'outgoing') as outgoing
+          COUNT(*) FILTER (WHERE m.direction IN ('in', 'incoming')) as incoming,
+          COUNT(*) FILTER (WHERE m.direction IN ('out', 'outgoing')) as outgoing
         FROM messages m
         JOIN conversations c ON m.conversation_id = c.id
         JOIN agents a ON c.assigned_agent_id = a.id
@@ -1272,7 +1272,8 @@ export async function registerRoutes(
       }
     } catch (error) {
       console.error("Agent stats error:", error);
-      res.status(500).json({ message: "Error fetching stats" });
+      // Safe fallback: avoid breaking user UI due analytics errors
+      res.json([]);
     }
   });
 
