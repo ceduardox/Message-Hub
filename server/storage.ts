@@ -111,9 +111,9 @@ export class DatabaseStorage implements IStorage {
       name: row.name,
       username: row.username,
       password: row.password,
-      isActive: row.isActive,
-      isAiAutoReplyEnabled: row.isAiAutoReplyEnabled,
-      weight: row.weight,
+      isActive: row.isActive === false ? false : true,
+      isAiAutoReplyEnabled: row.isAiAutoReplyEnabled === false ? false : true,
+      weight: Number(row.weight ?? 1),
       createdAt: row.createdAt,
     } as Agent;
   }
@@ -393,13 +393,79 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createAgent(agent: InsertAgent): Promise<Agent> {
-    const [created] = await db.insert(agents).values(agent).returning();
-    return created;
+    try {
+      const [created] = await db.insert(agents).values(agent).returning();
+      return created;
+    } catch (error) {
+      if (!this.isMissingAgentAiColumnError(error)) throw error;
+
+      const rows = await db.execute(sql`
+        INSERT INTO agents (name, username, password, is_active, weight)
+        VALUES (${agent.name}, ${agent.username}, ${agent.password}, ${agent.isActive ?? true}, ${agent.weight ?? 1})
+        RETURNING
+          id,
+          name,
+          username,
+          password,
+          is_active AS "isActive",
+          true AS "isAiAutoReplyEnabled",
+          weight,
+          created_at AS "createdAt"
+      `);
+      const row = (rows.rows as any[])[0];
+      return this.mapFallbackAgentRow(row);
+    }
   }
 
   async updateAgent(id: number, agent: Partial<InsertAgent>): Promise<Agent> {
-    const [updated] = await db.update(agents).set(agent).where(eq(agents.id, id)).returning();
-    return updated;
+    try {
+      const [updated] = await db.update(agents).set(agent).where(eq(agents.id, id)).returning();
+      return updated;
+    } catch (error) {
+      if (!this.isMissingAgentAiColumnError(error)) throw error;
+
+      const current = await this.getAgent(id);
+      if (!current) {
+        throw new Error(`Agent ${id} not found`);
+      }
+
+      const nextName = agent.name ?? current.name;
+      const nextUsername = agent.username ?? current.username;
+      const nextPassword = agent.password ?? current.password;
+      const nextIsActive = agent.isActive ?? current.isActive ?? true;
+      const nextWeight = agent.weight ?? current.weight ?? 1;
+
+      const rows = await db.execute(sql`
+        UPDATE agents
+        SET
+          name = ${nextName},
+          username = ${nextUsername},
+          password = ${nextPassword},
+          is_active = ${nextIsActive},
+          weight = ${nextWeight}
+        WHERE id = ${id}
+        RETURNING
+          id,
+          name,
+          username,
+          password,
+          is_active AS "isActive",
+          true AS "isAiAutoReplyEnabled",
+          weight,
+          created_at AS "createdAt"
+      `);
+      const row = (rows.rows as any[])[0];
+      if (!row) {
+        throw new Error(`Agent ${id} not found`);
+      }
+
+      const updated = this.mapFallbackAgentRow(row);
+      if (typeof agent.isAiAutoReplyEnabled === "boolean") {
+        // Compatibility mode when legacy DB does not yet have this column.
+        updated.isAiAutoReplyEnabled = agent.isAiAutoReplyEnabled;
+      }
+      return updated;
+    }
   }
 
   async deleteAgent(id: number): Promise<void> {

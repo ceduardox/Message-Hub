@@ -62,6 +62,7 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
   const [suggestedRule, setSuggestedRule] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
+  const [failedMediaIds, setFailedMediaIds] = useState<Record<string, true>>({});
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { mutate: sendMessage, isPending } = useSendMessage();
@@ -104,6 +105,15 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
   });
 
   const currentLabel = labelsData.find(l => l.id === conversation.labelId);
+
+  useEffect(() => {
+    setFailedMediaIds({});
+  }, [conversation.id]);
+
+  const markMediaAsFailed = (mediaId?: string | null) => {
+    if (!mediaId) return;
+    setFailedMediaIds((prev) => (prev[mediaId] ? prev : { ...prev, [mediaId]: true }));
+  };
 
   const reassignMutation = useMutation({
     mutationFn: async (agentId: number | null) => {
@@ -701,20 +711,40 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
               >
                 {msg.type === "image" && (
                   <div className="mb-2 rounded overflow-hidden">
-                    {msg.mediaId ? (
-                      <img src={`/api/media/${msg.mediaId}`} alt="Media" className="max-w-full h-auto" />
+                    {msg.mediaId && !failedMediaIds[msg.mediaId] ? (
+                      <img
+                        src={`/api/media/${msg.mediaId}`}
+                        alt="Media"
+                        className="max-w-full h-auto"
+                        loading="lazy"
+                        onError={() => markMediaAsFailed(msg.mediaId)}
+                      />
                     ) : msg.direction === "out" && msg.text?.startsWith("http") ? (
                       <img src={msg.text} alt="Sent image" className="max-w-full h-auto" />
+                    ) : msg.mediaId && failedMediaIds[msg.mediaId] ? (
+                      <div className="rounded bg-black/5 dark:bg-white/5 px-2 py-1 text-xs text-slate-500">
+                        Media no disponible
+                      </div>
                     ) : null}
                   </div>
                 )}
 
-                {msg.type === "audio" && msg.mediaId && (
+                {msg.type === "audio" && msg.mediaId && !failedMediaIds[msg.mediaId] && (
                   <div className="mb-2">
-                    <audio controls className="max-w-full h-10" preload="metadata">
+                    <audio
+                      controls
+                      className="max-w-full h-10"
+                      preload="metadata"
+                      onError={() => markMediaAsFailed(msg.mediaId)}
+                    >
                       <source src={`/api/media/${msg.mediaId}`} type={msg.mimeType || "audio/ogg"} />
                       Tu navegador no soporta audio
                     </audio>
+                  </div>
+                )}
+                {msg.type === "audio" && msg.mediaId && failedMediaIds[msg.mediaId] && (
+                  <div className="mb-2 rounded bg-black/5 dark:bg-white/5 px-2 py-1 text-xs text-slate-500">
+                    Audio no disponible
                   </div>
                 )}
 

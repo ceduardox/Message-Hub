@@ -2454,6 +2454,7 @@ Máximo 2 líneas. Sé específico y práctico.`;
       });
       res.json(agent);
     } catch (error) {
+      console.error("Error creating agent:", error);
       res.status(500).json({ message: "Error creating agent" });
     }
   });
@@ -2471,6 +2472,7 @@ Máximo 2 líneas. Sé específico y práctico.`;
       const agent = await storage.updateAgent(id, updates);
       res.json(agent);
     } catch (error) {
+      console.error("Error updating agent:", error);
       res.status(500).json({ message: "Error updating agent" });
     }
   });
