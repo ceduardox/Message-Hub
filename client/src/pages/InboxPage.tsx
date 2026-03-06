@@ -5,7 +5,7 @@ import { useConversations } from "@/hooks/use-inbox";
 import { NotificationBell } from "@/components/NotificationBell";
 import { KanbanView } from "@/components/KanbanView";
 import { Button } from "@/components/ui/button";
-import { LogOut, Bot, BotOff, ClipboardList, LayoutGrid, Sparkles, MessageSquare, Zap, Activity, BarChart3, Search, X, Users } from "lucide-react";
+import { LogOut, Bot, BotOff, ClipboardList, LayoutGrid, Sparkles, MessageSquare, Zap, Activity, BarChart3, Search, X, Users, Bell } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Link, useLocation } from "wouter";
 
@@ -115,6 +115,11 @@ export default function InboxPage() {
         
         <div className="flex items-center gap-1">
           <NotificationBell />
+          <Link href="/push-settings">
+            <Button variant="ghost" size="icon" title="Push" data-testid="button-push-settings-desktop" className="text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10">
+              <Bell className="h-5 w-5" />
+            </Button>
+          </Link>
           <Link href="/analytics">
             <Button variant="ghost" size="icon" title="Analytics" data-testid="button-analytics-desktop" className="text-slate-400 hover:text-cyan-400 hover:bg-cyan-500/10">
               <BarChart3 className="h-5 w-5" />
@@ -220,7 +225,12 @@ export default function InboxPage() {
             <span className="text-[10px] mt-0.5 font-medium">Stats</span>
           </button>
         </Link>
-        <NotificationBell />
+        <Link href="/push-settings">
+          <button className={`flex flex-col items-center px-3 py-1.5 rounded-xl transition-all ${location === '/push-settings' ? 'text-emerald-400 bg-emerald-500/20' : 'text-slate-500'}`}>
+            <Bell className="h-5 w-5" />
+            <span className="text-[10px] mt-0.5 font-medium">Push</span>
+          </button>
+        </Link>
         <button 
           onClick={() => logout()} 
           className="flex flex-col items-center px-3 py-1.5 rounded-xl text-slate-500 transition-all"

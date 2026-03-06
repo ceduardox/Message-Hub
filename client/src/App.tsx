@@ -13,6 +13,7 @@ const FollowUpPage = lazy(() => import("@/pages/FollowUpPage"));
 const AnalyticsPage = lazy(() => import("@/pages/AnalyticsPage"));
 const AgentsPage = lazy(() => import("@/pages/AgentsPage"));
 const AgentAiPage = lazy(() => import("@/pages/AgentAiPage"));
+const PushSettingsPage = lazy(() => import("@/pages/PushSettingsPage"));
 const PrivacyPolicyPage = lazy(() => import("@/pages/PrivacyPolicyPage"));
 const DataDeletionPage = lazy(() => import("@/pages/DataDeletionPage"));
 const NotFound = lazy(() => import("@/pages/not-found"));
@@ -89,6 +90,9 @@ function Router() {
         </Route>
         <Route path="/agent-ai">
           <AgentRoute component={AgentAiPage} />
+        </Route>
+        <Route path="/push-settings">
+          <ProtectedRoute component={PushSettingsPage} />
         </Route>
         <Route path="/agents">
           <AdminRoute component={AgentsPage} />
