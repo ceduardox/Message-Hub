@@ -18,6 +18,7 @@ import multer from "multer";
 import { sql } from "drizzle-orm";
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+const uploadAudio = multer({ storage: multer.memoryStorage(), limits: { fileSize: 16 * 1024 * 1024 } });
 
 const AI_DEBOUNCE_MS = 3000;
 const INCOMING_PUSH_COOLDOWN_MS = 60000;
@@ -1478,6 +1479,93 @@ export async function registerRoutes(
       console.error("Agent stats error:", error);
       // Safe fallback: avoid breaking user UI due analytics errors
       res.json([]);
+    }
+  });
+
+  app.post("/api/send-audio", requireAuth, uploadAudio.single("audio"), async (req, res) => {
+    try {
+      const file = req.file;
+      const to = req.body.to;
+
+      if (!file || !to) {
+        return res.status(400).json({ message: "Missing audio or recipient" });
+      }
+
+      const allowedTypes = [
+        "audio/ogg",
+        "audio/ogg; codecs=opus",
+        "audio/mpeg",
+        "audio/mp3",
+        "audio/mp4",
+        "audio/x-m4a",
+        "audio/wav",
+        "audio/x-wav",
+        "audio/webm",
+      ];
+      if (!allowedTypes.includes(file.mimetype)) {
+        return res.status(400).json({ message: "Formato no soportado. Usa OGG, MP3, M4A, WAV o WEBM." });
+      }
+
+      const token = process.env.META_ACCESS_TOKEN;
+      const phoneId = process.env.WA_PHONE_NUMBER_ID;
+      if (!token || !phoneId) {
+        return res.status(500).json({ message: "Missing Meta configuration" });
+      }
+
+      const FormData = (await import("form-data")).default;
+      const formData = new FormData();
+      formData.append("file", file.buffer, { filename: file.originalname, contentType: file.mimetype });
+      formData.append("messaging_product", "whatsapp");
+      formData.append("type", file.mimetype);
+
+      const uploadRes = await axios.post(
+        `https://graph.facebook.com/v24.0/${phoneId}/media`,
+        formData,
+        { headers: { Authorization: `Bearer ${token}`, ...formData.getHeaders() } }
+      );
+      const mediaId = uploadRes.data.id;
+
+      const formattedTo = to.startsWith('+') ? to : `+${to}`;
+      const payload: any = {
+        messaging_product: "whatsapp",
+        to: formattedTo,
+        type: "audio",
+        audio: { id: mediaId },
+      };
+
+      const waResponse = await axios.post(
+        `https://graph.facebook.com/v24.0/${phoneId}/messages`,
+        payload,
+        { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } }
+      );
+      const waMessageId = waResponse.data.messages[0].id;
+
+      const normalizedTo = to.replace(/^\+/, "");
+      let conversation = await storage.getConversationByWaId(normalizedTo);
+      if (!conversation) {
+        conversation = await storage.createConversation({
+          waId: normalizedTo, contactName: normalizedTo,
+          lastMessage: "[audio]", lastMessageTimestamp: new Date(),
+        });
+      } else {
+        await storage.updateConversation(conversation.id, {
+          lastMessage: "[audio]", lastMessageTimestamp: new Date(),
+        });
+      }
+
+      await storage.createMessage({
+        conversationId: conversation.id, waMessageId,
+        direction: "out", type: "audio",
+        text: "[audio]",
+        mediaId, mimeType: file.mimetype,
+        timestamp: Math.floor(Date.now() / 1000).toString(),
+        status: "sent", rawJson: waResponse.data,
+      });
+
+      res.json({ success: true, messageId: waMessageId });
+    } catch (error: any) {
+      console.error("Audio upload error:", error.response?.data || error.message);
+      res.status(500).json({ message: "Failed to send audio", error: error.message });
     }
   });
 

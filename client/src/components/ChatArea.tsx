@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Send, Image as ImageIcon, Plus, Check, CheckCheck, MapPin, Bug, Copy, ExternalLink, X, Zap, Tag, Trash2, Package, PackageCheck, Truck, PackageX, Bot, BotOff, AlertCircle, Phone, Lightbulb, Loader2, UserRoundCog } from "lucide-react";
+import { Send, Image as ImageIcon, Mic, Plus, Check, CheckCheck, MapPin, Bug, Copy, ExternalLink, X, Zap, Tag, Trash2, Package, PackageCheck, Truck, PackageX, Bot, BotOff, AlertCircle, Phone, Lightbulb, Loader2, UserRoundCog } from "lucide-react";
 import type { Conversation, Message, Label, QuickMessage, Agent } from "@shared/schema";
 import {
   DropdownMenu,
@@ -61,10 +61,12 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
   const [learnMessageCount, setLearnMessageCount] = useState(10);
   const [suggestedRule, setSuggestedRule] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFileType, setSelectedFileType] = useState<"image" | "audio" | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
   const [failedMediaIds, setFailedMediaIds] = useState<Record<string, true>>({});
   const scrollRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const audioInputRef = useRef<HTMLInputElement>(null);
   const { mutate: sendMessage, isPending } = useSendMessage();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -82,12 +84,35 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
     onSuccess: () => {
       setText("");
       setSelectedFile(null);
+      setSelectedFileType(null);
       setFilePreview(null);
       queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
       toast({ title: "Imagen enviada" });
     },
     onError: (err: any) => {
       toast({ title: "Error al enviar imagen", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const uploadAudioMutation = useMutation({
+    mutationFn: async ({ file, to }: { file: File; to: string }) => {
+      const formData = new FormData();
+      formData.append("audio", file);
+      formData.append("to", to);
+      const res = await fetch("/api/send-audio", { method: "POST", body: formData, credentials: "include" });
+      if (!res.ok) { const err = await res.json(); throw new Error(err.message || "Error"); }
+      return res.json();
+    },
+    onSuccess: () => {
+      setText("");
+      setSelectedFile(null);
+      setSelectedFileType(null);
+      setFilePreview(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
+      toast({ title: "Audio enviado" });
+    },
+    onError: (err: any) => {
+      toast({ title: "Error al enviar audio", description: err.message, variant: "destructive" });
     },
   });
 
@@ -360,7 +385,11 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
     e?.preventDefault();
     
     if (selectedFile) {
-      uploadImageMutation.mutate({ file: selectedFile, to: conversation.waId, caption: text.trim() || undefined });
+      if (selectedFileType === "audio") {
+        uploadAudioMutation.mutate({ file: selectedFile, to: conversation.waId });
+      } else {
+        uploadImageMutation.mutate({ file: selectedFile, to: conversation.waId, caption: text.trim() || undefined });
+      }
       return;
     }
 
@@ -384,7 +413,7 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
     );
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) {
@@ -392,6 +421,25 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
       return;
     }
     setSelectedFile(file);
+    setSelectedFileType("image");
+    setFilePreview(URL.createObjectURL(file));
+    setShowImageInput(false);
+    setImageUrl("");
+  };
+
+  const handleAudioFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("audio/")) {
+      toast({ title: "Formato no soportado", description: "Selecciona un audio", variant: "destructive" });
+      return;
+    }
+    if (file.size > 16 * 1024 * 1024) {
+      toast({ title: "Archivo muy grande", description: "Max 16MB", variant: "destructive" });
+      return;
+    }
+    setSelectedFile(file);
+    setSelectedFileType("audio");
     setFilePreview(URL.createObjectURL(file));
     setShowImageInput(false);
     setImageUrl("");
@@ -879,24 +927,36 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
 
       {selectedFile && filePreview && (
         <div className="px-4 py-2 bg-muted/50 border-t flex items-center gap-3">
-          <img src={filePreview} alt="Preview" className="h-16 w-16 object-cover rounded" />
+          {selectedFileType === "audio" ? (
+            <audio controls src={filePreview} className="h-10 max-w-[180px]" />
+          ) : (
+            <img src={filePreview} alt="Preview" className="h-16 w-16 object-cover rounded" />
+          )}
           <div className="flex-1 min-w-0">
             <p className="text-xs text-muted-foreground truncate">{selectedFile.name}</p>
             <p className="text-xs text-muted-foreground">{(selectedFile.size / 1024).toFixed(0)} KB</p>
           </div>
-          <Button size="icon" variant="ghost" onClick={() => { setSelectedFile(null); setFilePreview(null); }} data-testid="button-remove-file">
+          <Button size="icon" variant="ghost" onClick={() => { setSelectedFile(null); setSelectedFileType(null); setFilePreview(null); }} data-testid="button-remove-file">
             <X className="h-4 w-4" />
           </Button>
         </div>
       )}
 
       <input
-        ref={fileInputRef}
+        ref={imageInputRef}
         type="file"
         accept="image/*"
         className="hidden"
-        onChange={handleFileSelect}
+        onChange={handleImageFileSelect}
         data-testid="input-file-image"
+      />
+      <input
+        ref={audioInputRef}
+        type="file"
+        accept="audio/*"
+        className="hidden"
+        onChange={handleAudioFileSelect}
+        data-testid="input-file-audio"
       />
 
       {/* Input Area */}
@@ -916,8 +976,11 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
-              <DropdownMenuItem onClick={() => fileInputRef.current?.click()} data-testid="menu-image-gallery">
+              <DropdownMenuItem onClick={() => imageInputRef.current?.click()} data-testid="menu-image-gallery">
                 <ImageIcon className="h-4 w-4 mr-2 text-blue-500" /> Imagen (Galería)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => audioInputRef.current?.click()} data-testid="menu-audio-file">
+                <Mic className="h-4 w-4 mr-2 text-emerald-500" /> Audio
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setShowImageInput(!showImageInput)}>
                 <ImageIcon className="h-4 w-4 mr-2 text-purple-500" /> Imagen (URL)
@@ -982,11 +1045,11 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
 
           <Button
             onClick={() => handleSend()}
-            disabled={(!text && !imageUrl && !selectedFile) || isPending || uploadImageMutation.isPending}
+            disabled={(!text && !imageUrl && !selectedFile) || isPending || uploadImageMutation.isPending || uploadAudioMutation.isPending}
             size="icon"
             className="rounded-full h-10 w-10 flex-shrink-0"
           >
-            {uploadImageMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            {(uploadImageMutation.isPending || uploadAudioMutation.isPending) ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </Button>
         </div>
       </div>
