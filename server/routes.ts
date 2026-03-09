@@ -218,7 +218,10 @@ async function processAiResponse(data: BufferedMessage) {
           waMessageId: imgResponse.messages[0].id,
           direction: "out",
           type: "image",
-          text: null,
+          // Keep the source URL so the UI can render outbound AI images even without mediaId.
+          text: aiResult.imageUrl,
+          mediaId: null,
+          mimeType: null,
           timestamp: Math.floor(Date.now() / 1000).toString(),
           status: "sent",
           rawJson: imgResponse,
