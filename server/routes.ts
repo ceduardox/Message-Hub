@@ -243,6 +243,43 @@ function logAudioDebug(step: string, data: any) {
   console.log(`[Audio] ${step}:`, JSON.stringify(data));
 }
 
+function decodeHtmlEntities(value: string): string {
+  return value
+    .replace(/&amp;/gi, "&")
+    .replace(/&quot;/gi, "\"")
+    .replace(/&#39;/gi, "'")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">");
+}
+
+function parseMetaAttributes(tag: string): Record<string, string> {
+  const attrs: Record<string, string> = {};
+  const attrRegex = /([a-zA-Z_:.-]+)\s*=\s*(['"])(.*?)\2/g;
+  let match: RegExpExecArray | null;
+  while ((match = attrRegex.exec(tag)) !== null) {
+    attrs[match[1].toLowerCase()] = match[3];
+  }
+  return attrs;
+}
+
+function extractOgImageFromHtml(html: string, pageUrl: string): string | null {
+  const metaTagRegex = /<meta\s+[^>]*>/gi;
+  let tagMatch: RegExpExecArray | null;
+  while ((tagMatch = metaTagRegex.exec(html)) !== null) {
+    const attrs = parseMetaAttributes(tagMatch[0]);
+    const property = (attrs.property || attrs.name || "").toLowerCase().trim();
+    if (!["og:image", "og:image:url", "twitter:image", "twitter:image:src"].includes(property)) continue;
+    const content = decodeHtmlEntities((attrs.content || "").trim());
+    if (!content) continue;
+    try {
+      return new URL(content, pageUrl).toString();
+    } catch {
+      continue;
+    }
+  }
+  return null;
+}
+
 function inferAudioMimeType(rawMimeType: string, filename: string): string {
   const normalized = String(rawMimeType || "").toLowerCase().split(";")[0].trim();
   if (normalized && normalized !== "application/octet-stream") return normalized;
@@ -2081,6 +2118,49 @@ NO uses saludos formales. Sé directo y amigable.`
       timestamp: new Date().toISOString(),
     };
     res.json(config);
+  });
+
+  app.get("/api/link-preview", requireAuth, async (req, res) => {
+    try {
+      const rawUrl = String(req.query.url || "").trim();
+      if (!rawUrl) {
+        return res.status(400).json({ message: "Missing url" });
+      }
+
+      let targetUrl: URL;
+      try {
+        targetUrl = new URL(rawUrl);
+      } catch {
+        return res.status(400).json({ message: "Invalid url" });
+      }
+
+      if (!["http:", "https:"].includes(targetUrl.protocol)) {
+        return res.status(400).json({ message: "Invalid protocol" });
+      }
+
+      const hostname = (targetUrl.hostname || "").toLowerCase();
+      if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1" || hostname.endsWith(".local")) {
+        return res.status(400).json({ message: "Blocked hostname" });
+      }
+
+      const htmlResponse = await axios.get(targetUrl.toString(), {
+        responseType: "text",
+        timeout: 8000,
+        maxRedirects: 5,
+        maxContentLength: 1024 * 1024,
+        headers: {
+          "User-Agent": "Mozilla/5.0 (compatible; RyzappLinkPreview/1.0)",
+          Accept: "text/html,application/xhtml+xml",
+        },
+      });
+
+      const html = String(htmlResponse.data || "");
+      const imageUrl = extractOgImageFromHtml(html, targetUrl.toString());
+      res.json({ imageUrl: imageUrl || null });
+    } catch (error: any) {
+      console.error("Link preview error:", error?.message || error);
+      res.json({ imageUrl: null });
+    }
   });
 
   // Media Proxy

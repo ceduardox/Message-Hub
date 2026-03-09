@@ -105,12 +105,15 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [failedMediaIds, setFailedMediaIds] = useState<Record<string, true>>(() => readFailedMediaIdsFromSession());
+  const [ogImageByUrl, setOgImageByUrl] = useState<Record<string, string>>({});
+  const [ogImageUnavailableByUrl, setOgImageUnavailableByUrl] = useState<Record<string, true>>({});
   const scrollRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordingStreamRef = useRef<MediaStream | null>(null);
   const recordingChunksRef = useRef<BlobPart[]>([]);
+  const ogPreviewInFlightRef = useRef<Set<string>>(new Set());
   const { mutate: sendMessage, isPending } = useSendMessage();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -217,6 +220,67 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
       return next;
     });
   };
+
+  useEffect(() => {
+    let cancelled = false;
+    const urlsToResolve = Array.from(
+      new Set(
+        messages
+          .map((msg) => {
+            const raw = msg.rawJson as any;
+            const referral = raw?.referral || raw?.context?.referral;
+            if (!referral) return "";
+            const hasDirectImage = Boolean(
+              referral.image_url ||
+              referral.imageUrl ||
+              referral.thumbnail_url ||
+              referral.thumbnailUrl
+            );
+            if (hasDirectImage) return "";
+            const sourceUrl = String(referral.source_url || referral.sourceUrl || "").trim();
+            if (!sourceUrl) return "";
+            try {
+              return new URL(sourceUrl).toString();
+            } catch {
+              return sourceUrl;
+            }
+          })
+          .filter(Boolean)
+      )
+    );
+
+    for (const url of urlsToResolve) {
+      if (ogImageByUrl[url] || ogImageUnavailableByUrl[url] || ogPreviewInFlightRef.current.has(url)) {
+        continue;
+      }
+      ogPreviewInFlightRef.current.add(url);
+      fetch(`/api/link-preview?url=${encodeURIComponent(url)}`, { credentials: "include" })
+        .then(async (response) => {
+          if (!response.ok) throw new Error("preview request failed");
+          return response.json();
+        })
+        .then((payload) => {
+          if (cancelled) return;
+          const imageUrl = typeof payload?.imageUrl === "string" ? payload.imageUrl.trim() : "";
+          if (imageUrl) {
+            setOgImageByUrl((prev) => (prev[url] ? prev : { ...prev, [url]: imageUrl }));
+            return;
+          }
+          setOgImageUnavailableByUrl((prev) => (prev[url] ? prev : { ...prev, [url]: true }));
+        })
+        .catch(() => {
+          if (cancelled) return;
+          setOgImageUnavailableByUrl((prev) => (prev[url] ? prev : { ...prev, [url]: true }));
+        })
+        .finally(() => {
+          ogPreviewInFlightRef.current.delete(url);
+        });
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [messages, ogImageByUrl, ogImageUnavailableByUrl]);
 
   const formatRecordingTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60).toString().padStart(2, "0");
@@ -370,13 +434,23 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
     if (!referral) return null;
 
     const sourceType = referral.source_type || referral.sourceType || "";
-    const sourceUrl = referral.source_url || referral.sourceUrl || "";
+    const sourceUrlRaw = referral.source_url || referral.sourceUrl || "";
+    const sourceUrl = sourceUrlRaw
+      ? (() => {
+          try {
+            return new URL(String(sourceUrlRaw)).toString();
+          } catch {
+            return String(sourceUrlRaw);
+          }
+        })()
+      : "";
     const headline = referral.headline || referral.title || "Ver detalles";
     const imageUrl =
       referral.image_url ||
       referral.imageUrl ||
       referral.thumbnail_url ||
       referral.thumbnailUrl ||
+      ogImageByUrl[sourceUrl] ||
       "";
 
     let sourceLabel = "Anuncio";
