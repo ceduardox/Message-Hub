@@ -372,6 +372,12 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
     const sourceType = referral.source_type || referral.sourceType || "";
     const sourceUrl = referral.source_url || referral.sourceUrl || "";
     const headline = referral.headline || referral.title || "Ver detalles";
+    const imageUrl =
+      referral.image_url ||
+      referral.imageUrl ||
+      referral.thumbnail_url ||
+      referral.thumbnailUrl ||
+      "";
 
     let sourceLabel = "Anuncio";
     if (String(sourceType).toLowerCase().includes("facebook")) sourceLabel = "Anuncio de Facebook";
@@ -381,6 +387,7 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
       sourceLabel,
       headline: String(headline),
       sourceUrl: sourceUrl ? String(sourceUrl) : "",
+      imageUrl: imageUrl ? String(imageUrl) : "",
     };
   };
 
@@ -1109,6 +1116,17 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
                   return (
                     <div className="mb-2 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-1.5 text-xs">
                       <p className="font-medium text-emerald-700 dark:text-emerald-300">{referral.sourceLabel}</p>
+                      {referral.imageUrl && (
+                        <img
+                          src={referral.imageUrl}
+                          alt="Anuncio"
+                          className="mt-1 mb-1 h-20 w-full max-w-[220px] rounded object-cover border border-emerald-500/20"
+                          loading="lazy"
+                          onError={(e) => {
+                            e.currentTarget.style.display = "none";
+                          }}
+                        />
+                      )}
                       <p className="text-slate-700 dark:text-slate-200">{referral.headline}</p>
                       {referral.sourceUrl && (
                         <button
