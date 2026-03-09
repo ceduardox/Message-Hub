@@ -280,6 +280,32 @@ function extractOgImageFromHtml(html: string, pageUrl: string): string | null {
   return null;
 }
 
+async function fetchOgImageFromProvider(targetUrl: string): Promise<string | null> {
+  try {
+    const providerResponse = await axios.get("https://api.microlink.io/", {
+      timeout: 9000,
+      params: {
+        url: targetUrl,
+        screenshot: false,
+        video: false,
+        audio: false,
+      },
+      headers: {
+        "User-Agent": "Mozilla/5.0 (compatible; RyzappLinkPreview/1.0)",
+        Accept: "application/json",
+      },
+    });
+    const candidate =
+      providerResponse.data?.data?.image?.url ||
+      providerResponse.data?.data?.logo?.url ||
+      "";
+    if (!candidate) return null;
+    return new URL(String(candidate), targetUrl).toString();
+  } catch {
+    return null;
+  }
+}
+
 function inferAudioMimeType(rawMimeType: string, filename: string): string {
   const normalized = String(rawMimeType || "").toLowerCase().split(";")[0].trim();
   if (normalized && normalized !== "application/octet-stream") return normalized;
@@ -2143,20 +2169,33 @@ NO uses saludos formales. Sé directo y amigable.`
         return res.status(400).json({ message: "Blocked hostname" });
       }
 
-      const htmlResponse = await axios.get(targetUrl.toString(), {
-        responseType: "text",
-        timeout: 8000,
-        maxRedirects: 5,
-        maxContentLength: 1024 * 1024,
-        headers: {
-          "User-Agent": "Mozilla/5.0 (compatible; RyzappLinkPreview/1.0)",
-          Accept: "text/html,application/xhtml+xml",
-        },
-      });
+      try {
+        const htmlResponse = await axios.get(targetUrl.toString(), {
+          responseType: "text",
+          timeout: 8000,
+          maxRedirects: 5,
+          maxContentLength: 1024 * 1024,
+          headers: {
+            "User-Agent": "Mozilla/5.0 (compatible; RyzappLinkPreview/1.0)",
+            Accept: "text/html,application/xhtml+xml",
+          },
+        });
 
-      const html = String(htmlResponse.data || "");
-      const imageUrl = extractOgImageFromHtml(html, targetUrl.toString());
-      res.json({ imageUrl: imageUrl || null });
+        const html = String(htmlResponse.data || "");
+        const imageFromPage = extractOgImageFromHtml(html, targetUrl.toString());
+        if (imageFromPage) {
+          return res.json({ imageUrl: imageFromPage, source: "page-og" });
+        }
+      } catch {
+        // ignore and try provider fallback
+      }
+
+      const imageFromProvider = await fetchOgImageFromProvider(targetUrl.toString());
+      if (imageFromProvider) {
+        return res.json({ imageUrl: imageFromProvider, source: "provider-og" });
+      }
+
+      res.json({ imageUrl: null });
     } catch (error: any) {
       console.error("Link preview error:", error?.message || error);
       res.json({ imageUrl: null });
