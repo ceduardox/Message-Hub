@@ -364,7 +364,14 @@ export default function AIAgentPage() {
       });
 
       if (!response.ok) {
-        throw new Error(await response.text());
+        let message = "No se pudo generar la muestra de voz";
+        try {
+          const errorData = await response.json();
+          message = errorData.details || errorData.message || message;
+        } catch {
+          message = await response.text();
+        }
+        throw new Error(message);
       }
 
       const blob = await response.blob();

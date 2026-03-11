@@ -507,29 +507,59 @@ async function getElevenLabsApiKey(): Promise<string> {
   return conn.settings.api_key;
 }
 
-// Generate audio buffer using ElevenLabs TTS (optimized for speed)
+function getElevenLabsErrorMessage(error: any): string {
+  const data = error?.response?.data;
+  if (!data) return error?.message || "Unknown ElevenLabs error";
+  if (Buffer.isBuffer(data)) {
+    try {
+      return JSON.parse(data.toString("utf8")).detail?.message || data.toString("utf8");
+    } catch {
+      return data.toString("utf8");
+    }
+  }
+  if (typeof data === "string") return data;
+  return data?.detail?.message || data?.detail || data?.message || JSON.stringify(data);
+}
+
+// Generate audio buffer using ElevenLabs TTS with model fallback for account compatibility
 async function generateElevenLabsAudio(text: string, voiceId: string): Promise<Buffer> {
   const apiKey = await getElevenLabsApiKey();
-  const response = await axios.post(
-    `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_22050_32&optimize_streaming_latency=4`,
-    {
-      text,
-      model_id: "eleven_flash_v2_5",
-      voice_settings: {
-        stability: 0.5,
-        similarity_boost: 0.75,
-        use_speaker_boost: false,
-      },
-    },
-    {
-      headers: {
-        'xi-api-key': apiKey,
-        'Content-Type': 'application/json',
-      },
-      responseType: 'arraybuffer',
+  const modelsToTry = ["eleven_flash_v2_5", "eleven_turbo_v2_5", "eleven_multilingual_v2"];
+  const attemptErrors: string[] = [];
+
+  for (const modelId of modelsToTry) {
+    try {
+      const response = await axios.post(
+        `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128&optimize_streaming_latency=4`,
+        {
+          text,
+          model_id: modelId,
+          language_code: "es",
+          voice_settings: {
+            stability: 0.5,
+            similarity_boost: 0.75,
+            use_speaker_boost: false,
+          },
+        },
+        {
+          headers: {
+            "xi-api-key": apiKey,
+            "Content-Type": "application/json",
+            Accept: "audio/mpeg",
+          },
+          responseType: "arraybuffer",
+        }
+      );
+      console.log("[ElevenLabs] TTS success", { voiceId, modelId, size: response.data?.byteLength || 0 });
+      return Buffer.from(response.data);
+    } catch (error: any) {
+      const message = getElevenLabsErrorMessage(error);
+      attemptErrors.push(`${modelId}: ${message}`);
+      console.error("[ElevenLabs] TTS attempt failed", { voiceId, modelId, message });
     }
-  );
-  return Buffer.from(response.data);
+  }
+
+  throw new Error(`ElevenLabs TTS failed. ${attemptErrors.join(" | ")}`);
 }
 
 async function generateTtsAudioBuffer(
@@ -2459,8 +2489,9 @@ NO uses saludos formales. Sé directo y amigable.`
       if (error.name === "ZodError") {
         return res.status(400).json({ message: "Invalid preview payload", errors: error.errors });
       }
-      console.error("Error generating TTS preview:", error.response?.data || error.message || error);
-      res.status(500).json({ message: "Error generating TTS preview" });
+      const details = error?.message || getElevenLabsErrorMessage(error);
+      console.error("Error generating TTS preview:", details);
+      res.status(500).json({ message: "Error generating TTS preview", details });
     }
   });
 
