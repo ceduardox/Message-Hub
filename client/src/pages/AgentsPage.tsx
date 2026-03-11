@@ -68,9 +68,22 @@ export default function AgentsPage() {
   const [password, setPassword] = useState("");
   const [weight, setWeight] = useState(1);
   const [showPasswords, setShowPasswords] = useState<Record<number, boolean>>({});
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
   const { data: agents = [], isLoading } = useQuery<AgentWithStats[]>({
-    queryKey: ["/api/agents"],
+    queryKey: ["/api/agents", dateFrom, dateTo],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (dateFrom) params.set("dateFrom", dateFrom);
+      if (dateTo) params.set("dateTo", dateTo);
+      const suffix = params.toString();
+      const res = await fetch(`/api/agents${suffix ? `?${suffix}` : ""}`, {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("No se pudo cargar la lista de agentes");
+      return res.json();
+    },
   });
 
   const createMutation = useMutation({
@@ -138,6 +151,21 @@ export default function AgentsPage() {
     });
   };
 
+  const formatDateInput = (date: Date) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  };
+
+  const setQuickRange = (days: number) => {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(end.getDate() - (days - 1));
+    setDateFrom(formatDateInput(start));
+    setDateTo(formatDateInput(end));
+  };
+
   const activeAgents = agents.filter(a => a.isActive);
   const inactiveAgents = agents.filter(a => !a.isActive);
   const totalAssignedConversations = agents.reduce((acc, agent) => acc + (agent.assignedConversations || 0), 0);
@@ -185,6 +213,75 @@ export default function AgentsPage() {
             <h1 className="text-xl font-bold text-white">Gestión de Agentes</h1>
             <p className="text-xs text-slate-500">Crea y administra agentes que atienden mensajes</p>
           </div>
+        </div>
+
+        <div className="mb-5 rounded-2xl border border-slate-700/30 bg-slate-800/30 backdrop-blur-xl p-4">
+          <div className="flex flex-wrap items-end gap-3">
+            <div>
+              <label className="text-xs text-slate-500 mb-1 block">Desde</label>
+              <Input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="h-9 bg-slate-800/60 border-slate-700/50 text-white"
+                data-testid="input-agents-date-from"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-slate-500 mb-1 block">Hasta</label>
+              <Input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="h-9 bg-slate-800/60 border-slate-700/50 text-white"
+                data-testid="input-agents-date-to"
+              />
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 border-slate-600 text-slate-200"
+              onClick={() => setQuickRange(1)}
+              data-testid="button-agents-range-today"
+            >
+              Hoy
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 border-slate-600 text-slate-200"
+              onClick={() => setQuickRange(7)}
+              data-testid="button-agents-range-7d"
+            >
+              7 dias
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 border-slate-600 text-slate-200"
+              onClick={() => setQuickRange(30)}
+              data-testid="button-agents-range-30d"
+            >
+              30 dias
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-9 text-slate-400"
+              onClick={() => {
+                setDateFrom("");
+                setDateTo("");
+              }}
+              data-testid="button-agents-range-clear"
+            >
+              Limpiar
+            </Button>
+          </div>
+          <p className="mt-2 text-xs text-slate-500">
+            {dateFrom || dateTo
+              ? `Mostrando metricas del rango ${dateFrom || "..."} a ${dateTo || "..."}`
+              : "Mostrando metricas acumuladas (sin filtro de fechas)"}
+          </p>
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">

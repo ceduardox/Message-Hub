@@ -2711,8 +2711,27 @@ Máximo 2 líneas. Sé específico y práctico.`;
   });
 
   // === AGENT MANAGEMENT (Admin only) ===
-  app.get("/api/agents", requireAdmin, async (_req, res) => {
+  app.get("/api/agents", requireAdmin, async (req, res) => {
     try {
+      const dateFrom = typeof req.query.dateFrom === "string" ? req.query.dateFrom.trim() : "";
+      const dateTo = typeof req.query.dateTo === "string" ? req.query.dateTo.trim() : "";
+      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+
+      if (dateFrom && !dateRegex.test(dateFrom)) {
+        return res.status(400).json({ message: "Invalid dateFrom format. Use YYYY-MM-DD" });
+      }
+      if (dateTo && !dateRegex.test(dateTo)) {
+        return res.status(400).json({ message: "Invalid dateTo format. Use YYYY-MM-DD" });
+      }
+      if (dateFrom && dateTo && dateFrom > dateTo) {
+        return res.status(400).json({ message: "dateFrom must be before or equal to dateTo" });
+      }
+
+      const dateFilterSql = sql`
+        ${dateFrom ? sql`AND DATE(m.created_at AT TIME ZONE 'America/La_Paz') >= ${dateFrom}` : sql``}
+        ${dateTo ? sql`AND DATE(m.created_at AT TIME ZONE 'America/La_Paz') <= ${dateTo}` : sql``}
+      `;
+
       let statsResult;
       try {
         statsResult = await db.execute(sql`
@@ -2740,6 +2759,7 @@ Máximo 2 líneas. Sé específico y práctico.`;
           FROM conversations c
           LEFT JOIN messages m ON m.conversation_id = c.id
           WHERE c.assigned_agent_id IS NOT NULL
+            ${dateFilterSql}
           GROUP BY c.assigned_agent_id
         ) s ON s.agent_id = a.id
         ORDER BY a.name ASC
@@ -2772,6 +2792,7 @@ Máximo 2 líneas. Sé específico y práctico.`;
               FROM conversations c
               LEFT JOIN messages m ON m.conversation_id = c.id
               WHERE c.assigned_agent_id IS NOT NULL
+                ${dateFilterSql}
               GROUP BY c.assigned_agent_id
             ) s ON s.agent_id = a.id
             ORDER BY a.name ASC
