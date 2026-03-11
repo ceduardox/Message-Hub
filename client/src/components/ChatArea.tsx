@@ -1296,7 +1296,7 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
       />
 
       {/* Input Area */}
-      <div className="p-2 bg-[#f0f2f5] dark:bg-[#202c33] z-20 flex-shrink-0">
+      <div className="p-1.5 md:p-2 bg-[#f0f2f5] dark:bg-[#202c33] z-20 flex-shrink-0 overflow-x-hidden">
         {showImageInput && !imageUrl && (
           <div className="mb-2 px-2">
             <Input placeholder="URL de imagen..." value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} className="text-sm" />
@@ -1320,12 +1320,12 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
           </div>
         )}
         
-        <div className="flex items-end gap-2">
+        <div className="flex items-end gap-1.5 md:gap-2">
           {/* Attachment Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="rounded-full h-10 w-10 flex-shrink-0">
-                <Plus className="h-5 w-5" />
+              <Button variant="ghost" size="icon" className="rounded-full h-9 w-9 md:h-10 md:w-10 flex-shrink-0">
+                <Plus className="h-4 w-4 md:h-5 md:w-5" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
@@ -1348,8 +1348,8 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
           <Dialog>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="rounded-full h-10 w-10 flex-shrink-0">
-                  <Zap className="h-5 w-5" />
+                <Button variant="ghost" size="icon" className="rounded-full h-9 w-9 md:h-10 md:w-10 flex-shrink-0">
+                  <Zap className="h-4 w-4 md:h-5 md:w-5" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start">
@@ -1392,7 +1392,7 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
             onChange={(e) => setText(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Escribe un mensaje..."
-            className="flex-1 min-h-[40px] max-h-[100px] resize-none border-0 bg-white dark:bg-[#2a3942] rounded-3xl px-4 py-2.5 text-sm focus-visible:ring-0"
+            className="flex-1 min-w-0 min-h-[40px] max-h-[100px] resize-none overflow-hidden border-0 bg-white dark:bg-[#2a3942] rounded-3xl px-3 md:px-4 py-2.5 text-sm focus-visible:ring-0"
             rows={1}
           />
 
@@ -1401,20 +1401,20 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
             disabled={uploadImageMutation.isPending || uploadAudioMutation.isPending}
             size="icon"
             variant={isRecording ? "destructive" : "ghost"}
-            className={cn("rounded-full h-10 w-10 flex-shrink-0", isRecording && "animate-pulse")}
+            className={cn("rounded-full h-9 w-9 md:h-10 md:w-10 flex-shrink-0", isRecording && "animate-pulse")}
             data-testid="button-record-audio"
             title={isRecording ? "Detener grabacion" : "Grabar audio"}
           >
-            <Mic className="h-4 w-4" />
+            <Mic className="h-4 w-4 md:h-5 md:w-5" />
           </Button>
 
           <Button
             onClick={() => handleSend()}
             disabled={(!text && !imageUrl && !selectedFile) || isPending || uploadImageMutation.isPending || uploadAudioMutation.isPending || isRecording}
             size="icon"
-            className="rounded-full h-10 w-10 flex-shrink-0"
+            className="rounded-full h-9 w-9 md:h-10 md:w-10 flex-shrink-0"
           >
-            {(uploadImageMutation.isPending || uploadAudioMutation.isPending) ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            {(uploadImageMutation.isPending || uploadAudioMutation.isPending) ? <Loader2 className="h-4 w-4 md:h-5 md:w-5 animate-spin" /> : <Send className="h-4 w-4 md:h-5 md:w-5" />}
           </Button>
         </div>
       </div>
