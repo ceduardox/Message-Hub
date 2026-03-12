@@ -915,12 +915,12 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
             </div>
           </div>
         </div>
-        <div className="mt-1.5 w-full flex items-center justify-center gap-1 overflow-x-auto md:mt-0 md:w-auto md:justify-end md:gap-0.5 md:overflow-visible md:rounded-2xl md:border md:border-slate-300/70 dark:md:border-slate-700/70 md:bg-slate-200/90 dark:md:bg-slate-800/70 md:px-1.5 md:py-1 md:ml-3">
+        <div className="mt-1.5 w-full flex items-center justify-center gap-1 overflow-x-auto md:mt-0 md:w-auto md:justify-end md:gap-0 md:overflow-visible md:ml-2">
         {/* Reassign Agent Dropdown (admin only) */}
         {isAdmin && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="flex-shrink-0 h-8 w-8" data-testid="button-reassign-agent">
+              <Button variant="ghost" size="icon" className="flex-shrink-0 h-7 w-7" data-testid="button-reassign-agent">
                 <UserRoundCog className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -947,7 +947,7 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
         <Dialog>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="flex-shrink-0 h-8 w-8">
+              <Button variant="ghost" size="icon" className="flex-shrink-0 h-7 w-7">
                 <Tag className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -1067,7 +1067,7 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
             variant={conversation.aiDisabled ? "default" : "ghost"} 
             size="icon" 
             className={cn(
-              "flex-shrink-0 h-8 w-8",
+              "flex-shrink-0 h-7 w-7",
               conversation.aiDisabled && "bg-orange-500 text-white"
             )}
             onClick={() => toggleAiMutation.mutate(!conversation.aiDisabled)}
@@ -1083,7 +1083,7 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
           <Button 
             variant="default" 
             size="icon" 
-            className="flex-shrink-0 h-8 w-8 bg-red-500 text-white"
+            className="flex-shrink-0 h-7 w-7 bg-red-500 text-white"
             onClick={() => clearAttentionMutation.mutate()}
             title="La IA no pudo responder - Click para despejar alerta"
             data-testid="button-clear-attention"
@@ -1097,7 +1097,7 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
           variant={conversation.shouldCall ? "default" : "ghost"} 
           size="icon" 
           className={cn(
-            "flex-shrink-0 h-8 w-8",
+            "flex-shrink-0 h-7 w-7",
             conversation.shouldCall && "bg-green-500 text-white"
           )}
           onClick={() => toggleShouldCallMutation.mutate(!conversation.shouldCall)}
@@ -1111,7 +1111,7 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
           <Button
             variant="ghost"
             size="icon"
-            className="flex-shrink-0 h-8 w-8 text-red-400"
+            className="flex-shrink-0 h-7 w-7 text-red-400"
             onClick={() => {
               if (confirm("¿Eliminar esta conversación y todos sus mensajes?")) {
                 deleteConversationMutation.mutate();
@@ -1130,7 +1130,7 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
             <Button 
               variant="ghost" 
               size="icon" 
-              className="flex-shrink-0 h-8 w-8"
+              className="flex-shrink-0 h-7 w-7"
               title="Aprender de esta conversación"
               data-testid="button-learn"
             >
@@ -1220,7 +1220,7 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
               variant={conversation.orderStatus === 'ready' ? "default" : "ghost"} 
               size="icon" 
               className={cn(
-                "flex-shrink-0 h-8 w-8",
+                "flex-shrink-0 h-7 w-7",
                 conversation.orderStatus === 'ready' && "bg-green-500 text-white",
                 conversation.orderStatus === 'pending' && "text-yellow-600",
                 conversation.orderStatus === 'delivered' && "text-blue-600"
