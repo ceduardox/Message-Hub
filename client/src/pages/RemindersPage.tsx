@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, RefreshCw, Calendar, Clock, AlertCircle, CheckCircle2, Trash2, Loader2 } from "lucide-react";
+import { ArrowLeft, RefreshCw, Calendar, Clock, AlertCircle, CheckCircle2, Trash2, Loader2, ClipboardList } from "lucide-react";
 
 type ReminderFilter = "all" | "overdue" | "today" | "upcoming";
 
@@ -94,6 +94,7 @@ export default function RemindersPage() {
           <h1 className="text-2xl font-bold">Recordatorios</h1>
           <Link href="/follow-up">
             <Button variant="outline" size="sm" data-testid="button-go-followup">
+              <ClipboardList className="h-4 w-4 mr-2" />
               Seguimiento
             </Button>
           </Link>

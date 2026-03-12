@@ -18,7 +18,8 @@ import {
   AlertCircle,
   History,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Clock
 } from "lucide-react";
 
 interface FollowUpConversation {
@@ -184,6 +185,7 @@ export default function FollowUpPage() {
           <h1 className="text-2xl font-bold">Seguimiento</h1>
           <Link href="/reminders">
             <Button variant="outline" size="sm" data-testid="button-go-reminders">
+              <Clock className="h-4 w-4 mr-2" />
               Recordatorios
             </Button>
           </Link>
