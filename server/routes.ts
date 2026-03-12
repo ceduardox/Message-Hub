@@ -1607,9 +1607,11 @@ export async function registerRoutes(
     const allLabels = await storage.getLabels();
     const session = req.session as any;
     if (session.role === "agent" && session.agentId) {
-      return res.json(allLabels.filter((l) => l.agentId === session.agentId));
+      // Return own + shared/admin labels so existing conversation labels always render.
+      return res.json(allLabels.filter((l) => l.agentId === session.agentId || !l.agentId));
     }
-    return res.json(allLabels.filter((l) => !l.agentId));
+    // Admin receives all labels so assigned labels from agents render in kanban/chat.
+    return res.json(allLabels);
   });
 
   app.post("/api/labels", requireAuth, async (req, res) => {

@@ -419,7 +419,7 @@ const tabConfig: { key: TabType; label: string; shortLabel: string; icon: typeof
 ];
 
 export function KanbanView({ conversations, isLoading, daysToShow, onDaysChange, onLoadMore, hasMoreConversations, maxDays, searchQuery, onSearchChange, onClearSearch }: KanbanViewProps) {
-  const { isAdmin, isAgent } = useAuth();
+  const { isAdmin, isAgent, user } = useAuth();
   const canDragKanban = isAdmin || isAgent;
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -444,6 +444,13 @@ export function KanbanView({ conversations, isLoading, daysToShow, onDaysChange,
   const { data: activeConversation } = useConversation(activeId);
   const isMobileChatOpen = !!(activeId && activeConversation);
   const { data: labels = [] } = useQuery<Label[]>({ queryKey: ["/api/labels"] });
+  const ownedLabels = useMemo(
+    () =>
+      labels.filter((label) =>
+        user?.role === "agent" ? label.agentId === user.agentId : !label.agentId
+      ),
+    [labels, user?.role, user?.agentId],
+  );
   const { data: agents = [] } = useQuery<AgentListItem[]>({
     queryKey: ["/api/agents"],
     enabled: isAdmin,
@@ -600,6 +607,12 @@ export function KanbanView({ conversations, isLoading, daysToShow, onDaysChange,
     activeTab?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
   }, [mobileTab]);
 
+  useEffect(() => {
+    if (filterLabelId && !ownedLabels.some((label) => label.id === filterLabelId)) {
+      setFilterLabelId(null);
+    }
+  }, [filterLabelId, ownedLabels]);
+
   const handleDragStartCard = (conversationId: number) => {
     if (!canDragKanban) return;
     setDraggingConversationId(conversationId);
@@ -694,7 +707,7 @@ export function KanbanView({ conversations, isLoading, daysToShow, onDaysChange,
               </span>
               Todas
             </DropdownMenuItem>
-            {labels.map((label) => (
+            {ownedLabels.map((label) => (
               <DropdownMenuItem
                 key={label.id}
                 onClick={() => setFilterLabelId(filterLabelId === label.id ? null : label.id)}

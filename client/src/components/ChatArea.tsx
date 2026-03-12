@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
@@ -184,6 +184,13 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
   const { data: labelsData = [] } = useQuery<Label[]>({
     queryKey: ["/api/labels"],
   });
+  const ownedLabels = useMemo(
+    () =>
+      labelsData.filter((label) =>
+        user?.role === "agent" ? label.agentId === user.agentId : !label.agentId
+      ),
+    [labelsData, user?.role, user?.agentId],
+  );
 
   const { data: quickMessagesData = [] } = useQuery<QuickMessage[]>({
     queryKey: ["/api/quick-messages"],
@@ -1044,7 +1051,7 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
                 Sin etiqueta
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              {labelsData.map((label) => (
+              {ownedLabels.map((label) => (
                 <DropdownMenuItem key={label.id} onClick={() => setLabelMutation.mutate(label.id)}>
                   <div className={cn("w-3 h-3 rounded-full mr-2", LABEL_COLORS.find(c => c.name === label.color)?.bg)} />
                   {label.name}
@@ -1108,10 +1115,10 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
 		              <DialogTitle>Gestionar etiquetas</DialogTitle>
 		            </DialogHeader>
 		            <div className="space-y-3 mt-2 max-h-[60vh] overflow-y-auto">
-		              {labelsData.length === 0 ? (
-		                <p className="text-sm text-muted-foreground">No tiene etiquetas creadas.</p>
-		              ) : (
-		                labelsData.map((label) => {
+			              {ownedLabels.length === 0 ? (
+			                <p className="text-sm text-muted-foreground">No tiene etiquetas creadas.</p>
+			              ) : (
+			                ownedLabels.map((label) => {
 		                  const isEditing = editingLabelId === label.id;
 		                  return (
 		                    <div key={label.id} className="rounded-lg border border-border/60 p-3 space-y-2">
