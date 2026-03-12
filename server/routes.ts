@@ -1840,6 +1840,44 @@ export async function registerRoutes(
     res.json(updated);
   });
 
+  // Create or update reminder on conversation
+  app.patch("/api/conversations/:id/reminder", requireAuth, async (req, res) => {
+    const id = parseInt(req.params.id);
+    const parsed = z.object({
+      reminderAt: z.string().datetime().nullable(),
+      reminderNote: z.string().max(300).optional().nullable(),
+    }).safeParse(req.body);
+
+    if (!parsed.success) {
+      return res.status(400).json({ message: "Invalid reminder payload", details: parsed.error.errors });
+    }
+
+    const reminderAt = parsed.data.reminderAt ? new Date(parsed.data.reminderAt) : null;
+    const reminderNote = parsed.data.reminderNote?.trim() || null;
+
+    if (reminderAt && Number.isNaN(reminderAt.getTime())) {
+      return res.status(400).json({ message: "Invalid reminder date" });
+    }
+
+    const updated = await storage.updateConversation(id, {
+      reminderAt,
+      reminderNote,
+      reminderUpdatedAt: reminderAt ? new Date() : null,
+    });
+    res.json(updated);
+  });
+
+  // Delete reminder from conversation
+  app.delete("/api/conversations/:id/reminder", requireAuth, async (req, res) => {
+    const id = parseInt(req.params.id);
+    const updated = await storage.updateConversation(id, {
+      reminderAt: null,
+      reminderNote: null,
+      reminderUpdatedAt: null,
+    });
+    res.json(updated);
+  });
+
   // Toggle pin
   app.patch("/api/conversations/:id/pin", requireAuth, async (req, res) => {
     const id = parseInt(req.params.id);

@@ -265,6 +265,12 @@ function KanbanCard({
               </div>
             );
           })()}
+          {conv.reminderAt && (
+            <div className="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-500/20 text-amber-300 border border-amber-400/30">
+              <Clock className="h-2.5 w-2.5" />
+              {formatDate(conv.reminderAt)}
+            </div>
+          )}
 
           {columnType === "nuevo" && conv.lastMessage && (
             <p className="text-sm text-slate-400 mt-2 line-clamp-2">

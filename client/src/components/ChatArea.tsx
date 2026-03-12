@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Send, Image as ImageIcon, Mic, Plus, Check, CheckCheck, MapPin, Bug, Copy, ExternalLink, X, Zap, Tag, Trash2, Package, PackageCheck, Truck, PackageX, Bot, BotOff, AlertCircle, Phone, Lightbulb, Loader2, UserRoundCog } from "lucide-react";
+import { Send, Image as ImageIcon, Mic, Plus, Check, CheckCheck, MapPin, Bug, Copy, ExternalLink, X, Zap, Tag, Trash2, Package, PackageCheck, Truck, PackageX, Bot, BotOff, AlertCircle, Phone, Lightbulb, Loader2, UserRoundCog, Clock } from "lucide-react";
 import type { Conversation, Message, Label, QuickMessage, Agent } from "@shared/schema";
 import {
   DropdownMenu,
@@ -95,6 +95,9 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
   const [newQmName, setNewQmName] = useState("");
   const [newQmText, setNewQmText] = useState("");
   const [newQmImageUrl, setNewQmImageUrl] = useState("");
+  const [showReminderDialog, setShowReminderDialog] = useState(false);
+  const [reminderAtInput, setReminderAtInput] = useState("");
+  const [reminderNoteInput, setReminderNoteInput] = useState("");
   const [showLearnModal, setShowLearnModal] = useState(false);
   const [learnFocus, setLearnFocus] = useState("");
   const [learnMessageCount, setLearnMessageCount] = useState(10);
@@ -188,6 +191,23 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
   });
 
   const currentLabel = labelsData.find(l => l.id === conversation.labelId);
+  const toDateTimeLocalValue = (value?: string | Date | null) => {
+    if (!value) return "";
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return "";
+    const tzOffset = parsed.getTimezoneOffset() * 60_000;
+    return new Date(parsed.getTime() - tzOffset).toISOString().slice(0, 16);
+  };
+  const reminderDate = conversation.reminderAt ? new Date(conversation.reminderAt) : null;
+  const reminderBadgeText = reminderDate && !Number.isNaN(reminderDate.getTime())
+    ? format(reminderDate, "dd/MM HH:mm")
+    : "";
+
+  const openReminderEditor = () => {
+    setReminderAtInput(toDateTimeLocalValue(conversation.reminderAt));
+    setReminderNoteInput(conversation.reminderNote || "");
+    setShowReminderDialog(true);
+  };
 
   useEffect(() => {
     if (!isRecording) return;
@@ -196,6 +216,13 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
     }, 1000);
     return () => window.clearInterval(timer);
   }, [isRecording]);
+
+  useEffect(() => {
+    if (!showReminderDialog) {
+      setReminderAtInput(toDateTimeLocalValue(conversation.reminderAt));
+      setReminderNoteInput(conversation.reminderNote || "");
+    }
+  }, [conversation.id, conversation.reminderAt, conversation.reminderNote, showReminderDialog]);
 
   useEffect(() => {
     return () => {
@@ -491,6 +518,59 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
+    },
+  });
+
+  const setReminderMutation = useMutation({
+    mutationFn: async ({ reminderAt, reminderNote }: { reminderAt: string; reminderNote?: string }) => {
+      const reminderDate = new Date(reminderAt);
+      if (Number.isNaN(reminderDate.getTime())) {
+        throw new Error("Fecha de recordatorio inválida");
+      }
+      const res = await fetch(`/api/conversations/${conversation.id}/reminder`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reminderAt: reminderDate.toISOString(),
+          reminderNote: reminderNote?.trim() || null,
+        }),
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error?.message || "Error al guardar recordatorio");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/conversations/:id"] });
+      setShowReminderDialog(false);
+      toast({ title: "Recordatorio guardado" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const clearReminderMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/conversations/${conversation.id}/reminder`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error?.message || "Error al eliminar recordatorio");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/conversations/:id"] });
+      setShowReminderDialog(false);
+      toast({ title: "Recordatorio eliminado" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
 
@@ -803,6 +883,12 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
                   {currentLabel.name}
                 </Badge>
               )}
+              {conversation.reminderAt && (
+                <Badge className="text-[10px] px-1.5 py-0 bg-amber-500/90 text-white">
+                  <Clock className="h-2.5 w-2.5 mr-1" />
+                  {reminderBadgeText}
+                </Badge>
+              )}
             </div>
             <button
               type="button"
@@ -863,6 +949,21 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
                 </DropdownMenuItem>
               ))}
               <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={openReminderEditor} data-testid="menu-reminder-edit">
+                <Clock className="h-4 w-4 mr-2 text-amber-500" />
+                {conversation.reminderAt ? "Editar recordatorio" : "Agregar recordatorio"}
+              </DropdownMenuItem>
+              {conversation.reminderAt && (
+                <DropdownMenuItem
+                  onClick={() => clearReminderMutation.mutate()}
+                  data-testid="menu-reminder-clear"
+                  className="text-red-500 focus:text-red-500"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Eliminar recordatorio
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator />
               <DialogTrigger asChild>
                 <DropdownMenuItem>
                   <Plus className="h-4 w-4 mr-2" /> Nueva etiqueta
@@ -890,10 +991,64 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
               </Button>
             </div>
           </DialogContent>
-        </Dialog>
+	        </Dialog>
+	        <Dialog open={showReminderDialog} onOpenChange={setShowReminderDialog}>
+	          <DialogContent>
+	            <DialogHeader>
+	              <DialogTitle>{conversation.reminderAt ? "Editar recordatorio" : "Nuevo recordatorio"}</DialogTitle>
+	            </DialogHeader>
+	            <div className="space-y-4 mt-3">
+	              <div className="space-y-1">
+	                <label className="text-sm font-medium">Fecha y hora</label>
+	                <Input
+	                  type="datetime-local"
+	                  value={reminderAtInput}
+	                  onChange={(e) => setReminderAtInput(e.target.value)}
+	                  data-testid="input-reminder-datetime"
+	                />
+	              </div>
+	              <div className="space-y-1">
+	                <label className="text-sm font-medium">Nota (opcional)</label>
+	                <Textarea
+	                  rows={3}
+	                  maxLength={300}
+	                  placeholder="Ej: Cliente pidió que le escribamos el miércoles"
+	                  value={reminderNoteInput}
+	                  onChange={(e) => setReminderNoteInput(e.target.value)}
+	                  data-testid="textarea-reminder-note"
+	                />
+	              </div>
+	              <div className="flex justify-end gap-2">
+	                {conversation.reminderAt && (
+	                  <Button
+	                    variant="destructive"
+	                    onClick={() => clearReminderMutation.mutate()}
+	                    disabled={clearReminderMutation.isPending}
+	                    data-testid="button-reminder-delete"
+	                  >
+	                    {clearReminderMutation.isPending ? "Eliminando..." : "Eliminar"}
+	                  </Button>
+	                )}
+	                <Button
+	                  onClick={() => {
+	                    if (!reminderAtInput) {
+	                      toast({ title: "Fecha requerida", description: "Seleccione una fecha para el recordatorio", variant: "destructive" });
+	                      return;
+	                    }
+	                    setReminderMutation.mutate({ reminderAt: reminderAtInput, reminderNote: reminderNoteInput });
+	                  }}
+	                  disabled={setReminderMutation.isPending}
+	                  data-testid="button-reminder-save"
+	                >
+	                  {setReminderMutation.isPending ? "Guardando..." : "Guardar"}
+	                </Button>
+	              </div>
+	            </div>
+	          </DialogContent>
+	        </Dialog>
 
-        {/* AI Toggle Button (admin and agents) */}
-        {canToggleConversationAi && (
+	        {/* AI Toggle Button (admin and agents) */}
+	        {canToggleConversationAi && (
           <Button 
             variant={conversation.aiDisabled ? "default" : "ghost"} 
             size="icon" 

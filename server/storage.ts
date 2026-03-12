@@ -110,6 +110,8 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  private reminderColumnsEnsured = false;
+
   private mapFallbackAgentRow(row: any): Agent {
     return {
       id: Number(row.id),
@@ -141,6 +143,23 @@ export class DatabaseStorage implements IStorage {
       VALUES (1, -1)
       ON CONFLICT (id) DO NOTHING
     `);
+  }
+
+  private async ensureConversationReminderColumns(): Promise<void> {
+    if (this.reminderColumnsEnsured) return;
+    await db.execute(sql`
+      ALTER TABLE conversations
+      ADD COLUMN IF NOT EXISTS reminder_at TIMESTAMP
+    `);
+    await db.execute(sql`
+      ALTER TABLE conversations
+      ADD COLUMN IF NOT EXISTS reminder_note TEXT
+    `);
+    await db.execute(sql`
+      ALTER TABLE conversations
+      ADD COLUMN IF NOT EXISTS reminder_updated_at TIMESTAMP
+    `);
+    this.reminderColumnsEnsured = true;
   }
 
   private async getAssignmentCursor(): Promise<number> {
@@ -180,6 +199,7 @@ export class DatabaseStorage implements IStorage {
     before?: Date;
     assignedAgentId?: number;
   } = {}): Promise<Conversation[]> {
+    await this.ensureConversationReminderColumns();
     const { limit, before, assignedAgentId } = options;
     const safeLimit =
       typeof limit === "number"
@@ -213,21 +233,25 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getConversation(id: number): Promise<Conversation | undefined> {
+    await this.ensureConversationReminderColumns();
     const [conversation] = await db.select().from(conversations).where(eq(conversations.id, id));
     return conversation;
   }
 
   async getConversationByWaId(waId: string): Promise<Conversation | undefined> {
+    await this.ensureConversationReminderColumns();
     const [conversation] = await db.select().from(conversations).where(eq(conversations.waId, waId));
     return conversation;
   }
 
   async createConversation(insertConversation: InsertConversation): Promise<Conversation> {
+    await this.ensureConversationReminderColumns();
     const [conversation] = await db.insert(conversations).values(insertConversation).returning();
     return conversation;
   }
 
   async updateConversation(id: number, updates: Partial<Conversation>): Promise<Conversation> {
+    await this.ensureConversationReminderColumns();
     const [updated] = await db
       .update(conversations)
       .set({ ...updates, updatedAt: new Date() })
