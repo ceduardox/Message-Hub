@@ -873,11 +873,22 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
             <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${conversation.contactName || conversation.waId}`} />
             <AvatarFallback>{conversation.waId.slice(0, 2)}</AvatarFallback>
           </Avatar>
-          <div className="min-w-0 flex-1 space-y-0.5">
+          <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 min-w-0">
               <h3 className="font-semibold text-foreground truncate text-sm">
                 {conversation.contactName || conversation.waId}
               </h3>
+            </div>
+            <button
+              type="button"
+              onClick={() => copyToClipboard(getWaMeLink())}
+              className="mt-0.5 text-xs text-muted-foreground hover:text-emerald-500 transition-colors text-left block"
+              data-testid="button-copy-wa-link"
+              title="Copiar enlace wa.me"
+            >
+              +{conversation.waId}
+            </button>
+            <div className="mt-1 flex items-center gap-1.5 flex-wrap">
               {currentLabel && (
                 <Badge className={cn("text-[10px] px-1.5 py-0", LABEL_COLORS.find(c => c.name === currentLabel.color)?.bg)}>
                   {currentLabel.name}
@@ -890,18 +901,9 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
                 </Badge>
               )}
             </div>
-            <button
-              type="button"
-              onClick={() => copyToClipboard(getWaMeLink())}
-              className="text-xs text-muted-foreground hover:text-emerald-500 transition-colors text-left block"
-              data-testid="button-copy-wa-link"
-              title="Copiar enlace wa.me"
-            >
-              +{conversation.waId}
-            </button>
           </div>
         </div>
-        <div className="mt-1.5 w-full flex items-center justify-center gap-1 overflow-x-auto md:mt-0 md:w-auto md:justify-end md:gap-0.5 md:overflow-visible md:border-l md:border-border/40 md:pl-2 md:ml-2">
+        <div className="mt-1.5 w-full flex items-center justify-center gap-1 overflow-x-auto md:mt-0 md:w-auto md:justify-end md:gap-0.5 md:overflow-visible md:rounded-xl md:border md:border-border/40 md:bg-slate-900/20 md:px-1.5 md:py-1 md:ml-3">
         {/* Reassign Agent Dropdown (admin only) */}
         {isAdmin && (
           <DropdownMenu>
