@@ -154,7 +154,7 @@ export default function RemindersPage() {
                     {conv.reminderNote?.trim() || "Sin nota"}
                   </p>
                   <div className="mt-3 flex gap-2">
-                    <Link href="/">
+                    <Link href={`/?conversationId=${conv.id}`}>
                       <Button variant="outline" size="sm" data-testid={`button-open-chat-${conv.id}`}>
                         Ver chat
                       </Button>

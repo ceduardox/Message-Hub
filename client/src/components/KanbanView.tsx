@@ -430,6 +430,7 @@ export function KanbanView({ conversations, isLoading, daysToShow, onDaysChange,
   const [dragOverColumn, setDragOverColumn] = useState<TabType | null>(null);
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [isSwiping, setIsSwiping] = useState(false);
+  const hasAppliedUrlConversation = useRef(false);
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
   const tabRefs = useRef<Record<TabType, HTMLButtonElement | null>>({
@@ -460,6 +461,25 @@ export function KanbanView({ conversations, isLoading, daysToShow, onDaysChange,
     if (!assignedAgentId) return null;
     return agentNameById.get(assignedAgentId) || null;
   };
+
+  useEffect(() => {
+    if (hasAppliedUrlConversation.current) return;
+    hasAppliedUrlConversation.current = true;
+
+    const params = new URLSearchParams(window.location.search);
+    const rawId = params.get("conversationId");
+    if (!rawId) return;
+
+    const conversationId = Number(rawId);
+    if (!Number.isInteger(conversationId) || conversationId <= 0) return;
+
+    setActiveId(conversationId);
+
+    params.delete("conversationId");
+    const cleanQuery = params.toString();
+    const cleanUrl = cleanQuery ? `${window.location.pathname}?${cleanQuery}` : window.location.pathname;
+    window.history.replaceState(window.history.state, "", cleanUrl);
+  }, []);
 
   const getConversationColumn = (conv: Conversation): TabType => {
     if (conv.needsHumanAttention) return "humano";
