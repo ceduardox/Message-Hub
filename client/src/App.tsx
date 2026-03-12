@@ -87,7 +87,7 @@ function Router() {
           <AdminRoute component={FollowUpPage} />
         </Route>
         <Route path="/reminders">
-          <AdminRoute component={RemindersPage} />
+          <ProtectedRoute component={RemindersPage} />
         </Route>
         <Route path="/analytics">
           <ProtectedRoute component={AnalyticsPage} />

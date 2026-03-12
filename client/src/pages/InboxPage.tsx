@@ -5,9 +5,15 @@ import { useConversations } from "@/hooks/use-inbox";
 import { NotificationBell } from "@/components/NotificationBell";
 import { KanbanView } from "@/components/KanbanView";
 import { Button } from "@/components/ui/button";
-import { LogOut, Bot, BotOff, ClipboardList, LayoutGrid, Sparkles, MessageSquare, Zap, Activity, BarChart3, Search, X, Users, Bell, Clock } from "lucide-react";
+import { LogOut, Bot, BotOff, ClipboardList, LayoutGrid, Sparkles, MessageSquare, Zap, Activity, BarChart3, Search, X, Users, Bell, Clock, EllipsisVertical } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Link, useLocation } from "wouter";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const pulseLineAnimation = `
 @keyframes pulse-line {
@@ -21,12 +27,12 @@ export default function InboxPage() {
   const INITIAL_VISIBLE_CONVERSATIONS = 50;
   const LOAD_MORE_STEP = 20;
   const { logout, user, isAdmin } = useAuth();
-  const isAgent = user?.role === "agent";
   const [daysToShow, setDaysToShow] = useState(7);
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [visibleConversations, setVisibleConversations] = useState(INITIAL_VISIBLE_CONVERSATIONS);
   const maxDays = 30;
+  const iaHref = isAdmin ? "/ai-agent" : "/agent-ai";
   const serverLimit = useMemo(
     () => (searchQuery.trim() ? Math.max(visibleConversations, 200) : visibleConversations),
     [searchQuery, visibleConversations],
@@ -198,55 +204,52 @@ export default function InboxPage() {
             <span className="text-[10px] mt-0.5 font-medium">Inbox</span>
           </button>
         </Link>
-        {isAdmin && (
-          <>
-            <Link href="/ai-agent">
-              <button className={`flex flex-col items-center px-3 py-1.5 rounded-xl transition-all ${location === '/ai-agent' ? 'text-emerald-400 bg-emerald-500/20' : 'text-slate-500'}`}>
-                <Bot className="h-5 w-5" />
-                <span className="text-[10px] mt-0.5 font-medium">IA</span>
-              </button>
-            </Link>
-            <Link href="/follow-up">
-              <button className={`flex flex-col items-center px-3 py-1.5 rounded-xl transition-all ${location === '/follow-up' ? 'text-emerald-400 bg-emerald-500/20' : 'text-slate-500'}`}>
-                <ClipboardList className="h-5 w-5" />
-                <span className="text-[10px] mt-0.5 font-medium">Seguir</span>
-              </button>
-            </Link>
-            <Link href="/agents">
-              <button className={`flex flex-col items-center px-3 py-1.5 rounded-xl transition-all ${location === '/agents' ? 'text-violet-400 bg-violet-500/20' : 'text-slate-500'}`}>
-                <Users className="h-5 w-5" />
-                <span className="text-[10px] mt-0.5 font-medium">Agentes</span>
-              </button>
-            </Link>
-          </>
-        )}
-        {isAgent && (
-          <Link href="/agent-ai">
-            <button className={`flex flex-col items-center px-3 py-1.5 rounded-xl transition-all ${location === '/agent-ai' ? 'text-emerald-400 bg-emerald-500/20' : 'text-slate-500'}`}>
-              <Bot className="h-5 w-5" />
-              <span className="text-[10px] mt-0.5 font-medium">IA Global</span>
-            </button>
-          </Link>
-        )}
+        <Link href={iaHref}>
+          <button className={`flex flex-col items-center px-3 py-1.5 rounded-xl transition-all ${location === iaHref ? 'text-emerald-400 bg-emerald-500/20' : 'text-slate-500'}`}>
+            <Bot className="h-5 w-5" />
+            <span className="text-[10px] mt-0.5 font-medium">IA</span>
+          </button>
+        </Link>
         <Link href="/analytics">
           <button className={`flex flex-col items-center px-3 py-1.5 rounded-xl transition-all ${location === '/analytics' ? 'text-cyan-400 bg-cyan-500/20' : 'text-slate-500'}`}>
             <BarChart3 className="h-5 w-5" />
             <span className="text-[10px] mt-0.5 font-medium">Stats</span>
           </button>
         </Link>
-        <Link href="/push-settings">
-          <button className={`flex flex-col items-center px-3 py-1.5 rounded-xl transition-all ${location === '/push-settings' ? 'text-emerald-400 bg-emerald-500/20' : 'text-slate-500'}`}>
-            <Bell className="h-5 w-5" />
-            <span className="text-[10px] mt-0.5 font-medium">Push</span>
-          </button>
-        </Link>
-        <button 
-          onClick={() => logout()} 
-          className="flex flex-col items-center px-3 py-1.5 rounded-xl text-slate-500 transition-all"
-        >
-          <LogOut className="h-5 w-5" />
-          <span className="text-[10px] mt-0.5 font-medium">Salir</span>
-        </button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className={`flex flex-col items-center px-3 py-1.5 rounded-xl transition-all ${(location === '/reminders' || location === '/push-settings' || location === '/follow-up' || location === '/agents') ? 'text-emerald-400 bg-emerald-500/20' : 'text-slate-500'}`}>
+              <EllipsisVertical className="h-5 w-5" />
+              <span className="text-[10px] mt-0.5 font-medium">Mas</span>
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent side="top" align="end" className="mb-2 w-48 bg-slate-900 border-slate-700 text-slate-200">
+            <DropdownMenuItem onClick={() => setLocation("/reminders")} className="focus:bg-slate-800">
+              <Clock className="h-4 w-4 mr-2 text-amber-400" />
+              Recordatorios
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setLocation("/push-settings")} className="focus:bg-slate-800">
+              <Bell className="h-4 w-4 mr-2 text-emerald-400" />
+              Push
+            </DropdownMenuItem>
+            {isAdmin && (
+              <DropdownMenuItem onClick={() => setLocation("/follow-up")} className="focus:bg-slate-800">
+                <ClipboardList className="h-4 w-4 mr-2 text-emerald-400" />
+                Seguimiento
+              </DropdownMenuItem>
+            )}
+            {isAdmin && (
+              <DropdownMenuItem onClick={() => setLocation("/agents")} className="focus:bg-slate-800">
+                <Users className="h-4 w-4 mr-2 text-violet-400" />
+                Agentes
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem onClick={() => logout()} className="focus:bg-slate-800">
+              <LogOut className="h-4 w-4 mr-2 text-red-400" />
+              Salir
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );
