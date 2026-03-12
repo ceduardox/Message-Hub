@@ -867,14 +867,14 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
     <div className="flex flex-col h-full max-h-full bg-[#efeae2] dark:bg-[#0b141a] relative overflow-hidden">
       <style dangerouslySetInnerHTML={{ __html: recordingWaveCss }} />
       {/* Chat Header */}
-      <header className="flex-shrink-0 bg-[#f0f2f5] dark:bg-[#202c33] border-b border-border/30 flex flex-col md:flex-row md:items-center md:justify-between px-3 md:px-4 py-2 md:py-0 z-20">
-        <div className="flex items-center gap-3 flex-1 min-w-0">
+      <header className="flex-shrink-0 bg-[#f0f2f5] dark:bg-[#202c33] border-b border-border/30 flex flex-col md:flex-row md:items-center md:justify-between px-3 md:px-4 py-2 md:py-1.5 z-20">
+        <div className="flex items-start md:items-center gap-3 flex-1 min-w-0">
           <Avatar className="h-10 w-10 flex-shrink-0">
             <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${conversation.contactName || conversation.waId}`} />
             <AvatarFallback>{conversation.waId.slice(0, 2)}</AvatarFallback>
           </Avatar>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
+          <div className="min-w-0 flex-1 space-y-0.5">
+            <div className="flex items-center gap-2 min-w-0">
               <h3 className="font-semibold text-foreground truncate text-sm">
                 {conversation.contactName || conversation.waId}
               </h3>
@@ -893,7 +893,7 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
             <button
               type="button"
               onClick={() => copyToClipboard(getWaMeLink())}
-              className="text-xs text-muted-foreground hover:text-emerald-500 transition-colors text-left"
+              className="text-xs text-muted-foreground hover:text-emerald-500 transition-colors text-left block"
               data-testid="button-copy-wa-link"
               title="Copiar enlace wa.me"
             >
@@ -901,12 +901,12 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
             </button>
           </div>
         </div>
-        <div className="mt-1 w-full flex items-center justify-center gap-1 overflow-x-auto md:mt-0 md:w-auto md:justify-start md:overflow-visible">
+        <div className="mt-1.5 w-full flex items-center justify-center gap-1 overflow-x-auto md:mt-0 md:w-auto md:justify-end md:gap-0.5 md:overflow-visible md:border-l md:border-border/40 md:pl-2 md:ml-2">
         {/* Reassign Agent Dropdown (admin only) */}
         {isAdmin && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="flex-shrink-0" data-testid="button-reassign-agent">
+              <Button variant="ghost" size="icon" className="flex-shrink-0 h-8 w-8" data-testid="button-reassign-agent">
                 <UserRoundCog className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -933,7 +933,7 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
         <Dialog>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="flex-shrink-0">
+              <Button variant="ghost" size="icon" className="flex-shrink-0 h-8 w-8">
                 <Tag className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -1053,7 +1053,7 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
             variant={conversation.aiDisabled ? "default" : "ghost"} 
             size="icon" 
             className={cn(
-              "flex-shrink-0",
+              "flex-shrink-0 h-8 w-8",
               conversation.aiDisabled && "bg-orange-500 text-white"
             )}
             onClick={() => toggleAiMutation.mutate(!conversation.aiDisabled)}
@@ -1069,7 +1069,7 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
           <Button 
             variant="default" 
             size="icon" 
-            className="flex-shrink-0 bg-red-500 text-white"
+            className="flex-shrink-0 h-8 w-8 bg-red-500 text-white"
             onClick={() => clearAttentionMutation.mutate()}
             title="La IA no pudo responder - Click para despejar alerta"
             data-testid="button-clear-attention"
@@ -1083,7 +1083,7 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
           variant={conversation.shouldCall ? "default" : "ghost"} 
           size="icon" 
           className={cn(
-            "flex-shrink-0",
+            "flex-shrink-0 h-8 w-8",
             conversation.shouldCall && "bg-green-500 text-white"
           )}
           onClick={() => toggleShouldCallMutation.mutate(!conversation.shouldCall)}
@@ -1097,7 +1097,7 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
           <Button
             variant="ghost"
             size="icon"
-            className="flex-shrink-0 text-red-400"
+            className="flex-shrink-0 h-8 w-8 text-red-400"
             onClick={() => {
               if (confirm("¿Eliminar esta conversación y todos sus mensajes?")) {
                 deleteConversationMutation.mutate();
@@ -1116,7 +1116,7 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
             <Button 
               variant="ghost" 
               size="icon" 
-              className="flex-shrink-0"
+              className="flex-shrink-0 h-8 w-8"
               title="Aprender de esta conversación"
               data-testid="button-learn"
             >
@@ -1206,7 +1206,7 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
               variant={conversation.orderStatus === 'ready' ? "default" : "ghost"} 
               size="icon" 
               className={cn(
-                "flex-shrink-0",
+                "flex-shrink-0 h-8 w-8",
                 conversation.orderStatus === 'ready' && "bg-green-500 text-white",
                 conversation.orderStatus === 'pending' && "text-yellow-600",
                 conversation.orderStatus === 'delivered' && "text-blue-600"

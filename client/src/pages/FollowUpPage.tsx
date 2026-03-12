@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -34,14 +34,6 @@ interface FollowUpConversation {
   messageCount: number;
 }
 
-interface ReminderConversation {
-  id: number;
-  waId: string;
-  contactName: string | null;
-  reminderAt: string | null;
-  reminderNote: string | null;
-}
-
 interface PurchaseAnalysis {
   id: number;
   conversationId: number;
@@ -68,39 +60,6 @@ export default function FollowUpPage() {
       return res.json();
     },
   });
-
-  const {
-    data: reminderConversations = [],
-    isLoading: remindersLoading,
-    refetch: refetchReminders,
-  } = useQuery<ReminderConversation[]>({
-    queryKey: ["/api/conversations", "reminders-view"],
-    queryFn: async () => {
-      const res = await fetch("/api/conversations");
-      if (!res.ok) throw new Error("Error al cargar recordatorios");
-      return res.json();
-    },
-  });
-
-  const { overdueReminders, todayReminders } = useMemo(() => {
-    const now = new Date();
-    const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const endToday = new Date(startToday);
-    endToday.setDate(endToday.getDate() + 1);
-
-    const validReminders = reminderConversations
-      .filter((c) => !!c.reminderAt)
-      .map((c) => ({ ...c, reminderDate: new Date(c.reminderAt as string) }))
-      .filter((c) => !Number.isNaN(c.reminderDate.getTime()))
-      .sort((a, b) => a.reminderDate.getTime() - b.reminderDate.getTime());
-
-    const overdue = validReminders.filter((c) => c.reminderDate < startToday);
-    const today = validReminders.filter(
-      (c) => c.reminderDate >= startToday && c.reminderDate < endToday,
-    );
-
-    return { overdueReminders: overdue, todayReminders: today };
-  }, [reminderConversations]);
 
   const sendMessageMutation = useMutation({
     mutationFn: async ({ conversationId, message }: { conversationId: number; message: string }) => {
@@ -207,22 +166,6 @@ export default function FollowUpPage() {
     });
   };
 
-  const formatReminder = (dateStr: string | null) => {
-    if (!dateStr) return "";
-    const date = new Date(dateStr);
-    const now = new Date();
-    const isToday = date.toDateString() === now.toDateString();
-    if (isToday) {
-      return date.toLocaleTimeString("es-BO", { hour: "2-digit", minute: "2-digit" });
-    }
-    return date.toLocaleString("es-BO", {
-      day: "2-digit",
-      month: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
   const getProbabilityColor = (prob: string) => {
     if (prob === "ALTA") return "bg-green-500";
     if (prob === "MEDIA") return "bg-yellow-500";
@@ -239,15 +182,12 @@ export default function FollowUpPage() {
             </Button>
           </Link>
           <h1 className="text-2xl font-bold">Seguimiento</h1>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => {
-              refetch();
-              refetchReminders();
-            }}
-            data-testid="button-refresh"
-          >
+          <Link href="/reminders">
+            <Button variant="outline" size="sm" data-testid="button-go-reminders">
+              Recordatorios
+            </Button>
+          </Link>
+          <Button variant="ghost" size="icon" onClick={() => refetch()} data-testid="button-refresh">
             <RefreshCw className="h-4 w-4" />
           </Button>
         </div>
@@ -283,85 +223,6 @@ export default function FollowUpPage() {
             Todos
           </Button>
         </div>
-
-        <Card className="mb-6 border-amber-300/60">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-amber-600" />
-                Recordatorios rapidos
-              </CardTitle>
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className="border-red-500 text-red-600">
-                  Vencidos: {overdueReminders.length}
-                </Badge>
-                <Badge variant="outline" className="border-amber-500 text-amber-700">
-                  Hoy: {todayReminders.length}
-                </Badge>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => refetchReminders()}
-                  data-testid="button-refresh-reminders"
-                  title="Actualizar recordatorios"
-                >
-                  <RefreshCw className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {remindersLoading ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Cargando recordatorios...
-              </div>
-            ) : overdueReminders.length === 0 && todayReminders.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No hay recordatorios para hoy ni vencidos.</p>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <div className="text-sm font-semibold text-red-600">Vencidos</div>
-                  {overdueReminders.slice(0, 8).map((conv) => (
-                    <div key={`overdue-${conv.id}`} className="rounded-md border border-red-300/60 p-2 bg-red-50/30">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-medium text-sm truncate">{conv.contactName || conv.waId}</span>
-                        <span className="text-xs text-red-700 whitespace-nowrap">{formatReminder(conv.reminderAt)}</span>
-                      </div>
-                      {conv.reminderNote && (
-                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{conv.reminderNote}</p>
-                      )}
-                      <div className="mt-1">
-                        <Link href="/">
-                          <Button variant="ghost" size="sm" className="h-7 px-2 text-xs">Ver chat</Button>
-                        </Link>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="space-y-2">
-                  <div className="text-sm font-semibold text-amber-700">Hoy</div>
-                  {todayReminders.slice(0, 8).map((conv) => (
-                    <div key={`today-${conv.id}`} className="rounded-md border border-amber-300/60 p-2 bg-amber-50/30">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-medium text-sm truncate">{conv.contactName || conv.waId}</span>
-                        <span className="text-xs text-amber-700 whitespace-nowrap">{formatReminder(conv.reminderAt)}</span>
-                      </div>
-                      {conv.reminderNote && (
-                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{conv.reminderNote}</p>
-                      )}
-                      <div className="mt-1">
-                        <Link href="/">
-                          <Button variant="ghost" size="sm" className="h-7 px-2 text-xs">Ver chat</Button>
-                        </Link>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
 
         {isLoading ? (
           <div className="flex justify-center py-12">

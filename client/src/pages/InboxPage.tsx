@@ -5,7 +5,7 @@ import { useConversations } from "@/hooks/use-inbox";
 import { NotificationBell } from "@/components/NotificationBell";
 import { KanbanView } from "@/components/KanbanView";
 import { Button } from "@/components/ui/button";
-import { LogOut, Bot, BotOff, ClipboardList, LayoutGrid, Sparkles, MessageSquare, Zap, Activity, BarChart3, Search, X, Users, Bell } from "lucide-react";
+import { LogOut, Bot, BotOff, ClipboardList, LayoutGrid, Sparkles, MessageSquare, Zap, Activity, BarChart3, Search, X, Users, Bell, Clock } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Link, useLocation } from "wouter";
 
@@ -139,6 +139,11 @@ export default function InboxPage() {
               <Link href="/follow-up">
                 <Button variant="ghost" size="icon" title="Seguimiento" data-testid="button-follow-up-desktop" className="text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10">
                   <ClipboardList className="h-5 w-5" />
+                </Button>
+              </Link>
+              <Link href="/reminders">
+                <Button variant="ghost" size="icon" title="Recordatorios" data-testid="button-reminders-desktop" className="text-slate-400 hover:text-amber-400 hover:bg-amber-500/10">
+                  <Clock className="h-5 w-5" />
                 </Button>
               </Link>
               <Link href="/agents">
