@@ -52,6 +52,29 @@ function isProductQuery(userMessage: string): boolean {
   return generalKeywords.some(keyword => lowerMessage.includes(keyword));
 }
 
+// Only explicit catalog browsing should inject the full product list.
+// Generic requests like "precio" should be handled by the system prompt,
+// which may prefer a problem-based entry flow instead of direct product selection.
+function isCatalogQuery(userMessage: string): boolean {
+  const lowerMessage = userMessage.toLowerCase();
+  const generalKeywords = [
+    "producto",
+    "productos",
+    "catalogo",
+    "catálogo",
+    "tienen",
+    "hay",
+    "venden",
+    "que venden",
+    "qué venden",
+    "lista",
+    "opciones",
+    "ver productos",
+  ];
+
+  return generalKeywords.some(keyword => lowerMessage.includes(keyword));
+}
+
 // Search for product context in conversation history
 function findProductInHistory(recentMessages: Message[], products: Product[]): Product | null {
   // Look through recent messages for product mentions
@@ -111,7 +134,7 @@ export async function generateAiResponse(
       if (historyProduct) {
         productContext = `${historyProduct.name} - ${historyProduct.price || "Consultar precio"}\n${historyProduct.description || ""}\n${historyProduct.imageUrl ? `Imagen: ${historyProduct.imageUrl}` : ""}`;
         productInContext = historyProduct;
-      } else if (isProductQuery(userMessage)) {
+      } else if (isCatalogQuery(userMessage)) {
         // General product query without specific product - show list
         if (allProducts.length > 0) {
           productContext = "PRODUCTOS DISPONIBLES:\n" + allProducts.map(p => 
