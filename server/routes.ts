@@ -27,6 +27,43 @@ const INCOMING_PUSH_COOLDOWN_MS = 60000;
 const FIRST_CONTACT_PROBLEM_MENU_RESPONSE = `Hola, soy Isabella de RYZTOR.
 Con gusto le ayudo. Que le interesa mejorar hoy?
 [BOTONES: Diabetes, Diabetes y peso, Dolor muscular]`;
+const BERBERINA_IMAGE_URL = "https://i.ibb.co/vC27GxKC/BERBERINA-BANNER.jpg";
+const BITTER_IMAGE_URL = "https://i.ibb.co/whdDDLLC/image-Pippit-202602222317.jpg";
+const CITRATO_IMAGE_URL = "https://i.ibb.co/Q7TYCb0F/citrato.jpg";
+const FIRST_CONTACT_ROUTE_RESPONSES = {
+  diabetes: {
+    imageUrl: BERBERINA_IMAGE_URL,
+    responseText: `🔥 *Berberina RYZTOR*
+🌟 Indicada para diabetes tipo 2 y prediabetes.
+⛔ Ayuda con control de glucosa y picos de azucar.
+⚖️ Apoya metabolismo y control de antojos.
+🫀 Contribuye al equilibrio de colesterol y trigliceridos.
+🇺🇸 Producto americano de alta calidad.
+*280 Bs* | Envio segun ciudad.
+[LISTA: Opciones Berberina | Beneficios, Indicaciones, Precio y envio, Hacer pedido, Tengo otra consulta]`,
+  },
+  diabetes_y_peso: {
+    imageUrl: BITTER_IMAGE_URL,
+    responseText: `🔥 *Berberina + Bitter Melon RYZTOR*
+🌟 Ideal para personas con diabetes que tambien buscan bajar de peso.
+⛔ Ayuda con control de azucar y picos de glucosa.
+⚖️ Apoya control de antojos, metabolismo y peso.
+🙂 Excelente apoyo para plan de diabetes y control de peso.
+🇺🇸 Producto americano de alta calidad.
+*300 Bs* | Envio segun ciudad.
+[LISTA: Opciones Berberina + Bitter | Beneficios, Indicaciones, Precio y envio, Hacer pedido, Tengo otra consulta]`,
+  },
+  dolor_muscular: {
+    imageUrl: CITRATO_IMAGE_URL,
+    responseText: `💪 *Citrato de Magnesio RYZTOR*
+🌟 Ideal para dolor muscular, calambres y tension.
+😌 Favorece relajacion, descanso y bienestar muscular.
+🦵 Apoya alivio de calambres y recuperacion muscular.
+🇺🇸 Producto americano de alta calidad.
+*300 Bs* | Envio segun ciudad.
+[LISTA: Opciones Citrato | Beneficios, Indicaciones, Precio y envio, Hacer pedido, Tengo otra consulta]`,
+  },
+} as const;
 interface BufferedMessage {
   messageForAi: string;
   imageBase64ForAi?: string;
@@ -114,6 +151,29 @@ function shouldForceFirstContactProblemMenu(
   if (hasOutboundHistory) return false;
 
   return isGenericFirstContactTrigger(messageForAi);
+}
+
+function getForcedFirstContactRouteResponse(
+  messageForAi: string,
+  recentMessages: StoredMessage[],
+) {
+  const lastTenMessages = recentMessages.slice(-10);
+  const hasRecentFirstContactMenu = lastTenMessages.some(
+    message =>
+      message.direction === "out" &&
+      typeof message.text === "string" &&
+      message.text.includes("Que le interesa mejorar hoy?") &&
+      message.text.includes("[BOTONES: Diabetes, Diabetes y peso, Dolor muscular]"),
+  );
+
+  if (!hasRecentFirstContactMenu) return null;
+
+  const normalized = normalizeInboundText(messageForAi);
+  if (normalized === "diabetes") return FIRST_CONTACT_ROUTE_RESPONSES.diabetes;
+  if (normalized === "diabetes y peso") return FIRST_CONTACT_ROUTE_RESPONSES.diabetes_y_peso;
+  if (normalized === "dolor muscular") return FIRST_CONTACT_ROUTE_RESPONSES.dolor_muscular;
+
+  return null;
 }
 
 async function ensurePushSettingsTable() {
@@ -219,6 +279,45 @@ async function processAiResponse(data: BufferedMessage) {
       await storage.updateConversation(conversationId, {
         needsHumanAttention: false,
         lastMessage: FIRST_CONTACT_PROBLEM_MENU_RESPONSE,
+        lastMessageTimestamp: new Date(),
+      });
+
+      return;
+    }
+
+    const forcedRouteResponse = getForcedFirstContactRouteResponse(messageForAi, recentMessages);
+    if (forcedRouteResponse && !imageBase64ForAi && !wasAudioMessage) {
+      const imgResponse = await sendToWhatsApp(from, "image", { imageUrl: forcedRouteResponse.imageUrl });
+      await storage.createMessage({
+        conversationId,
+        waMessageId: imgResponse.messages[0].id,
+        direction: "out",
+        type: "image",
+        text: forcedRouteResponse.imageUrl,
+        mediaId: null,
+        mimeType: null,
+        timestamp: Math.floor(Date.now() / 1000).toString(),
+        status: "sent",
+        rawJson: imgResponse,
+      });
+
+      const waResponse = await sendAiResponseToWhatsApp(from, forcedRouteResponse.responseText);
+      const waMessageId = waResponse.messages[0].id;
+
+      await storage.createMessage({
+        conversationId,
+        waMessageId,
+        direction: "out",
+        type: "text",
+        text: forcedRouteResponse.responseText,
+        timestamp: Math.floor(Date.now() / 1000).toString(),
+        status: "sent",
+        rawJson: waResponse,
+      });
+
+      await storage.updateConversation(conversationId, {
+        needsHumanAttention: false,
+        lastMessage: forcedRouteResponse.responseText,
         lastMessageTimestamp: new Date(),
       });
 
