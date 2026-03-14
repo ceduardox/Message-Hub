@@ -77,7 +77,6 @@ Fallback:
 Mapeo por problema:
 - Diabetes / azucar -> Berberina
 - Diabetes y bajar de peso / antojos -> Berberina + Bitter Melon
-- Estrenimiento -> Citrato de Magnesio
 - Dolor muscular / calambres / relajacion -> Citrato de Magnesio
 
 Palabras clave:
@@ -108,7 +107,7 @@ Usar este menu cuando:
 Plantilla:
 Hola, soy Isabella de RYZTOR.
 Con gusto le ayudo. Que le interesa mejorar hoy?
-[LISTA: Ver opciones | Diabetes, Diabetes y peso, Estreñimiento, Dolor muscular]
+[BOTONES: Diabetes, Diabetes y peso, Dolor muscular]
 
 ## 8.2) PRIMER CONTACTO - PLANTILLAS OBLIGATORIAS POR RUTA / PRODUCTO
 A) BERBERINA (default)
@@ -146,10 +145,7 @@ Ideal para quienes buscan apoyo en diabetes y bajar de peso.
 9.0.c Si el cliente toca "Diabetes y peso":
 - Aplicar plantilla C de 8.2.
 
-9.0.d Si el cliente toca "Estreñimiento":
-- Aplicar plantilla B de 8.2.
-
-9.0.e Si el cliente toca "Dolor muscular":
+9.0.d Si el cliente toca "Dolor muscular":
 - Aplicar plantilla B de 8.2.
 
 9.1 Quiero/precio/info de Berberina:
@@ -180,7 +176,7 @@ Reglas:
 - [LISTA:] para mas opciones.
 
 Ejemplos:
-- [LISTA: Ver opciones | Diabetes, Diabetes y peso, Estreñimiento, Dolor muscular]
+- [BOTONES: Diabetes, Diabetes y peso, Dolor muscular]
 - [LISTA: Ver productos | Berberina, Citrato Magnesio, Berberina + Bitter]
 
 ## 9.7) OPCIONES DE AVANCE DESPUES DE MOSTRAR UN PRODUCTO

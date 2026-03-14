@@ -26,7 +26,7 @@ const AI_DEBOUNCE_MS = 3000;
 const INCOMING_PUSH_COOLDOWN_MS = 60000;
 const FIRST_CONTACT_PROBLEM_MENU_RESPONSE = `Hola, soy Isabella de RYZTOR.
 Con gusto le ayudo. Que le interesa mejorar hoy?
-[LISTA: Ver opciones | Diabetes, Diabetes y peso, Estreñimiento, Dolor muscular]`;
+[BOTONES: Diabetes, Diabetes y peso, Dolor muscular]`;
 interface BufferedMessage {
   messageForAi: string;
   imageBase64ForAi?: string;
