@@ -693,7 +693,7 @@ function AgentCard({
                   </span>
                   <span className={cn(
                     "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium border border-current/20",
-                    agent.isAiAutoReplyEnabled ? "bg-cyan-500/20 text-cyan-400" : "bg-slate-500/20 text-slate-300"
+                    agent.isAiAutoReplyEnabled ? "bg-cyan-500/20 text-cyan-400" : "bg-red-500/20 text-red-400"
                   )}>
                     {agent.isAiAutoReplyEnabled ? <Bot className="h-3 w-3" /> : <BotOff className="h-3 w-3" />}
                     {agent.isAiAutoReplyEnabled ? "IA auto ON" : "IA auto OFF"}
@@ -785,7 +785,7 @@ function AgentCard({
               size="icon"
               onClick={onToggleAgentAiAutoReply}
               title={agent.isAiAutoReplyEnabled ? "Desactivar IA automática" : "Activar IA automática"}
-              className={agent.isAiAutoReplyEnabled ? "text-cyan-400" : "text-slate-400"}
+              className={agent.isAiAutoReplyEnabled ? "text-cyan-400" : "text-red-400"}
               data-testid={`button-toggle-agent-ai-${agent.id}`}
             >
               {agent.isAiAutoReplyEnabled ? <Bot className="h-4 w-4" /> : <BotOff className="h-4 w-4" />}
