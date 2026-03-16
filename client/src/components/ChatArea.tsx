@@ -1463,12 +1463,12 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
                       <img
                         src={`/api/media/${msg.mediaId}`}
                         alt="Media"
-                        className="max-w-full h-auto"
+                        className="max-w-full h-auto rounded-xl"
                         loading="lazy"
                         onError={() => markMediaAsFailed(msg.mediaId)}
                       />
                     ) : msg.direction === "out" && msg.text?.startsWith("http") ? (
-                      <img src={msg.text} alt="Sent image" className="max-w-full h-auto" />
+                      <img src={msg.text} alt="Sent image" className="max-w-full h-auto rounded-xl" />
                     ) : msg.mediaId && failedMediaIds[msg.mediaId] ? (
                       <div className="rounded bg-black/5 dark:bg-white/5 px-2 py-1 text-xs text-slate-500">
                         Media no disponible
