@@ -148,7 +148,9 @@ function OneSignalIdentitySync() {
       const nextExternalId =
         user?.role === "agent" && typeof user.agentId === "number"
           ? `agent:${user.agentId}`
-          : null;
+          : user?.role === "admin"
+            ? "admin:global"
+            : null;
 
       if (nextExternalId) {
         if (oneSignalWindow.oneSignalExternalId === nextExternalId) return;

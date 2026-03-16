@@ -148,9 +148,21 @@ function getAgentPushExternalId(agentId?: number | null) {
   return typeof agentId === "number" ? `agent:${agentId}` : null;
 }
 
+function getAdminPushExternalId() {
+  return "admin:global";
+}
+
+function getPushRecipientExternalIds(assignedAgentId?: number | null) {
+  const recipients = [getAdminPushExternalId()];
+  const agentExternalId = getAgentPushExternalId(assignedAgentId);
+  if (agentExternalId) {
+    recipients.push(agentExternalId);
+  }
+  return Array.from(new Set(recipients));
+}
+
 function getConversationPushOptions(conversation?: { assignedAgentId?: number | null } | null) {
-  const targetExternalId = getAgentPushExternalId(conversation?.assignedAgentId);
-  return targetExternalId ? { targetExternalIds: [targetExternalId] } : undefined;
+  return { targetExternalIds: getPushRecipientExternalIds(conversation?.assignedAgentId) };
 }
 
 function getPushTargetUrl(data?: Record<string, string>) {
@@ -1230,8 +1242,7 @@ async function queueIncomingMessagePush(
     .slice(0, 120);
   const safeSender = senderName || waId;
   const now = Date.now();
-  const targetExternalId = getAgentPushExternalId(assignedAgentId);
-  const targetExternalIds = targetExternalId ? [targetExternalId] : undefined;
+  const targetExternalIds = getPushRecipientExternalIds(assignedAgentId);
 
   let state = incomingPushStateByConversation.get(conversationId);
   if (!state) {
