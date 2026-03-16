@@ -38,12 +38,29 @@
     <style>
       #splash{position:fixed;inset:0;z-index:9999;background:#0f172a;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .3s}
       #splash.hide{opacity:0;pointer-events:none}
+      html.fast-conversation-launch #splash{opacity:0;pointer-events:none;transition:none}
       #splash .logo{width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,#10b981,#06b6d4);display:flex;align-items:center;justify-content:center;box-shadow:0 0 30px rgba(16,185,129,.4);animation:pulse-s 1.5s infinite}
       #splash .logo svg{width:28px;height:28px;color:#fff}
       #splash .title{margin-top:16px;font:700 20px Inter,sans-serif;color:#fff}
       #splash .title span{background:linear-gradient(90deg,#34d399,#22d3ee);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
       @keyframes pulse-s{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
     </style>
+    <script>
+      (function () {
+        try {
+          var params = new URLSearchParams(window.location.search);
+          var hasConversationId = params.has("conversationId");
+          if (hasConversationId) {
+            document.documentElement.classList.add("fast-conversation-launch");
+            window.__FAST_CONVERSATION_LAUNCH__ = true;
+          } else {
+            window.__FAST_CONVERSATION_LAUNCH__ = false;
+          }
+        } catch (_error) {
+          window.__FAST_CONVERSATION_LAUNCH__ = false;
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="splash">
