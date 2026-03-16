@@ -122,6 +122,7 @@ interface IncomingPushState {
   pendingCount: number;
   latestPreview: string;
   senderName: string;
+  targetExternalIds?: string[];
   timer: ReturnType<typeof setTimeout> | null;
 }
 const incomingPushStateByConversation = new Map<number, IncomingPushState>();
@@ -141,6 +142,15 @@ function normalizeInboundText(text: string): string {
     .replace(/[^a-z0-9\s]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function getAgentPushExternalId(agentId?: number | null) {
+  return typeof agentId === "number" ? `agent:${agentId}` : null;
+}
+
+function getConversationPushOptions(conversation?: { assignedAgentId?: number | null } | null) {
+  const targetExternalId = getAgentPushExternalId(conversation?.assignedAgentId);
+  return targetExternalId ? { targetExternalIds: [targetExternalId] } : undefined;
 }
 
 function isGenericFirstContactTrigger(text: string): boolean {
@@ -472,7 +482,8 @@ async function processAiResponse(data: BufferedMessage) {
       sendPushNotification(
         "Atención Humana Requerida",
         `${name}: El cliente necesita hablar con un humano`,
-        { conversationId: conversationId.toString(), waId: from, event: "human_attention" }
+        { conversationId: conversationId.toString(), waId: from, event: "human_attention" },
+        getConversationPushOptions(conversation)
       );
     } else if (aiResult && aiResult.response) {
       await storage.updateConversation(conversationId, { needsHumanAttention: false });
@@ -526,7 +537,8 @@ async function processAiResponse(data: BufferedMessage) {
         sendPushNotification(
           "Pedido Listo para Enviar",
           `${name}: Pedido completo, listo para despachar`,
-          { conversationId: conversationId.toString(), waId: from, event: "order_ready" }
+          { conversationId: conversationId.toString(), waId: from, event: "order_ready" },
+          getConversationPushOptions(conversation)
         );
       }
 
@@ -536,7 +548,8 @@ async function processAiResponse(data: BufferedMessage) {
         sendPushNotification(
           "Llamar al Cliente",
           `${name}: Alta probabilidad de compra - llamar ahora`,
-          { conversationId: conversationId.toString(), waId: from, event: "should_call" }
+          { conversationId: conversationId.toString(), waId: from, event: "should_call" },
+          getConversationPushOptions(conversation)
         );
       }
 
@@ -1047,7 +1060,12 @@ const waStatusLogs: Array<{
 }> = [];
 
 // Send push notification via OneSignal
-async function sendPushNotification(title: string, message: string, data?: Record<string, string>) {
+async function sendPushNotification(
+  title: string,
+  message: string,
+  data?: Record<string, string>,
+  options?: { targetExternalIds?: string[] },
+) {
   const apiKey = process.env.ONESIGNAL_REST_API_KEY;
   const appId = process.env.ONESIGNAL_APP_ID;
   const configuredSegmentsRaw = process.env.ONESIGNAL_SEGMENTS || process.env.ONESIGNAL_SEGMENT || "Subscribed Users";
@@ -1058,6 +1076,7 @@ async function sendPushNotification(title: string, message: string, data?: Recor
   const timestamp = new Date().toISOString();
   const event = data?.event || "unknown";
   const uniqueTopic = `${event}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const targetExternalIds = options?.targetExternalIds?.filter(Boolean) || [];
 
   console.log("[OneSignal] Attempting to send notification:", { title, message });
   console.log("[OneSignal] API Key configured:", !!apiKey);
@@ -1077,9 +1096,8 @@ async function sendPushNotification(title: string, message: string, data?: Recor
   }
 
   try {
-    const payload = {
+    const payload: Record<string, any> = {
       app_id: appId,
-      included_segments: configuredSegments,
       headings: { en: title },
       contents: { en: message },
       data: data || {},
@@ -1088,6 +1106,13 @@ async function sendPushNotification(title: string, message: string, data?: Recor
       web_push_topic: uniqueTopic,
       ttl: 60,
     };
+
+    if (targetExternalIds.length > 0) {
+      payload.include_aliases = { external_id: targetExternalIds };
+      payload.target_channel = "push";
+    } else {
+      payload.included_segments = configuredSegments;
+    }
     
     console.log("[OneSignal] Sending payload:", JSON.stringify(payload, null, 2));
     
@@ -1109,7 +1134,10 @@ async function sendPushNotification(title: string, message: string, data?: Recor
     const errorMsg = JSON.stringify(error.response?.data) || error.message;
     
     // If configured segment fails, try "All" segment as fallback
-    if (error.response?.data?.errors?.some?.((e: string) => typeof e === "string" && e.includes("Segment") && e.includes("was not found"))) {
+    if (
+      targetExternalIds.length === 0 &&
+      error.response?.data?.errors?.some?.((e: string) => typeof e === "string" && e.includes("Segment") && e.includes("was not found"))
+    ) {
       console.log("[OneSignal] Retrying with 'All' segment...");
       try {
         const fallbackResponse = await axios.post(
@@ -1170,6 +1198,8 @@ async function flushIncomingPushSummary(conversationId: number) {
     conversationId: conversationId.toString(),
     event: "incoming_message_batch",
     count: count.toString(),
+  }, {
+    targetExternalIds: state.targetExternalIds,
   });
 
   state.pendingCount = 0;
@@ -1181,6 +1211,7 @@ async function queueIncomingMessagePush(
   senderName: string,
   previewRaw: string | null | undefined,
   waId: string,
+  assignedAgentId?: number | null,
 ) {
   const prefs = await getPushNotificationPreferences();
   if (!prefs.notifyNewMessages) return;
@@ -1190,6 +1221,8 @@ async function queueIncomingMessagePush(
     .slice(0, 120);
   const safeSender = senderName || waId;
   const now = Date.now();
+  const targetExternalId = getAgentPushExternalId(assignedAgentId);
+  const targetExternalIds = targetExternalId ? [targetExternalId] : undefined;
 
   let state = incomingPushStateByConversation.get(conversationId);
   if (!state) {
@@ -1197,12 +1230,15 @@ async function queueIncomingMessagePush(
       conversationId: conversationId.toString(),
       waId,
       event: "incoming_message",
+    }, {
+      targetExternalIds,
     });
     incomingPushStateByConversation.set(conversationId, {
       lastSentAt: now,
       pendingCount: 0,
       latestPreview: preview,
       senderName: safeSender,
+      targetExternalIds,
       timer: null,
     });
     return;
@@ -1211,6 +1247,7 @@ async function queueIncomingMessagePush(
   state.pendingCount += 1;
   state.latestPreview = preview;
   state.senderName = safeSender;
+  state.targetExternalIds = targetExternalIds;
 
   if (!state.timer) {
     const elapsed = now - state.lastSentAt;
@@ -1622,6 +1659,7 @@ export async function registerRoutes(
                 conversation.contactName || name || from,
                 messageText,
                 from,
+                conversation.assignedAgentId,
               );
 
               // 5. AI Auto-Response with debounce buffer (groups rapid messages)
@@ -2318,6 +2356,7 @@ export async function registerRoutes(
           "Pedido en Proceso",
           `${updated.contactName || updated.waId}: Pedido marcado en proceso`,
           { conversationId: id.toString(), waId: updated.waId, event: "order_pending" },
+          getConversationPushOptions(updated),
         );
       }
     } else if (parsed.data.orderStatus === "ready") {
@@ -2325,12 +2364,14 @@ export async function registerRoutes(
         "Pedido Listo para Enviar",
         `${updated.contactName || updated.waId}: Pedido listo para despacho`,
         { conversationId: id.toString(), waId: updated.waId, event: "order_ready" },
+        getConversationPushOptions(updated),
       );
     } else if (parsed.data.orderStatus === "delivered") {
       sendPushNotification(
         "Pedido Entregado",
         `${updated.contactName || updated.waId}: Pedido marcado como entregado`,
         { conversationId: id.toString(), waId: updated.waId, event: "order_delivered" },
+        getConversationPushOptions(updated),
       );
     }
     res.json(updated);
@@ -2390,12 +2431,14 @@ export async function registerRoutes(
         "Atención Humana Requerida",
         `${updated.contactName || updated.waId}: El cliente necesita hablar con un humano`,
         { conversationId: id.toString(), waId: updated.waId, event: "human_attention" },
+        getConversationPushOptions(updated),
       );
     } else if (column === "llamar") {
       sendPushNotification(
         "Llamar al Cliente",
         `${updated.contactName || updated.waId}: Marcado para llamada`,
         { conversationId: id.toString(), waId: updated.waId, event: "should_call" },
+        getConversationPushOptions(updated),
       );
     } else if (column === "proceso") {
       const prefs = await getPushNotificationPreferences();
@@ -2404,6 +2447,7 @@ export async function registerRoutes(
           "Pedido en Proceso",
           `${updated.contactName || updated.waId}: Pedido marcado en proceso`,
           { conversationId: id.toString(), waId: updated.waId, event: "order_pending" },
+          getConversationPushOptions(updated),
         );
       }
     } else if (column === "listo") {
@@ -2411,12 +2455,14 @@ export async function registerRoutes(
         "Pedido Listo para Enviar",
         `${updated.contactName || updated.waId}: Pedido listo para despacho`,
         { conversationId: id.toString(), waId: updated.waId, event: "order_ready" },
+        getConversationPushOptions(updated),
       );
     } else if (column === "entregado") {
       sendPushNotification(
         "Pedido Entregado",
         `${updated.contactName || updated.waId}: Pedido marcado como entregado`,
         { conversationId: id.toString(), waId: updated.waId, event: "order_delivered" },
+        getConversationPushOptions(updated),
       );
     }
     res.json(updated);

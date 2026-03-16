@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -110,10 +110,87 @@ function Router() {
   );
 }
 
+function OneSignalIdentitySync() {
+  const { user, isLoading } = useAuth();
+
+  useEffect(() => {
+    if (isLoading) return;
+
+    let cancelled = false;
+
+    const syncIdentity = async () => {
+      const oneSignalWindow = window as typeof window & {
+        oneSignalReady?: boolean;
+        oneSignalClient?: {
+          login?: (externalId: string) => Promise<void>;
+          logout?: () => Promise<void>;
+        } | null;
+        oneSignalInitPromise?: Promise<unknown> | null;
+        oneSignalExternalId?: string | null;
+      };
+
+      if (!oneSignalWindow.oneSignalReady && oneSignalWindow.oneSignalInitPromise) {
+        try {
+          await Promise.race([
+            oneSignalWindow.oneSignalInitPromise,
+            new Promise((resolve) => setTimeout(resolve, 8000)),
+          ]);
+        } catch (error) {
+          console.error("[OneSignal] Identity sync init error:", error);
+        }
+      }
+
+      if (cancelled) return;
+
+      const client = oneSignalWindow.oneSignalClient;
+      if (!oneSignalWindow.oneSignalReady || !client) return;
+
+      const nextExternalId =
+        user?.role === "agent" && typeof user.agentId === "number"
+          ? `agent:${user.agentId}`
+          : null;
+
+      if (nextExternalId) {
+        if (oneSignalWindow.oneSignalExternalId === nextExternalId) return;
+        try {
+          if (typeof client.login === "function") {
+            await client.login(nextExternalId);
+            oneSignalWindow.oneSignalExternalId = nextExternalId;
+          }
+        } catch (error) {
+          console.error("[OneSignal] Failed to sync agent identity:", error);
+        }
+        return;
+      }
+
+      if (!oneSignalWindow.oneSignalExternalId) return;
+
+      try {
+        if (typeof client.logout === "function") {
+          await client.logout();
+        }
+      } catch (error) {
+        console.error("[OneSignal] Failed to clear identity:", error);
+      } finally {
+        oneSignalWindow.oneSignalExternalId = null;
+      }
+    };
+
+    void syncIdentity();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoading, user?.role, user?.agentId]);
+
+  return null;
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
+        <OneSignalIdentitySync />
         <Toaster />
         <Router />
       </TooltipProvider>
