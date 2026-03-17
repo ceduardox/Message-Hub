@@ -1145,7 +1145,7 @@ export default function AIAgentPage() {
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
                     data-testid="input-product-name"
-                    className="bg-slate-800/50 border-slate-600/50 text-white placeholder:text-slate-500"
+                    className="bg-white text-slate-900 placeholder:text-slate-500 border-slate-300"
                   />
                 </div>
                 <div>
@@ -1155,7 +1155,7 @@ export default function AIAgentPage() {
                     value={newPrice}
                     onChange={(e) => setNewPrice(e.target.value)}
                     data-testid="input-product-price"
-                    className="bg-slate-800/50 border-slate-600/50 text-white placeholder:text-slate-500"
+                    className="bg-white text-slate-900 placeholder:text-slate-500 border-slate-300"
                   />
                 </div>
               </div>
@@ -1166,7 +1166,7 @@ export default function AIAgentPage() {
                   value={newKeywords}
                   onChange={(e) => setNewKeywords(e.target.value)}
                   data-testid="input-product-keywords"
-                  className="bg-slate-800/50 border-slate-600/50 text-white placeholder:text-slate-500"
+                  className="bg-white text-slate-900 placeholder:text-slate-500 border-slate-300"
                 />
               </div>
               <div>
@@ -1177,7 +1177,7 @@ export default function AIAgentPage() {
                   onChange={(e) => setNewDescription(e.target.value)}
                   rows={2}
                   data-testid="textarea-product-description"
-                  className="bg-slate-800/50 border-slate-600/50 text-white placeholder:text-slate-500"
+                  className="bg-white text-slate-900 placeholder:text-slate-500 border-slate-300"
                 />
               </div>
               <div className="space-y-3">
@@ -1189,14 +1189,14 @@ export default function AIAgentPage() {
                       value={newImageUrl}
                       onChange={(e) => setNewImageUrl(e.target.value)}
                       data-testid="input-product-image-main"
-                      className="bg-slate-800/50 border-slate-600/50 text-white placeholder:text-slate-500"
+                      className="bg-white text-slate-900 placeholder:text-slate-500 border-slate-300"
                     />
                     <Input
                       type="file"
                       accept="image/*"
                       onChange={(e) => handleSelectAndUploadProductImage(e.target.files?.[0] || null, "principal", setNewImageUrl)}
                       data-testid="input-product-image-main-file"
-                      className="bg-slate-800/50 border-slate-600/50 text-white file:text-slate-300"
+                      className="bg-slate-900/80 text-slate-100 border-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-slate-700 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white hover:file:bg-slate-600"
                     />
                     {uploadingSlots.principal && (
                       <div className="space-y-1">
@@ -1211,14 +1211,14 @@ export default function AIAgentPage() {
                       value={newImageBottleUrl}
                       onChange={(e) => setNewImageBottleUrl(e.target.value)}
                       data-testid="input-product-image-bottle"
-                      className="bg-slate-800/50 border-slate-600/50 text-white placeholder:text-slate-500"
+                      className="bg-white text-slate-900 placeholder:text-slate-500 border-slate-300"
                     />
                     <Input
                       type="file"
                       accept="image/*"
                       onChange={(e) => handleSelectAndUploadProductImage(e.target.files?.[0] || null, "frasco", setNewImageBottleUrl)}
                       data-testid="input-product-image-bottle-file"
-                      className="bg-slate-800/50 border-slate-600/50 text-white file:text-slate-300"
+                      className="bg-slate-900/80 text-slate-100 border-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-slate-700 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white hover:file:bg-slate-600"
                     />
                     {uploadingSlots.frasco && (
                       <div className="space-y-1">
@@ -1233,14 +1233,14 @@ export default function AIAgentPage() {
                       value={newImageDoseUrl}
                       onChange={(e) => setNewImageDoseUrl(e.target.value)}
                       data-testid="input-product-image-dose"
-                      className="bg-slate-800/50 border-slate-600/50 text-white placeholder:text-slate-500"
+                      className="bg-white text-slate-900 placeholder:text-slate-500 border-slate-300"
                     />
                     <Input
                       type="file"
                       accept="image/*"
                       onChange={(e) => handleSelectAndUploadProductImage(e.target.files?.[0] || null, "dosis", setNewImageDoseUrl)}
                       data-testid="input-product-image-dose-file"
-                      className="bg-slate-800/50 border-slate-600/50 text-white file:text-slate-300"
+                      className="bg-slate-900/80 text-slate-100 border-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-slate-700 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white hover:file:bg-slate-600"
                     />
                     {uploadingSlots.dosis && (
                       <div className="space-y-1">
@@ -1255,14 +1255,14 @@ export default function AIAgentPage() {
                       value={newImageIngredientsUrl}
                       onChange={(e) => setNewImageIngredientsUrl(e.target.value)}
                       data-testid="input-product-image-ingredients"
-                      className="bg-slate-800/50 border-slate-600/50 text-white placeholder:text-slate-500"
+                      className="bg-white text-slate-900 placeholder:text-slate-500 border-slate-300"
                     />
                     <Input
                       type="file"
                       accept="image/*"
                       onChange={(e) => handleSelectAndUploadProductImage(e.target.files?.[0] || null, "ingredientes", setNewImageIngredientsUrl)}
                       data-testid="input-product-image-ingredients-file"
-                      className="bg-slate-800/50 border-slate-600/50 text-white file:text-slate-300"
+                      className="bg-slate-900/80 text-slate-100 border-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-slate-700 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white hover:file:bg-slate-600"
                     />
                     {uploadingSlots.ingredientes && (
                       <div className="space-y-1">
@@ -1295,12 +1295,14 @@ export default function AIAgentPage() {
                             value={editName}
                             onChange={(e) => setEditName(e.target.value)}
                             data-testid={`input-edit-name-${product.id}`}
+                            className="bg-white text-slate-900 placeholder:text-slate-500 border-slate-300"
                           />
                           <Input
                             placeholder="Precio"
                             value={editPrice}
                             onChange={(e) => setEditPrice(e.target.value)}
                             data-testid={`input-edit-price-${product.id}`}
+                            className="bg-white text-slate-900 placeholder:text-slate-500 border-slate-300"
                           />
                         </div>
                         <Input
@@ -1308,6 +1310,7 @@ export default function AIAgentPage() {
                           value={editKeywords}
                           onChange={(e) => setEditKeywords(e.target.value)}
                           data-testid={`input-edit-keywords-${product.id}`}
+                          className="bg-white text-slate-900 placeholder:text-slate-500 border-slate-300"
                         />
                         <Textarea
                           placeholder="Descripción"
@@ -1315,6 +1318,7 @@ export default function AIAgentPage() {
                           onChange={(e) => setEditDescription(e.target.value)}
                           rows={2}
                           data-testid={`textarea-edit-description-${product.id}`}
+                          className="bg-white text-slate-900 placeholder:text-slate-500 border-slate-300"
                         />
                         <div className="grid gap-2 sm:grid-cols-2">
                           <Input
@@ -1322,12 +1326,14 @@ export default function AIAgentPage() {
                             value={editImageUrl}
                             onChange={(e) => setEditImageUrl(e.target.value)}
                             data-testid={`input-edit-image-main-${product.id}`}
+                            className="bg-white text-slate-900 placeholder:text-slate-500 border-slate-300"
                           />
                           <Input
                             type="file"
                             accept="image/*"
                             onChange={(e) => handleSelectAndUploadProductImage(e.target.files?.[0] || null, `edit-principal-${product.id}`, setEditImageUrl)}
                             data-testid={`input-edit-image-main-file-${product.id}`}
+                            className="bg-slate-900/80 text-slate-100 border-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-slate-700 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white hover:file:bg-slate-600"
                           />
                           {(uploadingSlots[`edit-principal-${product.id}`] || false) && (
                             <div className="sm:col-span-2 space-y-1">
@@ -1340,12 +1346,14 @@ export default function AIAgentPage() {
                             value={editImageBottleUrl}
                             onChange={(e) => setEditImageBottleUrl(e.target.value)}
                             data-testid={`input-edit-image-bottle-${product.id}`}
+                            className="bg-white text-slate-900 placeholder:text-slate-500 border-slate-300"
                           />
                           <Input
                             type="file"
                             accept="image/*"
                             onChange={(e) => handleSelectAndUploadProductImage(e.target.files?.[0] || null, `edit-frasco-${product.id}`, setEditImageBottleUrl)}
                             data-testid={`input-edit-image-bottle-file-${product.id}`}
+                            className="bg-slate-900/80 text-slate-100 border-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-slate-700 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white hover:file:bg-slate-600"
                           />
                           {(uploadingSlots[`edit-frasco-${product.id}`] || false) && (
                             <div className="sm:col-span-2 space-y-1">
@@ -1358,12 +1366,14 @@ export default function AIAgentPage() {
                             value={editImageDoseUrl}
                             onChange={(e) => setEditImageDoseUrl(e.target.value)}
                             data-testid={`input-edit-image-dose-${product.id}`}
+                            className="bg-white text-slate-900 placeholder:text-slate-500 border-slate-300"
                           />
                           <Input
                             type="file"
                             accept="image/*"
                             onChange={(e) => handleSelectAndUploadProductImage(e.target.files?.[0] || null, `edit-dosis-${product.id}`, setEditImageDoseUrl)}
                             data-testid={`input-edit-image-dose-file-${product.id}`}
+                            className="bg-slate-900/80 text-slate-100 border-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-slate-700 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white hover:file:bg-slate-600"
                           />
                           {(uploadingSlots[`edit-dosis-${product.id}`] || false) && (
                             <div className="sm:col-span-2 space-y-1">
@@ -1376,12 +1386,14 @@ export default function AIAgentPage() {
                             value={editImageIngredientsUrl}
                             onChange={(e) => setEditImageIngredientsUrl(e.target.value)}
                             data-testid={`input-edit-image-ingredients-${product.id}`}
+                            className="bg-white text-slate-900 placeholder:text-slate-500 border-slate-300"
                           />
                           <Input
                             type="file"
                             accept="image/*"
                             onChange={(e) => handleSelectAndUploadProductImage(e.target.files?.[0] || null, `edit-ingredientes-${product.id}`, setEditImageIngredientsUrl)}
                             data-testid={`input-edit-image-ingredients-file-${product.id}`}
+                            className="bg-slate-900/80 text-slate-100 border-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-slate-700 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white hover:file:bg-slate-600"
                           />
                           {(uploadingSlots[`edit-ingredientes-${product.id}`] || false) && (
                             <div className="sm:col-span-2 space-y-1">
