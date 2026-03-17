@@ -1508,8 +1508,9 @@ export async function registerRoutes(
         maxAge: 2592000000, // 30 days
         httpOnly: true,
         sameSite: "lax",
-        secure: process.env.NODE_ENV === "production",
+        secure: "auto",
       },
+      proxy: true,
       store: new PgSessionStore({
         pool,
         tableName: "user_sessions",

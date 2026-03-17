@@ -6,6 +6,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 const app = express();
+app.set("trust proxy", 1);
 
 // Get directory path safely for both dev and production
 function getPublicPath(): string {
