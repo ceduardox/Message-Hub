@@ -21,12 +21,27 @@ const handleOpenConversationMessage = (conversationId: number) => {
   window.dispatchEvent(new CustomEvent("ryz:open-conversation", { detail: { conversationId } }));
 };
 
+const parseConversationIdFromUrl = (url: string | null | undefined): number | null => {
+  if (!url) return null;
+  try {
+    const parsed = new URL(url, window.location.origin);
+    const raw = parsed.searchParams.get("conversationId");
+    if (!raw) return null;
+    const id = Number(raw);
+    return Number.isInteger(id) && id > 0 ? id : null;
+  } catch {
+    return null;
+  }
+};
+
 if (typeof navigator !== "undefined" && navigator.serviceWorker) {
   navigator.serviceWorker.addEventListener("message", (event) => {
-    const data = event.data as { type?: string; conversationId?: number | null } | undefined;
+    const data = event.data as { type?: string; conversationId?: number | null; url?: string } | undefined;
     if (data?.type !== "RYZ_OPEN_CONVERSATION") return;
-    if (typeof data.conversationId !== "number") return;
-    handleOpenConversationMessage(data.conversationId);
+    const conversationId =
+      typeof data.conversationId === "number" ? data.conversationId : parseConversationIdFromUrl(data?.url);
+    if (typeof conversationId !== "number") return;
+    handleOpenConversationMessage(conversationId);
   });
 }
 
