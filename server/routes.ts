@@ -169,9 +169,9 @@ function getConversationPushOptions(conversation?: { assignedAgentId?: number | 
 function getPushTargetUrl(data?: Record<string, string>) {
   const conversationId = data?.conversationId;
   if (conversationId && /^\d+$/.test(conversationId)) {
-    return `https://ryzapp.org/?conversationId=${conversationId}`;
+    return `/?conversationId=${conversationId}`;
   }
-  return "https://ryzapp.org/";
+  return "/";
 }
 
 function isGenericFirstContactTrigger(text: string): boolean {
