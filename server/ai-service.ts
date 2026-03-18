@@ -167,9 +167,16 @@ export async function generateAiResponse(
 
     const resolvedAdvisorName = (advisorName || "").trim() || "Isabella";
     const promptTemplate = settings.systemPrompt || "Eres un asistente de ventas amigable.";
-    const instructions = promptTemplate
+    let instructions = promptTemplate
       .replace(/\{\{\s*AGENT_NAME\s*\}\}/gi, resolvedAdvisorName)
       .replace(/\{\{\s*NOMBRE_AGENTE\s*\}\}/gi, resolvedAdvisorName);
+    // Backward-compatible safety: if old prompt hardcodes "Isabella", map it to the active advisor.
+    if (resolvedAdvisorName.toLowerCase() !== "isabella") {
+      instructions = instructions
+        .replace(/\bsoy\s+isabella\b/gi, `soy ${resolvedAdvisorName}`)
+        .replace(/\bme\s+llamo\s+isabella\b/gi, `me llamo ${resolvedAdvisorName}`)
+        .replace(/\bisabella\b/gi, resolvedAdvisorName);
+    }
     
     const learnedRulesContext = learnedRules.length > 0 
       ? "\n=== REGLAS APRENDIDAS ===\n" + learnedRules.map(r => `- ${r.rule}`).join("\n")
@@ -177,7 +184,8 @@ export async function generateAiResponse(
     
     // Build system prompt
     const systemPrompt = `NOMBRE DE ASESORA PARA ESTA CONVERSACION: ${resolvedAdvisorName}
-Si te presentas, usa exactamente ese nombre.
+REGLA INMUTABLE: Si te presentas o mencionas nombre de asesora, usa SIEMPRE "${resolvedAdvisorName}".
+Solo usa "Isabella" cuando el nombre asignado sea exactamente Isabella.
 
 ${instructions}
 
