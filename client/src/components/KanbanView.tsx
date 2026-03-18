@@ -887,51 +887,51 @@ export function KanbanView({ conversations, isLoading, daysToShow, onDaysChange,
         onTouchCancel={handleMobileTouchCancel}
       >
         <div
-          className="h-full will-change-transform"
+          className="h-full will-change-transform relative"
           style={{
             transform: `translateX(${swipeOffset}px)`,
             transition: isSwiping ? "none" : "transform 180ms ease-out",
           }}
         >
-        {activeId && activeConversation ? (
-          <div className="h-full flex flex-col bg-slate-900">
-            <button
-              onClick={() => setActiveId(null)}
-              className="group px-3 py-2.5 border-b border-slate-700 text-left text-sm text-emerald-400 font-medium flex items-center gap-2 bg-slate-800/50 select-none transition-all duration-75 active:scale-90 active:bg-slate-700 active:text-emerald-200 active:shadow-inner active:brightness-90"
-              data-testid="button-back-kanban"
-            >
-              <ArrowLeft className="h-4 w-4 transition-transform duration-100 group-active:-translate-x-0.5" />
-              <span className="transition-transform duration-100 group-active:translate-x-0.5">Volver al Kanban</span>
-            </button>
-            <div className="flex-1 overflow-hidden">
-              <ChatArea
-                conversation={activeConversation.conversation}
-                messages={activeConversation.messages}
-              />
-            </div>
-          </div>
-        ) : (
-          <>
-              <KanbanColumn
-                title={columnData[mobileTab].title}
-                items={columnData[mobileTab].items}
-                activeId={activeId}
-                onSelect={handleSelectConversation}
-                columnType={mobileTab}
-                labels={labels}
-                showAgentAssignment={isAdmin}
-                getAssignedAgentName={getAssignedAgentName}
-                enableDrag={false}
+          <div className={cn("h-full", isMobileChatOpen && "pointer-events-none opacity-0")}>
+            <KanbanColumn
+              title={columnData[mobileTab].title}
+              items={columnData[mobileTab].items}
+              activeId={activeId}
+              onSelect={handleSelectConversation}
+              columnType={mobileTab}
+              labels={labels}
+              showAgentAssignment={isAdmin}
+              getAssignedAgentName={getAssignedAgentName}
+              enableDrag={false}
               draggingConversationId={draggingConversationId}
               isDropTarget={false}
-                onDragStartCard={handleDragStartCard}
-                onDragEndCard={handleDragEndCard}
-                onDragOverColumn={handleDragOverColumn}
-                onDropOnColumn={handleDropOnColumn}
-                unreadIds={unreadIds}
-              />
-          </>
-        )}
+              onDragStartCard={handleDragStartCard}
+              onDragEndCard={handleDragEndCard}
+              onDragOverColumn={handleDragOverColumn}
+              onDropOnColumn={handleDropOnColumn}
+              unreadIds={unreadIds}
+            />
+          </div>
+
+          {activeId && activeConversation ? (
+            <div className="absolute inset-0 z-10 h-full flex flex-col bg-slate-900">
+              <button
+                onClick={() => setActiveId(null)}
+                className="group px-3 py-2.5 border-b border-slate-700 text-left text-sm text-emerald-400 font-medium flex items-center gap-2 bg-slate-800/50 select-none transition-all duration-75 active:scale-90 active:bg-slate-700 active:text-emerald-200 active:shadow-inner active:brightness-90"
+                data-testid="button-back-kanban"
+              >
+                <ArrowLeft className="h-4 w-4 transition-transform duration-100 group-active:-translate-x-0.5" />
+                <span className="transition-transform duration-100 group-active:translate-x-0.5">Volver al Kanban</span>
+              </button>
+              <div className="flex-1 overflow-hidden">
+                <ChatArea
+                  conversation={activeConversation.conversation}
+                  messages={activeConversation.messages}
+                />
+              </div>
+            </div>
+          ) : null}
         </div>
       </div>
 
