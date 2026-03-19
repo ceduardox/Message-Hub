@@ -278,25 +278,13 @@ function resolvePublicImageUrl(imageUrl?: string | null) {
 function findCatalogProductByRouteName(products: StoredProduct[], routeProductName: string) {
   const routeName = normalizeInboundText(routeProductName);
   if (!routeName) return null;
-  const routeTokens = routeName.split(" ").filter((token) => token.length >= 4);
   return (
     products.find((product) => {
       const productName = normalizeInboundText(product.name || "");
       if (productName === routeName) return true;
       if (productName.includes(routeName) || routeName.includes(productName)) return true;
       const keywords = normalizeInboundText(product.keywords || "");
-      if (keywords && (keywords.includes(routeName) || routeName.includes(keywords))) return true;
-
-      // Flexible token overlap to match names like:
-      // "Boswellia Serrata RYZTOR" vs "Boswellia Serrata Concentrada"
-      if (routeTokens.length > 0) {
-        const haystack = `${productName} ${keywords}`.trim();
-        const overlap = routeTokens.filter((token) => haystack.includes(token)).length;
-        if (overlap >= 2) return true;
-        if (routeTokens.includes("boswellia") && haystack.includes("boswellia")) return true;
-      }
-
-      return false;
+      return Boolean(keywords && (keywords.includes(routeName) || routeName.includes(keywords)));
     }) || null
   );
 }
@@ -395,16 +383,6 @@ function getForcedFirstContactRouteResponse(
     ) {
       return FIRST_CONTACT_ROUTE_RESPONSES.diabetes_y_peso;
     }
-  }
-
-  // Direct mention support: if user asks explicitly for Boswellia (even outside button flow),
-  // force the Boswellia route so image + product block are sent consistently.
-  if (
-    normalized.includes("boswellia") ||
-    normalized.includes("bsowellia") ||
-    normalized.includes("bosiwellia")
-  ) {
-    return FIRST_CONTACT_ROUTE_RESPONSES.dolor_articular;
   }
 
   return null;
