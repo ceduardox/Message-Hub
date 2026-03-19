@@ -174,6 +174,7 @@ interface PushNotificationPreferences {
 let pushSettingsCache: { settings: PushNotificationPreferences; loadedAt: number } | null = null;
 let agentAiColumnEnsured = false;
 let productImageColumnsEnsured = false;
+let productImageStorageTableEnsured = false;
 let conversationLabelColumnsEnsured = false;
 const PUSH_SETTINGS_CACHE_TTL_MS = 15000;
 const DEFAULT_PUBLIC_BASE_URL = "https://ryzapp.org";
@@ -223,6 +224,20 @@ async function ensureProductImageColumnsExist() {
     ADD COLUMN IF NOT EXISTS image_ingredients_url TEXT
   `);
   productImageColumnsEnsured = true;
+}
+
+async function ensureProductImageStorageTableExists() {
+  if (productImageStorageTableEnsured) return;
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS product_uploaded_images (
+      id SERIAL PRIMARY KEY,
+      file_name TEXT NOT NULL UNIQUE,
+      mime_type TEXT NOT NULL,
+      data BYTEA NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )
+  `);
+  productImageStorageTableEnsured = true;
 }
 
 async function ensureConversationLabelColumnsExist() {
@@ -309,6 +324,23 @@ function getPreferredCatalogProductImage(product: StoredProduct | null) {
     resolvePublicImageUrl(product.imageIngredientsUrl) ||
     ""
   );
+}
+
+async function getStoredProductImageByFileName(fileName: string): Promise<{ mimeType: string; data: Buffer } | null> {
+  await ensureProductImageStorageTableExists();
+  const result: any = await db.execute(sql`
+    SELECT mime_type, data
+    FROM product_uploaded_images
+    WHERE file_name = ${fileName}
+    LIMIT 1
+  `);
+  const row = result?.rows?.[0];
+  if (!row?.data) return null;
+  const dataBuffer = Buffer.isBuffer(row.data) ? row.data : Buffer.from(row.data);
+  return {
+    mimeType: String(row.mime_type || "application/octet-stream"),
+    data: dataBuffer,
+  };
 }
 
 function isGenericFirstContactTrigger(text: string): boolean {
@@ -3506,6 +3538,34 @@ MÃ¡ximo 2 lÃ­neas. SÃ© especÃ­fico y prÃ¡ctico.`;
 
   // === PRODUCTS ROUTES ===
 
+  app.get("/uploads/products/:fileName", async (req, res) => {
+    try {
+      const requested = String(req.params.fileName || "");
+      const safeFileName = path.basename(requested);
+      if (!safeFileName || safeFileName !== requested) {
+        return res.status(400).send("Nombre de archivo invalido");
+      }
+
+      const stored = await getStoredProductImageByFileName(safeFileName);
+      if (stored) {
+        res.setHeader("Content-Type", stored.mimeType);
+        res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        return res.send(stored.data);
+      }
+
+      // Backward compatibility: try old filesystem location if it still exists.
+      const legacyPath = path.join(getProductUploadDirectory(), safeFileName);
+      if (fs.existsSync(legacyPath)) {
+        return res.sendFile(legacyPath);
+      }
+
+      return res.status(404).send("Imagen no encontrada");
+    } catch (error) {
+      console.error("Error serving product image:", error);
+      return res.status(500).send("Error interno");
+    }
+  });
+
   app.post("/api/products/upload-image", requireAuth, uploadProductImage.single("image"), async (req, res) => {
     try {
       const file = req.file;
@@ -3516,14 +3576,17 @@ MÃ¡ximo 2 lÃ­neas. SÃ© especÃ­fico y prÃ¡ctico.`;
         return res.status(400).json({ message: "El archivo debe ser una imagen" });
       }
 
-      const uploadDir = getProductUploadDirectory();
-      fs.mkdirSync(uploadDir, { recursive: true });
-
       const extension = path.extname(file.originalname || "").toLowerCase() || ".jpg";
       const baseName = sanitizeFilePart(path.basename(file.originalname || "producto", extension)) || "producto";
       const fileName = `${Date.now()}-${Math.floor(Math.random() * 1_000_000)}-${baseName}${extension}`;
-      const absolutePath = path.join(uploadDir, fileName);
-      fs.writeFileSync(absolutePath, file.buffer);
+      await ensureProductImageStorageTableExists();
+      await db.execute(sql`
+        INSERT INTO product_uploaded_images (file_name, mime_type, data)
+        VALUES (${fileName}, ${file.mimetype || "application/octet-stream"}, ${file.buffer})
+        ON CONFLICT (file_name) DO UPDATE
+        SET mime_type = EXCLUDED.mime_type,
+            data = EXCLUDED.data
+      `);
 
       res.json({
         url: `/uploads/products/${fileName}`,
