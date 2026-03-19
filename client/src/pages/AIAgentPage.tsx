@@ -513,6 +513,41 @@ export default function AIAgentPage() {
     }
   };
 
+  const resolveProductImageUrl = (rawUrl?: string | null) => {
+    const value = (rawUrl || "").trim();
+    if (!value) return "";
+    if (/^https?:\/\//i.test(value)) return value;
+    if (value.startsWith("/")) {
+      if (typeof window !== "undefined") {
+        return `${window.location.origin}${value}`;
+      }
+      return `https://ryzapp.org${value}`;
+    }
+    return value;
+  };
+
+  const renderImagePreview = (rawUrl: string, label: string, testId: string) => {
+    const absoluteUrl = resolveProductImageUrl(rawUrl);
+    if (!absoluteUrl) return null;
+    return (
+      <div className="rounded-md border border-slate-700/50 bg-slate-950/60 p-2 space-y-1" data-testid={testId}>
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[11px] text-slate-300">{label}</span>
+          <a href={absoluteUrl} target="_blank" rel="noreferrer" className="text-[11px] text-cyan-300 hover:text-cyan-200 underline">
+            Abrir
+          </a>
+        </div>
+        <img
+          src={absoluteUrl}
+          alt={label}
+          className="h-16 w-16 rounded object-cover border border-slate-700/60 bg-slate-900"
+          loading="lazy"
+        />
+        <p className="text-[10px] text-slate-400 break-all">{absoluteUrl}</p>
+      </div>
+    );
+  };
+
   const handleAddProduct = () => {
     if (!newName.trim()) {
       toast({ title: "El nombre es requerido", variant: "destructive" });
@@ -1191,6 +1226,7 @@ export default function AIAgentPage() {
                       data-testid="input-product-image-main"
                       className="bg-slate-800/50 border-slate-600/50 text-white placeholder:text-slate-500"
                     />
+                    {renderImagePreview(newImageUrl, "Imagen principal", "preview-product-image-main")}
                     <Input
                       type="file"
                       accept="image/*"
@@ -1213,6 +1249,7 @@ export default function AIAgentPage() {
                       data-testid="input-product-image-bottle"
                       className="bg-slate-800/50 border-slate-600/50 text-white placeholder:text-slate-500"
                     />
+                    {renderImagePreview(newImageBottleUrl, "Imagen frasco", "preview-product-image-bottle")}
                     <Input
                       type="file"
                       accept="image/*"
@@ -1235,6 +1272,7 @@ export default function AIAgentPage() {
                       data-testid="input-product-image-dose"
                       className="bg-slate-800/50 border-slate-600/50 text-white placeholder:text-slate-500"
                     />
+                    {renderImagePreview(newImageDoseUrl, "Imagen dosis", "preview-product-image-dose")}
                     <Input
                       type="file"
                       accept="image/*"
@@ -1257,6 +1295,7 @@ export default function AIAgentPage() {
                       data-testid="input-product-image-ingredients"
                       className="bg-slate-800/50 border-slate-600/50 text-white placeholder:text-slate-500"
                     />
+                    {renderImagePreview(newImageIngredientsUrl, "Imagen ingredientes", "preview-product-image-ingredients")}
                     <Input
                       type="file"
                       accept="image/*"
@@ -1328,6 +1367,7 @@ export default function AIAgentPage() {
                             data-testid={`input-edit-image-main-${product.id}`}
                             className="bg-slate-800/50 border-slate-600/50 text-white placeholder:text-slate-500"
                           />
+                          {renderImagePreview(editImageUrl, "Imagen principal", `preview-edit-image-main-${product.id}`)}
                           <Input
                             type="file"
                             accept="image/*"
@@ -1348,6 +1388,7 @@ export default function AIAgentPage() {
                             data-testid={`input-edit-image-bottle-${product.id}`}
                             className="bg-slate-800/50 border-slate-600/50 text-white placeholder:text-slate-500"
                           />
+                          {renderImagePreview(editImageBottleUrl, "Imagen frasco", `preview-edit-image-bottle-${product.id}`)}
                           <Input
                             type="file"
                             accept="image/*"
@@ -1368,6 +1409,7 @@ export default function AIAgentPage() {
                             data-testid={`input-edit-image-dose-${product.id}`}
                             className="bg-slate-800/50 border-slate-600/50 text-white placeholder:text-slate-500"
                           />
+                          {renderImagePreview(editImageDoseUrl, "Imagen dosis", `preview-edit-image-dose-${product.id}`)}
                           <Input
                             type="file"
                             accept="image/*"
@@ -1388,6 +1430,7 @@ export default function AIAgentPage() {
                             data-testid={`input-edit-image-ingredients-${product.id}`}
                             className="bg-slate-800/50 border-slate-600/50 text-white placeholder:text-slate-500"
                           />
+                          {renderImagePreview(editImageIngredientsUrl, "Imagen ingredientes", `preview-edit-image-ingredients-${product.id}`)}
                           <Input
                             type="file"
                             accept="image/*"
