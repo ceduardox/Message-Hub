@@ -1,4 +1,4 @@
-import type { Express } from "express";
+﻿import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
@@ -51,7 +51,7 @@ const FIRST_CONTACT_ROUTE_RESPONSES = {
     productName: "Selector Azucar y peso",
     imageUrl: "",
     listText: FIRST_CONTACT_AZUCAR_PESO_BUTTONS,
-    responseText: `Perfecto 👌 Te ayudo a elegir en 1 paso.
+    responseText: `Perfecto ðŸ‘Œ Te ayudo a elegir en 1 paso.
 Si deseas enfoque solo para diabetes, elige la primera opcion.
 Si tambien buscas apoyar bajar de peso, elige la segunda opcion.
 ${FIRST_CONTACT_AZUCAR_PESO_BUTTONS}`,
@@ -61,92 +61,92 @@ ${FIRST_CONTACT_AZUCAR_PESO_BUTTONS}`,
   diabetes: {
     productName: "Berberina RYZTOR",
     imageUrl: BERBERINA_IMAGE_URL,
-    listText: "[LISTA: Opciones Berberina | Beneficios, Indicaciones, Precio y envio, Hacer pedido, Tengo otra consulta]",
-    responseText: `🔥 *Berberina RYZTOR*
-🌟 Indicada para diabetes tipo 2 y prediabetes.
-⛔ Ayuda con control de glucosa y picos de azucar.
-⚖️ Apoya metabolismo y control de antojos.
-🫀 Contribuye al equilibrio de colesterol y trigliceridos.
-🇺🇸 Producto americano de alta calidad.
+    listText: "[LISTA: Opciones Berberina | Beneficios, Indicaciones, Precio y envio, Quiero hacer mi pedido, Quiero hablar con alguien, Tengo otra consulta]",
+    responseText: `ðŸ”¥ *Berberina RYZTOR*
+ðŸŒŸ Indicada para diabetes tipo 2 y prediabetes.
+â›” Ayuda con control de glucosa y picos de azucar.
+âš–ï¸ Apoya metabolismo y control de antojos.
+ðŸ«€ Contribuye al equilibrio de colesterol y trigliceridos.
+ðŸ‡ºðŸ‡¸ Producto americano de alta calidad.
 *280 Bs* | Envio segun ciudad.
-[LISTA: Opciones Berberina | Beneficios, Indicaciones, Precio y envio, Hacer pedido, Tengo otra consulta]`,
-    benefitsText: `✨ *Beneficios Berberina*
-⛔ Apoya control de glucosa y picos de azucar.
-⚖️ Ayuda con metabolismo y control de antojos.
-🫀 Tambien contribuye al equilibrio de colesterol y trigliceridos.
-[LISTA: Opciones Berberina | Beneficios, Indicaciones, Precio y envio, Hacer pedido, Tengo otra consulta]`,
-    indicationsText: `📌 *Indicaciones Berberina*
+[LISTA: Opciones Berberina | Beneficios, Indicaciones, Precio y envio, Quiero hacer mi pedido, Quiero hablar con alguien, Tengo otra consulta]`,
+    benefitsText: `âœ¨ *Beneficios Berberina*
+â›” Apoya control de glucosa y picos de azucar.
+âš–ï¸ Ayuda con metabolismo y control de antojos.
+ðŸ«€ Tambien contribuye al equilibrio de colesterol y trigliceridos.
+[LISTA: Opciones Berberina | Beneficios, Indicaciones, Precio y envio, Quiero hacer mi pedido, Quiero hablar con alguien, Tengo otra consulta]`,
+    indicationsText: `ðŸ“Œ *Indicaciones Berberina*
 Adultos: 2 capsulas al dia.
 Preferiblemente con comida.
 Rendimiento referencial: aprox 30 dias por frasco.
-[LISTA: Opciones Berberina | Beneficios, Indicaciones, Precio y envio, Hacer pedido, Tengo otra consulta]`,
+[LISTA: Opciones Berberina | Beneficios, Indicaciones, Precio y envio, Quiero hacer mi pedido, Quiero hablar con alguien, Tengo otra consulta]`,
   },
   diabetes_y_peso: {
     productName: "Berberina + Bitter Melon RYZTOR",
     imageUrl: BITTER_IMAGE_URL,
-    listText: "[LISTA: Opciones Berberina + Bitter | Beneficios, Indicaciones, Precio y envio, Hacer pedido, Tengo otra consulta]",
-    responseText: `🔥 *Berberina + Bitter Melon RYZTOR*
-🌟 Ideal para personas con diabetes que tambien buscan bajar de peso.
-⛔ Ayuda con control de azucar y picos de glucosa.
-⚖️ Apoya control de antojos, metabolismo y peso.
-🙂 Excelente apoyo para plan de diabetes y control de peso.
-🇺🇸 Producto americano de alta calidad.
+    listText: "[LISTA: Opciones Berberina + Bitter | Beneficios, Indicaciones, Precio y envio, Quiero hacer mi pedido, Quiero hablar con alguien, Tengo otra consulta]",
+    responseText: `ðŸ”¥ *Berberina + Bitter Melon RYZTOR*
+ðŸŒŸ Ideal para personas con diabetes que tambien buscan bajar de peso.
+â›” Ayuda con control de azucar y picos de glucosa.
+âš–ï¸ Apoya control de antojos, metabolismo y peso.
+ðŸ™‚ Excelente apoyo para plan de diabetes y control de peso.
+ðŸ‡ºðŸ‡¸ Producto americano de alta calidad.
 *300 Bs* | Envio segun ciudad.
-[LISTA: Opciones Berberina + Bitter | Beneficios, Indicaciones, Precio y envio, Hacer pedido, Tengo otra consulta]`,
-    benefitsText: `✨ *Beneficios Berberina + Bitter*
-⛔ Apoya control de azucar y picos de glucosa.
-⚖️ Ayuda con control de antojos, metabolismo y peso.
-🙂 Es una opcion enfocada en diabetes y control de peso.
-[LISTA: Opciones Berberina + Bitter | Beneficios, Indicaciones, Precio y envio, Hacer pedido, Tengo otra consulta]`,
-    indicationsText: `📌 *Indicaciones Berberina + Bitter*
+[LISTA: Opciones Berberina + Bitter | Beneficios, Indicaciones, Precio y envio, Quiero hacer mi pedido, Quiero hablar con alguien, Tengo otra consulta]`,
+    benefitsText: `âœ¨ *Beneficios Berberina + Bitter*
+â›” Apoya control de azucar y picos de glucosa.
+âš–ï¸ Ayuda con control de antojos, metabolismo y peso.
+ðŸ™‚ Es una opcion enfocada en diabetes y control de peso.
+[LISTA: Opciones Berberina + Bitter | Beneficios, Indicaciones, Precio y envio, Quiero hacer mi pedido, Quiero hablar con alguien, Tengo otra consulta]`,
+    indicationsText: `ðŸ“Œ *Indicaciones Berberina + Bitter*
 Adultos: 2 capsulas al dia.
 Tomarlas con comida y agua.
 Si preguntan horario, responder: preferiblemente con comida.
-[LISTA: Opciones Berberina + Bitter | Beneficios, Indicaciones, Precio y envio, Hacer pedido, Tengo otra consulta]`,
+[LISTA: Opciones Berberina + Bitter | Beneficios, Indicaciones, Precio y envio, Quiero hacer mi pedido, Quiero hablar con alguien, Tengo otra consulta]`,
   },
   dolor_y_estres: {
     productName: "Citrato de Magnesio RYZTOR",
     imageUrl: CITRATO_IMAGE_URL,
-    listText: "[LISTA: Opciones Citrato | Beneficios, Indicaciones, Precio y envio, Hacer pedido, Tengo otra consulta]",
-    responseText: `💪 *Citrato de Magnesio RYZTOR*
-🌟 Ideal para dolor muscular, calambres y tension.
-😌 Favorece relajacion, descanso y bienestar muscular.
-🦵 Apoya alivio de calambres y recuperacion muscular.
-🇺🇸 Producto americano de alta calidad.
+    listText: "[LISTA: Opciones Citrato | Beneficios, Indicaciones, Precio y envio, Quiero hacer mi pedido, Quiero hablar con alguien, Tengo otra consulta]",
+    responseText: `ðŸ’ª *Citrato de Magnesio RYZTOR*
+ðŸŒŸ Ideal para dolor muscular, calambres y tension.
+ðŸ˜Œ Favorece relajacion, descanso y bienestar muscular.
+ðŸ¦µ Apoya alivio de calambres y recuperacion muscular.
+ðŸ‡ºðŸ‡¸ Producto americano de alta calidad.
 *300 Bs* | Envio segun ciudad.
-[LISTA: Opciones Citrato | Beneficios, Indicaciones, Precio y envio, Hacer pedido, Tengo otra consulta]`,
-    benefitsText: `✨ *Beneficios Citrato*
-💪 Apoya alivio de dolor muscular, calambres y tension.
-😌 Favorece relajacion, descanso y bienestar muscular.
-🦵 Puede apoyar recuperacion muscular y confort muscular.
-[LISTA: Opciones Citrato | Beneficios, Indicaciones, Precio y envio, Hacer pedido, Tengo otra consulta]`,
-    indicationsText: `📌 *Indicaciones Citrato*
+[LISTA: Opciones Citrato | Beneficios, Indicaciones, Precio y envio, Quiero hacer mi pedido, Quiero hablar con alguien, Tengo otra consulta]`,
+    benefitsText: `âœ¨ *Beneficios Citrato*
+ðŸ’ª Apoya alivio de dolor muscular, calambres y tension.
+ðŸ˜Œ Favorece relajacion, descanso y bienestar muscular.
+ðŸ¦µ Puede apoyar recuperacion muscular y confort muscular.
+[LISTA: Opciones Citrato | Beneficios, Indicaciones, Precio y envio, Quiero hacer mi pedido, Quiero hablar con alguien, Tengo otra consulta]`,
+    indicationsText: `ðŸ“Œ *Indicaciones Citrato*
 Adultos: 2 capsulas al dia.
 Preferiblemente con comida.
 Si preguntan horario, responder: preferiblemente con una comida del dia.
-[LISTA: Opciones Citrato | Beneficios, Indicaciones, Precio y envio, Hacer pedido, Tengo otra consulta]`,
+[LISTA: Opciones Citrato | Beneficios, Indicaciones, Precio y envio, Quiero hacer mi pedido, Quiero hablar con alguien, Tengo otra consulta]`,
   },
   dolor_articular: {
     productName: "Boswellia Serrata RYZTOR",
     imageUrl: BOSWELLIA_IMAGE_URL,
-    listText: "[LISTA: Opciones Boswellia | Beneficios, Indicaciones, Precio y envio, Hacer pedido, Tengo otra consulta]",
-    responseText: `🌿 *Boswellia Serrata RYZTOR*
-🌟 Enfocada en dolor articular por artritis y artrosis.
-🦴 Apoya desinflamacion y movilidad de articulaciones.
-💪 Ayuda a reducir rigidez y mejorar confort al caminar.
-🇺🇸 Producto americano de alta calidad.
+    listText: "[LISTA: Opciones Boswellia | Beneficios, Indicaciones, Precio y envio, Quiero hacer mi pedido, Quiero hablar con alguien, Tengo otra consulta]",
+    responseText: `ðŸŒ¿ *Boswellia Serrata RYZTOR*
+ðŸŒŸ Enfocada en dolor articular por artritis y artrosis.
+ðŸ¦´ Apoya desinflamacion y movilidad de articulaciones.
+ðŸ’ª Ayuda a reducir rigidez y mejorar confort al caminar.
+ðŸ‡ºðŸ‡¸ Producto americano de alta calidad.
 *320 Bs* | Envio segun ciudad.
-[LISTA: Opciones Boswellia | Beneficios, Indicaciones, Precio y envio, Hacer pedido, Tengo otra consulta]`,
-    benefitsText: `✨ *Beneficios Boswellia Serrata*
-🦴 Apoya desinflamacion articular en artritis y artrosis.
-🚶 Puede mejorar movilidad y reducir rigidez articular.
-💪 Ayuda al confort en rodillas, caderas y manos.
-[LISTA: Opciones Boswellia | Beneficios, Indicaciones, Precio y envio, Hacer pedido, Tengo otra consulta]`,
-    indicationsText: `📌 *Indicaciones Boswellia Serrata*
+[LISTA: Opciones Boswellia | Beneficios, Indicaciones, Precio y envio, Quiero hacer mi pedido, Quiero hablar con alguien, Tengo otra consulta]`,
+    benefitsText: `âœ¨ *Beneficios Boswellia Serrata*
+ðŸ¦´ Apoya desinflamacion articular en artritis y artrosis.
+ðŸš¶ Puede mejorar movilidad y reducir rigidez articular.
+ðŸ’ª Ayuda al confort en rodillas, caderas y manos.
+[LISTA: Opciones Boswellia | Beneficios, Indicaciones, Precio y envio, Quiero hacer mi pedido, Quiero hablar con alguien, Tengo otra consulta]`,
+    indicationsText: `ðŸ“Œ *Indicaciones Boswellia Serrata*
 Adultos: 2 capsulas al dia.
 Tomarlas con comida y agua.
 Constancia diaria recomendada para mejor resultado.
-[LISTA: Opciones Boswellia | Beneficios, Indicaciones, Precio y envio, Hacer pedido, Tengo otra consulta]`,
+[LISTA: Opciones Boswellia | Beneficios, Indicaciones, Precio y envio, Quiero hacer mi pedido, Quiero hablar con alguien, Tengo otra consulta]`,
   },
 } as const;
 interface BufferedMessage {
@@ -666,7 +666,7 @@ async function processAiResponse(data: BufferedMessage) {
       await storage.updateConversation(conversationId, { needsHumanAttention: true });
       console.log("=== AI NEEDS HUMAN - MARKED FOR ATTENTION ===", conversationId);
       sendPushNotification(
-        "Atención Humana Requerida",
+        "AtenciÃ³n Humana Requerida",
         `${name}: El cliente necesita hablar con un humano`,
         { conversationId: conversationId.toString(), waId: from, event: "human_attention" },
         getConversationPushOptions(conversation)
@@ -1533,7 +1533,7 @@ async function sendAiResponseToWhatsApp(to: string, responseText: string) {
   if (parsed.buttons && parsed.buttons.length > 0) {
     const interactive = {
       type: "button",
-      body: { text: parsed.cleanText || "Elige una opción:" },
+      body: { text: parsed.cleanText || "Elige una opciÃ³n:" },
       action: {
         buttons: parsed.buttons.map((btn, i) => ({
           type: "reply",
@@ -1547,7 +1547,7 @@ async function sendAiResponseToWhatsApp(to: string, responseText: string) {
   if (parsed.list && parsed.list.options.length > 0) {
     const interactive = {
       type: "list",
-      body: { text: parsed.cleanText || "Elige una opción:" },
+      body: { text: parsed.cleanText || "Elige una opciÃ³n:" },
       action: {
         button: parsed.list.title.substring(0, 20),
         sections: [{
@@ -1717,11 +1717,11 @@ export async function registerRoutes(
                 const locAddress = loc?.address || '';
                 
                 messageText = locName 
-                  ? `[Ubicación: ${locName}${locAddress ? ' - ' + locAddress : ''}]`
-                  : `[Ubicación GPS: ${lat}, ${lon}]`;
+                  ? `[UbicaciÃ³n: ${locName}${locAddress ? ' - ' + locAddress : ''}]`
+                  : `[UbicaciÃ³n GPS: ${lat}, ${lon}]`;
                 
                 // Tell AI they received a location/address
-                messageForAi = `[El cliente envió su UBICACIÓN/DIRECCIÓN DE ENTREGA: ${locName || 'Ubicación GPS'}${locAddress ? ', ' + locAddress : ''}. Coordenadas: ${lat}, ${lon}. Esto significa que está compartiendo su dirección para un pedido.]`;
+                messageForAi = `[El cliente enviÃ³ su UBICACIÃ“N/DIRECCIÃ“N DE ENTREGA: ${locName || 'UbicaciÃ³n GPS'}${locAddress ? ', ' + locAddress : ''}. Coordenadas: ${lat}, ${lon}. Esto significa que estÃ¡ compartiendo su direcciÃ³n para un pedido.]`;
                 
                 console.log("=== LOCATION RECEIVED ===", { lat, lon, locName, locAddress });
               } else if (msg.type === 'image') {
@@ -1744,18 +1744,18 @@ export async function registerRoutes(
                     });
                     
                     imageBase64ForAi = Buffer.from(imageResponse.data).toString('base64');
-                    messageForAi = 'El cliente envió esta imagen. Analiza qué producto muestra y responde.';
+                    messageForAi = 'El cliente enviÃ³ esta imagen. Analiza quÃ© producto muestra y responde.';
                     console.log("=== IMAGE DOWNLOADED FOR VISION ===", { imageId, size: imageResponse.data.byteLength });
                   } catch (imgError) {
                     console.error("Error downloading image for vision:", imgError);
-                    messageForAi = '[El cliente envió una imagen que no se pudo analizar]';
+                    messageForAi = '[El cliente enviÃ³ una imagen que no se pudo analizar]';
                   }
                 } else {
-                  messageForAi = '[El cliente envió una imagen]';
+                  messageForAi = '[El cliente enviÃ³ una imagen]';
                 }
               } else if (msg.type === 'sticker') {
                 messageText = '[Sticker]';
-                messageForAi = '[El cliente envió un sticker]';
+                messageForAi = '[El cliente enviÃ³ un sticker]';
               } else if (msg.type === 'audio') {
                 // Handle voice notes and audio messages
                 wasAudioMessage = true;
@@ -1773,11 +1773,11 @@ export async function registerRoutes(
                     console.log("=== AUDIO TRANSCRIBED ===", transcription);
                   } else {
                     messageText = '[Audio - no se pudo transcribir]';
-                    messageForAi = '[El cliente envió un audio que no se pudo transcribir]';
+                    messageForAi = '[El cliente enviÃ³ un audio que no se pudo transcribir]';
                   }
                 } else {
                   messageText = '[Audio]';
-                  messageForAi = '[El cliente envió un audio]';
+                  messageForAi = '[El cliente enviÃ³ un audio]';
                 }
               } else if (msg.type === 'interactive') {
                 // Handle button or list replies
@@ -1790,12 +1790,12 @@ export async function registerRoutes(
                   messageForAi = interactiveReply.list_reply.title;
                 } else {
                   messageText = `[Respuesta interactiva]`;
-                  messageForAi = `[El cliente seleccionó una opción interactiva]`;
+                  messageForAi = `[El cliente seleccionÃ³ una opciÃ³n interactiva]`;
                 }
                 console.log("=== INTERACTIVE REPLY ===", messageText);
               } else {
                 messageText = `[${msg.type}]`;
-                messageForAi = `[El cliente envió un mensaje de tipo: ${msg.type}]`;
+                messageForAi = `[El cliente enviÃ³ un mensaje de tipo: ${msg.type}]`;
               }
 
               // 2. Ensure Conversation Exists (now using correct messageText)
@@ -2560,7 +2560,7 @@ export async function registerRoutes(
     }
 
     if (parsedLabelIds.length > 2) {
-      return res.status(400).json({ message: "Solo se permiten 2 etiquetas por conversación" });
+      return res.status(400).json({ message: "Solo se permiten 2 etiquetas por conversaciÃ³n" });
     }
 
     for (const labelId of parsedLabelIds) {
@@ -2720,7 +2720,7 @@ export async function registerRoutes(
     const updated = await storage.updateConversation(id, updates);
     if (column === "humano") {
       sendPushNotification(
-        "Atención Humana Requerida",
+        "AtenciÃ³n Humana Requerida",
         `${updated.contactName || updated.waId}: El cliente necesita hablar con un humano`,
         { conversationId: id.toString(), waId: updated.waId, event: "human_attention" },
         getConversationPushOptions(updated),
@@ -2859,7 +2859,7 @@ export async function registerRoutes(
     
     // Build conversation context for analysis
     const recentMessages = messages.slice(-10).map(m => 
-      `${m.direction === 'in' ? 'Cliente' : 'Tú'}: ${m.text || '[media]'}`
+      `${m.direction === 'in' ? 'Cliente' : 'TÃº'}: ${m.text || '[media]'}`
     ).join('\n');
     
     try {
@@ -2872,11 +2872,11 @@ export async function registerRoutes(
         messages: [
           {
             role: 'system',
-            content: `Analiza esta conversación y responde SOLO con uno de estos: ALTA, MEDIA, BAJA.
-ALTA = cliente mostró interés claro en comprar, pidió precios, preguntó por disponibilidad
-MEDIA = cliente tiene interés pero no ha decidido, hizo preguntas generales
-BAJA = solo preguntas informativas, sin intención clara de compra
-Responde en formato: PROBABILIDAD|razón breve (max 20 palabras)`
+            content: `Analiza esta conversaciÃ³n y responde SOLO con uno de estos: ALTA, MEDIA, BAJA.
+ALTA = cliente mostrÃ³ interÃ©s claro en comprar, pidiÃ³ precios, preguntÃ³ por disponibilidad
+MEDIA = cliente tiene interÃ©s pero no ha decidido, hizo preguntas generales
+BAJA = solo preguntas informativas, sin intenciÃ³n clara de compra
+Responde en formato: PROBABILIDAD|razÃ³n breve (max 20 palabras)`
           },
           {
             role: 'user',
@@ -2885,11 +2885,11 @@ Responde en formato: PROBABILIDAD|razón breve (max 20 palabras)`
         ]
       });
       
-      const result = response.choices[0]?.message?.content || 'BAJA|Sin información suficiente';
+      const result = response.choices[0]?.message?.content || 'BAJA|Sin informaciÃ³n suficiente';
       const [probability, reason] = result.split('|');
       
       const prob = probability?.trim() || 'BAJA';
-      const reasoning = reason?.trim() || 'Sin información';
+      const reasoning = reason?.trim() || 'Sin informaciÃ³n';
       
       // If high probability, mark for calling
       if (prob === 'ALTA') {
@@ -2933,11 +2933,11 @@ Responde en formato: PROBABILIDAD|razón breve (max 20 palabras)`
     const settings = await storage.getAiSettings();
     
     if (!settings?.enabled || !process.env.OPENAI_API_KEY) {
-      return res.json({ message: '¡Hola! ¿Cómo estás? Me gustaría saber si tienes alguna pregunta.' });
+      return res.json({ message: 'Â¡Hola! Â¿CÃ³mo estÃ¡s? Me gustarÃ­a saber si tienes alguna pregunta.' });
     }
     
     const recentMessages = messages.slice(-6).map(m => 
-      `${m.direction === 'in' ? 'Cliente' : 'Tú'}: ${m.text || '[media]'}`
+      `${m.direction === 'in' ? 'Cliente' : 'TÃº'}: ${m.text || '[media]'}`
     ).join('\n');
     
     try {
@@ -2950,22 +2950,22 @@ Responde en formato: PROBABILIDAD|razón breve (max 20 palabras)`
         messages: [
           {
             role: 'system',
-            content: `Genera un mensaje de seguimiento amigable y corto (máximo 2 líneas) para retomar contacto con este cliente. 
-El mensaje debe ser natural, no invasivo, y relacionado con la conversación anterior.
-NO uses saludos formales. Sé directo y amigable.`
+            content: `Genera un mensaje de seguimiento amigable y corto (mÃ¡ximo 2 lÃ­neas) para retomar contacto con este cliente. 
+El mensaje debe ser natural, no invasivo, y relacionado con la conversaciÃ³n anterior.
+NO uses saludos formales. SÃ© directo y amigable.`
           },
           {
             role: 'user',
-            content: `Conversación:\n${recentMessages}\n\nGenera un mensaje de seguimiento:`
+            content: `ConversaciÃ³n:\n${recentMessages}\n\nGenera un mensaje de seguimiento:`
           }
         ]
       });
       
-      const message = response.choices[0]?.message?.content || '¡Hola! ¿Tienes alguna pregunta?';
+      const message = response.choices[0]?.message?.content || 'Â¡Hola! Â¿Tienes alguna pregunta?';
       res.json({ message: message.trim() });
     } catch (error: any) {
       console.error('Error generating follow-up:', error);
-      res.json({ message: '¡Hola! ¿Cómo estás? Me gustaría saber si tienes alguna pregunta.' });
+      res.json({ message: 'Â¡Hola! Â¿CÃ³mo estÃ¡s? Me gustarÃ­a saber si tienes alguna pregunta.' });
     }
   });
 
@@ -3452,7 +3452,7 @@ NO uses saludos formales. Sé directo y amigable.`
 
       const conversation = await storage.getConversation(conversationId);
       if (!conversation) {
-        return res.status(404).json({ message: "Conversación no encontrada" });
+        return res.status(404).json({ message: "ConversaciÃ³n no encontrada" });
       }
 
       const messages = await storage.getMessages(conversationId);
@@ -3467,18 +3467,18 @@ NO uses saludos formales. Sé directo y amigable.`
       ).join('\n');
 
       const focusPrompt = focus 
-        ? `Enfócate específicamente en: ${focus}`
-        : 'Identifica la lección o estrategia más importante';
+        ? `EnfÃ³cate especÃ­ficamente en: ${focus}`
+        : 'Identifica la lecciÃ³n o estrategia mÃ¡s importante';
 
-      const prompt = `Analiza esta conversación de ventas por WhatsApp y extrae UNA regla o estrategia que se pueda aplicar en futuras conversaciones.
+      const prompt = `Analiza esta conversaciÃ³n de ventas por WhatsApp y extrae UNA regla o estrategia que se pueda aplicar en futuras conversaciones.
 
 ${focusPrompt}
 
-CONVERSACIÓN:
+CONVERSACIÃ“N:
 ${conversationText}
 
-Responde SOLO con la regla/estrategia en formato: "Cuando [situación], entonces [acción/respuesta]"
-Máximo 2 líneas. Sé específico y práctico.`;
+Responde SOLO con la regla/estrategia en formato: "Cuando [situaciÃ³n], entonces [acciÃ³n/respuesta]"
+MÃ¡ximo 2 lÃ­neas. SÃ© especÃ­fico y prÃ¡ctico.`;
 
       const openai = new (await import('openai')).default({
         apiKey: process.env.OPENAI_API_KEY,
@@ -3500,7 +3500,7 @@ Máximo 2 líneas. Sé específico y práctico.`;
       });
     } catch (error: any) {
       console.error("Error learning from conversation:", error);
-      res.status(500).json({ message: error.message || "Error al analizar conversación" });
+      res.status(500).json({ message: error.message || "Error al analizar conversaciÃ³n" });
     }
   });
 
@@ -3510,7 +3510,7 @@ Máximo 2 líneas. Sé específico y práctico.`;
     try {
       const file = req.file;
       if (!file) {
-        return res.status(400).json({ message: "No se recibiÃ³ imagen" });
+        return res.status(400).json({ message: "No se recibiÃƒÂ³ imagen" });
       }
       if (!file.mimetype?.startsWith("image/")) {
         return res.status(400).json({ message: "El archivo debe ser una imagen" });
@@ -3572,7 +3572,7 @@ Máximo 2 líneas. Sé específico y práctico.`;
       const id = parseInt(req.params.id);
       const updateSchema = insertProductSchema.partial().refine(
         (data) => data.name === undefined || (data.name && data.name.length > 0),
-        { message: "El nombre no puede estar vacío" }
+        { message: "El nombre no puede estar vacÃ­o" }
       );
       const parsed = updateSchema.parse(req.body);
       const product = await storage.updateProduct(id, parsed);
@@ -3809,3 +3809,4 @@ Máximo 2 líneas. Sé específico y práctico.`;
 
   return httpServer;
 }
+
