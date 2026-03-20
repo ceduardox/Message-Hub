@@ -81,7 +81,7 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
   const canToggleConversationAi = user?.role === "admin" || user?.role === "agent";
-  const [text, setText] = useState("");
+  const [hasTextDraft, setHasTextDraft] = useState(false);
   const [imageUrl, setImageUrl] = useState("");
   const [showImageInput, setShowImageInput] = useState(false);
   const [showDebug, setShowDebug] = useState(false);
@@ -145,7 +145,7 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
       return res.json();
     },
     onSuccess: () => {
-      setText("");
+      setComposerText("");
       setSelectedFile(null);
       setSelectedFileType(null);
       setFilePreview(null);
@@ -178,7 +178,7 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
       return res.json();
     },
     onSuccess: () => {
-      setText("");
+      setComposerText("");
       setSelectedFile(null);
       setSelectedFileType(null);
       setFilePreview(null);
@@ -204,7 +204,7 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
       return res.json();
     },
     onSuccess: () => {
-      setText("");
+      setComposerText("");
       setSelectedFile(null);
       setSelectedFileType(null);
       setFilePreview(null);
@@ -308,12 +308,18 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
     textarea.style.overflowY = textarea.scrollHeight > maxHeight ? "auto" : "hidden";
   };
 
-  useEffect(() => {
-    resizeMessageInput();
-  }, [text]);
+  const getComposerText = () => messageInputRef.current?.value || "";
+
+  const setComposerText = (value: string) => {
+    const textarea = messageInputRef.current;
+    if (!textarea) return;
+    textarea.value = value;
+    setHasTextDraft(Boolean(value.trim()));
+    requestAnimationFrame(() => resizeMessageInput());
+  };
 
   useEffect(() => {
-    setText("");
+    setComposerText("");
     requestAnimationFrame(() => resizeMessageInput());
   }, [conversation.id]);
 
@@ -1040,31 +1046,32 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
 
   const handleSend = (e?: React.FormEvent) => {
     e?.preventDefault();
+    const composerText = getComposerText().trim();
     
     if (selectedFile) {
       if (selectedFileType === "audio") {
         uploadAudioMutation.mutate({ file: selectedFile, to: conversation.waId });
       } else if (selectedFileType === "document") {
-        uploadDocumentMutation.mutate({ file: selectedFile, to: conversation.waId, caption: text.trim() || undefined });
+        uploadDocumentMutation.mutate({ file: selectedFile, to: conversation.waId, caption: composerText || undefined });
       } else {
-        uploadImageMutation.mutate({ file: selectedFile, to: conversation.waId, caption: text.trim() || undefined });
+        uploadImageMutation.mutate({ file: selectedFile, to: conversation.waId, caption: composerText || undefined });
       }
       return;
     }
 
-    if ((!text.trim() && !imageUrl.trim()) || isPending) return;
+    if ((!composerText && !imageUrl.trim()) || isPending) return;
 
     sendMessage(
       {
         to: conversation.waId,
         type: imageUrl ? "image" : "text",
-        text: text.trim() || undefined,
+        text: composerText || undefined,
         imageUrl: imageUrl.trim() || undefined,
-        caption: imageUrl && text ? text : undefined
+        caption: imageUrl && composerText ? composerText : undefined
       },
       {
         onSuccess: () => {
-          setText("");
+          setComposerText("");
           setImageUrl("");
           setShowImageInput(false);
         }
@@ -1144,7 +1151,7 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
   };
 
   const handleQuickMessage = (qm: QuickMessage) => {
-    if (qm.text) setText(qm.text);
+    if (qm.text) setComposerText(qm.text);
     if (qm.imageUrl) {
       setImageUrl(qm.imageUrl);
       setShowImageInput(true);
@@ -1909,7 +1916,7 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
           <img src={imageUrl} alt="Preview" className="h-16 w-16 object-cover rounded" onError={(e) => (e.currentTarget.style.display = 'none')} />
           <div className="flex-1 min-w-0">
             <p className="text-xs text-muted-foreground truncate">{imageUrl}</p>
-            {text && <p className="text-sm truncate">{text}</p>}
+            {hasTextDraft && <p className="text-sm truncate">{getComposerText()}</p>}
           </div>
           <Button size="icon" variant="ghost" onClick={() => { setImageUrl(""); setShowImageInput(false); }}>
             <X className="h-4 w-4" />
@@ -2064,12 +2071,12 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
 
           <Textarea
             ref={messageInputRef}
-            value={text}
-            onChange={(e) => {
-              setText(e.target.value);
+            onInput={(e) => {
+              const value = (e.target as HTMLTextAreaElement).value;
+              const hasDraft = value.trim().length > 0;
+              setHasTextDraft((prev) => (prev === hasDraft ? prev : hasDraft));
               requestAnimationFrame(() => resizeMessageInput());
             }}
-            onInput={() => resizeMessageInput()}
             onKeyDown={handleKeyDown}
             placeholder="Escribe un mensaje..."
             className="flex-1 min-w-0 min-h-[40px] max-h-[200px] md:max-h-[140px] resize-none overflow-hidden border-0 bg-white dark:bg-[#2a3942] rounded-3xl px-3 md:px-4 py-2 text-sm leading-[1.35] focus-visible:ring-0"
@@ -2090,7 +2097,7 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
 
           <Button
             onClick={() => handleSend()}
-            disabled={(!text && !imageUrl && !selectedFile) || isPending || uploadImageMutation.isPending || uploadAudioMutation.isPending || uploadDocumentMutation.isPending || isRecording}
+            disabled={(!hasTextDraft && !imageUrl && !selectedFile) || isPending || uploadImageMutation.isPending || uploadAudioMutation.isPending || uploadDocumentMutation.isPending || isRecording}
             size="icon"
             className="rounded-full h-9 w-9 md:h-10 md:w-10 flex-shrink-0"
           >
