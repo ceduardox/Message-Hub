@@ -378,7 +378,7 @@ export default function RemindersPage() {
     >
       <CardHeader className={compact ? "pb-2 pt-4" : "pb-2"}>
         <div className="flex items-center justify-between gap-2 flex-wrap">
-          <CardTitle className={cn("text-base text-slate-100", conv.reminderDone && "line-through decoration-2 decoration-red-400 opacity-75")}>
+          <CardTitle className={cn("text-sm sm:text-base text-slate-100", conv.reminderDone && "line-through decoration-2 decoration-red-400 opacity-75")}>
             {conv.contactName || conv.waId}
           </CardTitle>
           <Badge variant="outline" className="border-amber-400/70 bg-amber-500/10 text-amber-300 font-semibold">
@@ -387,18 +387,18 @@ export default function RemindersPage() {
         </div>
       </CardHeader>
       <CardContent className="pt-0">
-        <p className={cn("text-sm text-slate-300 break-words", conv.reminderDone && "line-through decoration-2 decoration-red-400 opacity-75")}>
+        <p className={cn("text-xs sm:text-sm text-slate-300 break-words", conv.reminderDone && "line-through decoration-2 decoration-red-400 opacity-75")}>
           {conv.reminderNote?.trim() || "Sin nota"}
         </p>
         {conv.reminderDone && (
           <Badge className="mt-2 bg-emerald-500/20 text-emerald-300 border border-emerald-400/40">Completado</Badge>
         )}
-        <div className="mt-3 flex gap-2">
+        <div className="mt-3 flex flex-wrap gap-2">
           <Link href={`/?conversationId=${conv.id}`}>
             <Button
               variant="outline"
               size="sm"
-              className="border-slate-500/80 bg-slate-800/70 text-slate-100 hover:bg-slate-700/80"
+              className="h-8 px-2.5 text-xs sm:h-9 sm:px-3 sm:text-sm border-slate-500/80 bg-slate-800/70 text-slate-100 hover:bg-slate-700/80"
               data-testid={`button-open-chat-${conv.id}`}
             >
               Ver chat
@@ -408,7 +408,7 @@ export default function RemindersPage() {
             variant="outline"
             size="sm"
             className={cn(
-              "border-emerald-500/50 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/20",
+              "h-8 px-2.5 text-xs sm:h-9 sm:px-3 sm:text-sm border-emerald-500/50 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/20",
               conv.reminderDone && "bg-emerald-500/25",
             )}
             onClick={() => toggleReminderDoneMutation.mutate({ conversationId: conv.id, reminderDone: !Boolean(conv.reminderDone) })}
@@ -420,7 +420,7 @@ export default function RemindersPage() {
           <Button
             variant="outline"
             size="sm"
-            className="border-cyan-500/50 bg-cyan-500/10 text-cyan-200 hover:bg-cyan-500/20"
+            className="h-8 px-2.5 text-xs sm:h-9 sm:px-3 sm:text-sm border-cyan-500/50 bg-cyan-500/10 text-cyan-200 hover:bg-cyan-500/20"
             onClick={() => openEditReminder(conv)}
             data-testid={`button-edit-reminder-${conv.id}`}
           >
@@ -432,7 +432,7 @@ export default function RemindersPage() {
             size="sm"
             onClick={() => clearReminderMutation.mutate(conv.id)}
             disabled={clearReminderMutation.isPending}
-            className="px-2"
+            className="h-8 px-2 sm:h-9"
             data-testid={`button-clear-reminder-${conv.id}`}
             title="Eliminar recordatorio"
           >
