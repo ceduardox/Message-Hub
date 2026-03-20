@@ -442,14 +442,18 @@ export default function RemindersPage() {
     </Card>
   );
 
-  const renderAgendaEvent = (item: AgendaItem, stacked = false) => {
+  const renderAgendaEvent = (
+    item: AgendaItem,
+    options: { stacked?: boolean; compact?: boolean; showActions?: boolean } = {},
+  ) => {
+    const { stacked = false, compact = false, showActions = true } = options;
     const top = (item.startMin / 60) * HOUR_ROW_HEIGHT;
     const height = Math.max(((item.endMin - item.startMin) / 60) * HOUR_ROW_HEIGHT, 34);
     const leftPercent = (item.lane / item.laneCount) * 100;
     const widthPercent = 100 / item.laneCount;
     const reminderColor = normalizeReminderColor(item.conv.reminderColor);
     const eventTop = stacked ? top + item.lane * 18 : top;
-    const eventHeight = stacked ? Math.max(height, 44) : height;
+    const eventHeight = stacked ? Math.max(height, 44) : compact ? Math.max(height, 34) : height;
     const eventLeft = stacked ? "2px" : `calc(${leftPercent}% + ${item.lane * 2}px)`;
     const eventWidth = stacked ? "calc(100% - 4px)" : `calc(${widthPercent}% - 4px)`;
 
@@ -467,7 +471,7 @@ export default function RemindersPage() {
         }}
         data-testid={`agenda-event-${item.conv.id}`}
       >
-        <div className="mb-1 flex items-start justify-between gap-1">
+        <div className={cn("mb-1 flex items-start justify-between gap-1", compact && "mb-0")}>
           <button
             type="button"
             onClick={() => openEditReminder(item.conv)}
@@ -475,29 +479,37 @@ export default function RemindersPage() {
             data-testid={`agenda-event-edit-${item.conv.id}`}
             title="Editar recordatorio"
           >
-            <p className={cn("truncate text-[11px] font-semibold text-white", item.conv.reminderDone && "line-through decoration-2 decoration-red-300 opacity-75")}>
+            <p
+              className={cn(
+                "truncate text-[11px] font-semibold text-white",
+                compact && "text-[10px]",
+                item.conv.reminderDone && "line-through decoration-2 decoration-red-300 opacity-75",
+              )}
+            >
               {item.conv.contactName || item.conv.waId}
             </p>
-            <p className={cn("truncate text-[10px] text-white/90", item.conv.reminderDone && "line-through decoration-2 decoration-red-300 opacity-75")}>
+            <p className={cn("truncate text-[10px] text-white/90", compact && "text-[9px]", item.conv.reminderDone && "line-through decoration-2 decoration-red-300 opacity-75")}>
               {formatTimeOnly(item.conv.reminderAt)}
             </p>
           </button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className={cn("h-6 w-6 rounded bg-black/25 text-white hover:bg-black/40", item.conv.reminderDone && "bg-emerald-600/40")}
-            onClick={() =>
-              toggleReminderDoneMutation.mutate({
-                conversationId: item.conv.id,
-                reminderDone: !Boolean(item.conv.reminderDone),
-              })
-            }
-            data-testid={`agenda-event-toggle-done-${item.conv.id}`}
-            title={item.conv.reminderDone ? "Reabrir" : "Completar"}
-          >
-            <Check className="h-3.5 w-3.5" />
-          </Button>
-          <Link href={`/?conversationId=${item.conv.id}`}>
+          {showActions && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn("h-6 w-6 rounded bg-black/25 text-white hover:bg-black/40", item.conv.reminderDone && "bg-emerald-600/40")}
+              onClick={() =>
+                toggleReminderDoneMutation.mutate({
+                  conversationId: item.conv.id,
+                  reminderDone: !Boolean(item.conv.reminderDone),
+                })
+              }
+              data-testid={`agenda-event-toggle-done-${item.conv.id}`}
+              title={item.conv.reminderDone ? "Reabrir" : "Completar"}
+            >
+              <Check className="h-3.5 w-3.5" />
+            </Button>
+          )}
+          {showActions && <Link href={`/?conversationId=${item.conv.id}`}>
             <Button
               variant="ghost"
               size="icon"
@@ -507,10 +519,48 @@ export default function RemindersPage() {
             >
               <MessageSquare className="h-3.5 w-3.5" />
             </Button>
-          </Link>
+          </Link>}
         </div>
       </div>
     );
+  };
+
+  const renderWeekColumnEvents = (layout: AgendaItem[], dayKeyValue: string) => {
+    const byStart = new Map<number, AgendaItem[]>();
+    layout.forEach((item) => {
+      const list = byStart.get(item.startMin) || [];
+      list.push(item);
+      byStart.set(item.startMin, list);
+    });
+
+    const nodes: any[] = [];
+    const starts = Array.from(byStart.keys()).sort((a, b) => a - b);
+
+    starts.forEach((startMin) => {
+      const group = (byStart.get(startMin) || []).sort((a, b) => a.lane - b.lane);
+      const visible = group.slice(0, 2);
+      visible.forEach((item) => {
+        nodes.push(renderAgendaEvent(item, { compact: true, showActions: false }));
+      });
+      const hidden = group.length - visible.length;
+      if (hidden > 0) {
+        nodes.push(
+          <button
+            key={`more-${dayKeyValue}-${startMin}`}
+            type="button"
+            onClick={() => setSelectedDate(new Date(dayKeyValue))}
+            className="absolute left-[2px] right-[2px] rounded border border-slate-500/60 bg-slate-800/80 px-2 py-0.5 text-left text-[10px] text-slate-100"
+            style={{ top: (startMin / 60) * HOUR_ROW_HEIGHT + 36 }}
+            data-testid={`agenda-event-more-${dayKeyValue}-${startMin}`}
+            title={`Ver ${hidden} recordatorio(s) más`}
+          >
+            +{hidden} más
+          </button>,
+        );
+      }
+    });
+
+    return nodes;
   };
 
   return (
@@ -768,7 +818,7 @@ export default function RemindersPage() {
                       {Array.from({ length: 24 }, (_, h) => (
                         <div key={`line-m-${h}`} className="absolute left-0 right-0 border-t border-slate-800/80" style={{ top: h * HOUR_ROW_HEIGHT }} />
                       ))}
-                      {selectedDayLayout.map((item) => renderAgendaEvent(item, true))}
+                      {selectedDayLayout.map((item) => renderAgendaEvent(item, { stacked: true, showActions: true }))}
                     </div>
                   </div>
                 </div>
@@ -819,7 +869,7 @@ export default function RemindersPage() {
                           {Array.from({ length: 24 }, (_, h) => (
                             <div key={`line-d-${key}-${h}`} className="absolute left-0 right-0 border-t border-slate-800/80" style={{ top: h * HOUR_ROW_HEIGHT }} />
                           ))}
-                          {layout.map((item) => renderAgendaEvent(item, true))}
+                          {renderWeekColumnEvents(layout, key)}
                         </div>
                       );
                     })}
