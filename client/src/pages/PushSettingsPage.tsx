@@ -4,6 +4,7 @@ import { Link } from "wouter";
 import { ArrowLeft, BellRing } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { NotificationBell } from "@/components/NotificationBell";
 import { useAuth } from "@/hooks/use-auth";
@@ -11,6 +12,7 @@ import { useAuth } from "@/hooks/use-auth";
 type PushSettings = {
   notifyNewMessages: boolean;
   notifyPending: boolean;
+  reminderLeadMinutes: number[];
 };
 
 export default function PushSettingsPage() {
@@ -22,6 +24,7 @@ export default function PushSettingsPage() {
   const [diagOs, setDiagOs] = useState("desconocido");
   const [diagHost, setDiagHost] = useState("desconocido");
   const [diagSecure, setDiagSecure] = useState("No");
+  const [reminderMinutesInput, setReminderMinutesInput] = useState("30,15");
 
   const refreshDiagnostics = () => {
     const ua = typeof navigator !== "undefined" ? navigator.userAgent : "";
@@ -87,6 +90,20 @@ export default function PushSettingsPage() {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
+
+  useEffect(() => {
+    if (!pushSettings?.reminderLeadMinutes?.length) return;
+    setReminderMinutesInput(pushSettings.reminderLeadMinutes.join(","));
+  }, [pushSettings?.reminderLeadMinutes]);
+
+  const parseReminderMinutesInput = (value: string) => {
+    const parsed = value
+      .split(",")
+      .map((v) => Number(v.trim()))
+      .filter((n) => Number.isFinite(n) && Number.isInteger(n) && n >= 1 && n <= 1440);
+    const unique = Array.from(new Set(parsed)).sort((a, b) => b - a).slice(0, 8);
+    return unique;
+  };
 
   return (
     <div className="min-h-screen bg-slate-950 text-white p-4">
@@ -158,6 +175,41 @@ export default function PushSettingsPage() {
               disabled={isLoading || updatePushSettingsMutation.isPending}
               data-testid="switch-push-pending-page"
             />
+          </div>
+
+          <div className="rounded-lg border border-slate-700/50 bg-slate-800/50 p-3 space-y-2">
+            <div>
+              <p className="text-sm font-medium text-white">Recordatorios (minutos antes)</p>
+              <p className="text-xs text-slate-400">Ejemplo: 30,15 o 10,5. Max 8 valores.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Input
+                value={reminderMinutesInput}
+                onChange={(e) => setReminderMinutesInput(e.target.value)}
+                placeholder="30,15"
+                className="bg-slate-900/50 border-slate-600 text-white"
+                data-testid="input-reminder-lead-minutes"
+              />
+              <Button
+                size="sm"
+                onClick={() => {
+                  const minutes = parseReminderMinutesInput(reminderMinutesInput);
+                  if (!minutes.length) {
+                    toast({
+                      title: "Formato invalido",
+                      description: "Use minutos separados por coma. Ej: 30,15",
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+                  updatePushSettingsMutation.mutate({ reminderLeadMinutes: minutes });
+                }}
+                disabled={isLoading || updatePushSettingsMutation.isPending}
+                data-testid="button-save-reminder-lead-minutes"
+              >
+                Guardar
+              </Button>
+            </div>
           </div>
 
           <div className="rounded-lg border border-cyan-500/30 bg-cyan-500/10 p-3">

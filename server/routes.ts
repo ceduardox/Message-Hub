@@ -170,8 +170,9 @@ const incomingPushStateByConversation = new Map<number, IncomingPushState>();
 interface PushNotificationPreferences {
   notifyNewMessages: boolean;
   notifyPending: boolean;
+  reminderLeadMinutes: number[];
 }
-const REMINDER_PUSH_OFFSETS_MINUTES = [30, 15] as const;
+const DEFAULT_REMINDER_LEAD_MINUTES = [30, 15];
 const REMINDER_PUSH_CHECK_INTERVAL_MS = 60 * 1000;
 const REMINDER_PUSH_WINDOW_MS = 70 * 1000;
 const sentReminderPushKeys = new Map<string, number>();
@@ -464,15 +465,37 @@ async function ensurePushSettingsTable() {
       id INTEGER PRIMARY KEY,
       notify_new_messages BOOLEAN NOT NULL DEFAULT true,
       notify_pending BOOLEAN NOT NULL DEFAULT true,
+      reminder_lead_minutes TEXT NOT NULL DEFAULT '30,15',
       updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
       CONSTRAINT push_notification_settings_singleton CHECK (id = 1)
     )
+  `);
+  await db.execute(sql`
+    ALTER TABLE push_notification_settings
+    ADD COLUMN IF NOT EXISTS reminder_lead_minutes TEXT NOT NULL DEFAULT '30,15'
   `);
   await db.execute(sql`
     INSERT INTO push_notification_settings (id)
     VALUES (1)
     ON CONFLICT (id) DO NOTHING
   `);
+}
+
+function normalizeReminderLeadMinutes(raw: unknown): number[] {
+  const source = Array.isArray(raw)
+    ? raw.map((v) => Number(v))
+    : String(raw ?? "")
+        .split(",")
+        .map((v) => Number(v.trim()));
+
+  const unique = Array.from(
+    new Set(
+      source.filter((n) => Number.isFinite(n) && Number.isInteger(n) && n >= 1 && n <= 1440),
+    ),
+  ).sort((a, b) => b - a);
+
+  if (unique.length === 0) return [...DEFAULT_REMINDER_LEAD_MINUTES];
+  return unique.slice(0, 8);
 }
 
 async function getPushNotificationPreferences(force = false): Promise<PushNotificationPreferences> {
@@ -483,7 +506,7 @@ async function getPushNotificationPreferences(force = false): Promise<PushNotifi
 
   await ensurePushSettingsTable();
   const result: any = await db.execute(sql`
-    SELECT notify_new_messages, notify_pending
+    SELECT notify_new_messages, notify_pending, reminder_lead_minutes
     FROM push_notification_settings
     WHERE id = 1
     LIMIT 1
@@ -494,6 +517,7 @@ async function getPushNotificationPreferences(force = false): Promise<PushNotifi
   const settings: PushNotificationPreferences = {
     notifyNewMessages: row ? Boolean(row.notify_new_messages) : true,
     notifyPending: row ? Boolean(row.notify_pending) : true,
+    reminderLeadMinutes: normalizeReminderLeadMinutes(row?.reminder_lead_minutes),
   };
   pushSettingsCache = { settings, loadedAt: now };
   return settings;
@@ -501,16 +525,23 @@ async function getPushNotificationPreferences(force = false): Promise<PushNotifi
 
 async function updatePushNotificationPreferences(next: PushNotificationPreferences): Promise<PushNotificationPreferences> {
   await ensurePushSettingsTable();
+  const reminderLeadMinutes = normalizeReminderLeadMinutes(next.reminderLeadMinutes);
   await db.execute(sql`
     UPDATE push_notification_settings
     SET
       notify_new_messages = ${next.notifyNewMessages},
       notify_pending = ${next.notifyPending},
+      reminder_lead_minutes = ${reminderLeadMinutes.join(",")},
       updated_at = NOW()
     WHERE id = 1
   `);
-  pushSettingsCache = { settings: next, loadedAt: Date.now() };
-  return next;
+  const normalized: PushNotificationPreferences = {
+    notifyNewMessages: next.notifyNewMessages,
+    notifyPending: next.notifyPending,
+    reminderLeadMinutes,
+  };
+  pushSettingsCache = { settings: normalized, loadedAt: Date.now() };
+  return normalized;
 }
 
 async function ensureAgentAiColumnExists() {
@@ -1485,13 +1516,17 @@ function reminderPushKey(conversationId: number, reminderAt: Date, minutesBefore
 
 async function checkAndSendReminderPushes() {
   const now = Date.now();
+  const prefs = await getPushNotificationPreferences();
+  const reminderLeadMinutes = normalizeReminderLeadMinutes(prefs.reminderLeadMinutes);
+  if (reminderLeadMinutes.length === 0) return;
+  const maxLeadMinutes = Math.max(...reminderLeadMinutes);
   const remindersResult: any = await db.execute(sql`
     SELECT id, wa_id, contact_name, reminder_at, reminder_note, assigned_agent_id
     FROM conversations
     WHERE reminder_at IS NOT NULL
       AND COALESCE(reminder_done, false) = false
       AND reminder_at > NOW()
-      AND reminder_at <= NOW() + INTERVAL '31 minutes'
+      AND reminder_at <= NOW() + ${maxLeadMinutes + 1} * INTERVAL '1 minute'
   `);
   const reminders = remindersResult?.rows ?? [];
   const activeKeys = new Set<string>();
@@ -1504,7 +1539,7 @@ async function checkAndSendReminderPushes() {
     const diffMs = reminderAt.getTime() - now;
     if (diffMs <= 0) continue;
 
-    for (const minutesBefore of REMINDER_PUSH_OFFSETS_MINUTES) {
+    for (const minutesBefore of reminderLeadMinutes) {
       const conversationId = Number(row.id);
       if (!Number.isFinite(conversationId)) continue;
       const key = reminderPushKey(conversationId, reminderAt, minutesBefore);
@@ -3472,6 +3507,7 @@ NO uses saludos formales. SÃ© directo y amigable.`
   const pushSettingsUpdateSchema = z.object({
     notifyNewMessages: z.boolean().optional(),
     notifyPending: z.boolean().optional(),
+    reminderLeadMinutes: z.array(z.number().int().min(1).max(1440)).max(8).optional(),
   });
 
   app.get("/api/push-settings", requireAuth, async (_req, res) => {
@@ -3491,6 +3527,7 @@ NO uses saludos formales. SÃ© directo y amigable.`
       const next: PushNotificationPreferences = {
         notifyNewMessages: parsed.notifyNewMessages ?? current.notifyNewMessages,
         notifyPending: parsed.notifyPending ?? current.notifyPending,
+        reminderLeadMinutes: parsed.reminderLeadMinutes ?? current.reminderLeadMinutes,
       };
       const updated = await updatePushNotificationPreferences(next);
       res.json(updated);
