@@ -442,22 +442,26 @@ export default function RemindersPage() {
     </Card>
   );
 
-  const renderAgendaEvent = (item: AgendaItem) => {
+  const renderAgendaEvent = (item: AgendaItem, stacked = false) => {
     const top = (item.startMin / 60) * HOUR_ROW_HEIGHT;
     const height = Math.max(((item.endMin - item.startMin) / 60) * HOUR_ROW_HEIGHT, 34);
     const leftPercent = (item.lane / item.laneCount) * 100;
     const widthPercent = 100 / item.laneCount;
     const reminderColor = normalizeReminderColor(item.conv.reminderColor);
+    const eventTop = stacked ? top + item.lane * 18 : top;
+    const eventHeight = stacked ? Math.max(height, 44) : height;
+    const eventLeft = stacked ? "2px" : `calc(${leftPercent}% + ${item.lane * 2}px)`;
+    const eventWidth = stacked ? "calc(100% - 4px)" : `calc(${widthPercent}% - 4px)`;
 
     return (
       <div
         key={item.conv.id}
         className="absolute overflow-hidden rounded-md border px-2 py-1 text-left shadow-sm"
         style={{
-          top,
-          height,
-          left: `calc(${leftPercent}% + ${item.lane * 2}px)`,
-          width: `calc(${widthPercent}% - 4px)`,
+          top: eventTop,
+          height: eventHeight,
+          left: eventLeft,
+          width: eventWidth,
           borderColor: `${reminderColor}AA`,
           backgroundColor: item.conv.reminderDone ? `${reminderColor}1F` : `${reminderColor}3D`,
         }}
@@ -764,7 +768,7 @@ export default function RemindersPage() {
                       {Array.from({ length: 24 }, (_, h) => (
                         <div key={`line-m-${h}`} className="absolute left-0 right-0 border-t border-slate-800/80" style={{ top: h * HOUR_ROW_HEIGHT }} />
                       ))}
-                      {selectedDayLayout.map(renderAgendaEvent)}
+                      {selectedDayLayout.map((item) => renderAgendaEvent(item, true))}
                     </div>
                   </div>
                 </div>
@@ -815,7 +819,7 @@ export default function RemindersPage() {
                           {Array.from({ length: 24 }, (_, h) => (
                             <div key={`line-d-${key}-${h}`} className="absolute left-0 right-0 border-t border-slate-800/80" style={{ top: h * HOUR_ROW_HEIGHT }} />
                           ))}
-                          {layout.map(renderAgendaEvent)}
+                          {layout.map((item) => renderAgendaEvent(item, true))}
                         </div>
                       );
                     })}
