@@ -1485,20 +1485,29 @@ function reminderPushKey(conversationId: number, reminderAt: Date, minutesBefore
 
 async function checkAndSendReminderPushes() {
   const now = Date.now();
-  const conversationsList = await storage.getConversations();
+  const remindersResult: any = await db.execute(sql`
+    SELECT id, wa_id, contact_name, reminder_at, reminder_note, assigned_agent_id
+    FROM conversations
+    WHERE reminder_at IS NOT NULL
+      AND COALESCE(reminder_done, false) = false
+      AND reminder_at > NOW()
+      AND reminder_at <= NOW() + INTERVAL '31 minutes'
+  `);
+  const reminders = remindersResult?.rows ?? [];
   const activeKeys = new Set<string>();
 
-  for (const conv of conversationsList) {
-    if (!conv.reminderAt || conv.reminderDone) continue;
-
-    const reminderAt = new Date(conv.reminderAt as Date | string);
+  for (const row of reminders) {
+    if (!row?.reminder_at) continue;
+    const reminderAt = new Date(row.reminder_at as Date | string);
     if (Number.isNaN(reminderAt.getTime())) continue;
 
     const diffMs = reminderAt.getTime() - now;
     if (diffMs <= 0) continue;
 
     for (const minutesBefore of REMINDER_PUSH_OFFSETS_MINUTES) {
-      const key = reminderPushKey(conv.id, reminderAt, minutesBefore);
+      const conversationId = Number(row.id);
+      if (!Number.isFinite(conversationId)) continue;
+      const key = reminderPushKey(conversationId, reminderAt, minutesBefore);
       activeKeys.add(key);
       if (sentReminderPushKeys.has(key)) continue;
 
@@ -1507,19 +1516,24 @@ async function checkAndSendReminderPushes() {
       const upperBound = targetMs + REMINDER_PUSH_WINDOW_MS;
       if (diffMs < lowerBound || diffMs > upperBound) continue;
 
-      const note = (conv.reminderNote || "").trim();
+      const note = String(row.reminder_note || "").trim();
       const summary = note ? note.replace(/\s+/g, " ").slice(0, 90) : "Tiene un recordatorio pendiente";
-      const contact = conv.contactName || conv.waId;
+      const contact = String(row.contact_name || row.wa_id || "Cliente");
+      const waId = String(row.wa_id || "");
+      const assignedAgentId =
+        row.assigned_agent_id === null || row.assigned_agent_id === undefined
+          ? null
+          : Number(row.assigned_agent_id);
 
       await sendPushNotification(
         `Recordatorio en ${minutesBefore} min`,
         `${contact}: ${summary}`,
         {
-          conversationId: conv.id.toString(),
-          waId: conv.waId,
+          conversationId: conversationId.toString(),
+          waId,
           event: `reminder_${minutesBefore}m`,
         },
-        getConversationPushOptions(conv),
+        getConversationPushOptions({ assignedAgentId }),
       );
 
       sentReminderPushKeys.set(key, now);
