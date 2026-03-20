@@ -3,9 +3,13 @@ import { Link } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Conversation } from "@shared/schema";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
@@ -16,6 +20,7 @@ import {
   AlertCircle,
   CheckCircle2,
   Trash2,
+  Pencil,
   Loader2,
   ClipboardList,
   List,
@@ -39,6 +44,9 @@ export default function RemindersPage() {
   const [filter, setFilter] = useState<ReminderFilter>("all");
   const [view, setView] = useState<ReminderView>("list");
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [editingReminder, setEditingReminder] = useState<ReminderConversation | null>(null);
+  const [editReminderAtInput, setEditReminderAtInput] = useState("");
+  const [editReminderNoteInput, setEditReminderNoteInput] = useState("");
 
   const { data: conversations = [], isLoading, refetch } = useQuery<Conversation[]>({
     queryKey: ["/api/conversations", "reminders-page"],
@@ -61,6 +69,37 @@ export default function RemindersPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
       queryClient.invalidateQueries({ queryKey: ["/api/conversations", "reminders-page"] });
       toast({ title: "Recordatorio eliminado" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const updateReminderMutation = useMutation({
+    mutationFn: async ({ conversationId, reminderAt, reminderNote }: { conversationId: number; reminderAt: string; reminderNote?: string }) => {
+      const reminderDate = new Date(reminderAt);
+      if (Number.isNaN(reminderDate.getTime())) {
+        throw new Error("Fecha de recordatorio invalida");
+      }
+      const res = await fetch(`/api/conversations/${conversationId}/reminder`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reminderAt: reminderDate.toISOString(),
+          reminderNote: reminderNote?.trim() || null,
+        }),
+      });
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({}));
+        throw new Error(error?.message || "Error al actualizar recordatorio");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/conversations", "reminders-page"] });
+      setEditingReminder(null);
+      toast({ title: "Recordatorio actualizado" });
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -140,6 +179,20 @@ export default function RemindersPage() {
     });
   };
 
+  const toDateTimeLocalValue = (value?: string | Date | null) => {
+    if (!value) return "";
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return "";
+    const tzOffset = parsed.getTimezoneOffset() * 60_000;
+    return new Date(parsed.getTime() - tzOffset).toISOString().slice(0, 16);
+  };
+
+  const openEditReminder = (conv: ReminderConversation) => {
+    setEditingReminder(conv);
+    setEditReminderAtInput(toDateTimeLocalValue(conv.reminderAt));
+    setEditReminderNoteInput(conv.reminderNote || "");
+  };
+
   const renderReminderCard = (conv: ReminderConversation, compact = false) => (
     <Card
       key={conv.id}
@@ -170,6 +223,16 @@ export default function RemindersPage() {
               Ver chat
             </Button>
           </Link>
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-cyan-500/50 bg-cyan-500/10 text-cyan-200 hover:bg-cyan-500/20"
+            onClick={() => openEditReminder(conv)}
+            data-testid={`button-edit-reminder-${conv.id}`}
+          >
+            <Pencil className="h-4 w-4 mr-1" />
+            Editar
+          </Button>
           <Button
             variant="destructive"
             size="sm"
@@ -381,6 +444,65 @@ export default function RemindersPage() {
           </div>
         )}
       </div>
+      <Dialog open={!!editingReminder} onOpenChange={(open) => !open && setEditingReminder(null)}>
+        <DialogContent className="sm:max-w-md border-slate-700 bg-slate-900 text-slate-100">
+          <DialogHeader>
+            <DialogTitle>Editar recordatorio</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-reminder-datetime">Fecha y hora</Label>
+              <Input
+                id="edit-reminder-datetime"
+                type="datetime-local"
+                value={editReminderAtInput}
+                onChange={(e) => setEditReminderAtInput(e.target.value)}
+                className="bg-slate-800/70 border-slate-600/70 text-slate-100"
+                data-testid="input-edit-reminder-datetime"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-reminder-note">Nota</Label>
+              <Textarea
+                id="edit-reminder-note"
+                rows={3}
+                value={editReminderNoteInput}
+                onChange={(e) => setEditReminderNoteInput(e.target.value)}
+                className="bg-slate-800/70 border-slate-600/70 text-slate-100"
+                data-testid="textarea-edit-reminder-note"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setEditingReminder(null)}
+                className="border-slate-600/70 bg-slate-800/60 text-slate-100 hover:bg-slate-700/80"
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={() => {
+                  if (!editingReminder) return;
+                  if (!editReminderAtInput) {
+                    toast({ title: "Fecha requerida", description: "Seleccione fecha y hora", variant: "destructive" });
+                    return;
+                  }
+                  updateReminderMutation.mutate({
+                    conversationId: editingReminder.id,
+                    reminderAt: editReminderAtInput,
+                    reminderNote: editReminderNoteInput,
+                  });
+                }}
+                disabled={updateReminderMutation.isPending}
+                className="bg-emerald-500 hover:bg-emerald-600 text-white"
+                data-testid="button-save-edit-reminder"
+              >
+                {updateReminderMutation.isPending ? "Guardando..." : "Guardar cambios"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
