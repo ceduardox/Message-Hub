@@ -614,7 +614,7 @@ export default function RemindersPage() {
             </CardHeader>
             <CardContent className="pt-0">
               <div className="lg:hidden">
-                <div className="overflow-y-auto rounded-lg border border-slate-700/60 bg-slate-950/40" style={{ maxHeight: "70vh" }}>
+                <div className="rounded-lg border border-slate-700/60 bg-slate-950/40">
                   <div className="relative grid grid-cols-[56px_1fr]" style={{ minHeight: dayHeight }}>
                     <div className="relative border-r border-slate-700/60">
                       {Array.from({ length: 24 }, (_, h) => (
