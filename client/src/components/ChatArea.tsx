@@ -2121,7 +2121,7 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
                     accept="image/*"
                     onChange={handleQuickMessageImageFileSelect}
                     data-testid="input-quick-message-image-file"
-                    className="bg-slate-900/80 text-slate-100 border-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-emerald-600 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-white hover:file:bg-emerald-500"
+                    className="file:mr-3 file:rounded-md file:border-0 file:bg-emerald-600 file:px-3 file:py-1 file:text-sm file:font-medium file:text-white hover:file:bg-emerald-500"
                   />
                   {uploadQuickMessageImageMutation.isPending && (
                     <p className="text-xs text-muted-foreground">Subiendo imagen...</p>
