@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,6 +61,14 @@ interface AdRoutingRule {
   updatedAt?: string | null;
 }
 
+interface DailyCostSetting {
+  date: string;
+  unitCostBs: number;
+  officialRateBs: number;
+  parallelRateBs: number;
+  updatedAt?: string | null;
+}
+
 const glowAnimation = `
 @keyframes glow-line {
   0% { background-position: -200% 0; }
@@ -108,9 +116,16 @@ export default function AgentsPage() {
   const [routingAdId, setRoutingAdId] = useState("");
   const [routingIsActive, setRoutingIsActive] = useState(true);
   const [routingAgentIds, setRoutingAgentIds] = useState<number[]>([]);
-  const [costPerInboundChatBs, setCostPerInboundChatBs] = useState("1.23");
-  const [officialRateBs, setOfficialRateBs] = useState("6.6");
-  const [parallelRateBs, setParallelRateBs] = useState("9.23");
+  const [costDate, setCostDate] = useState(() => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, "0");
+    const d = String(now.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  });
+  const [costPerInboundChatBs, setCostPerInboundChatBs] = useState("");
+  const [officialRateBs, setOfficialRateBs] = useState("");
+  const [parallelRateBs, setParallelRateBs] = useState("");
 
   const { data: agents = [], isLoading } = useQuery<AgentWithStats[]>({
     queryKey: ["/api/agents", dateFrom, dateTo],
@@ -144,6 +159,80 @@ export default function AgentsPage() {
       const res = await fetch("/api/ad-routing-rules", { credentials: "include" });
       if (!res.ok) throw new Error("No se pudo cargar reglas por anuncio");
       return res.json();
+    },
+  });
+
+  const { data: costSettingsForDate = [] } = useQuery<DailyCostSetting[]>({
+    queryKey: ["/api/daily-cost-settings", costDate],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      params.set("dateFrom", costDate);
+      params.set("dateTo", costDate);
+      const res = await fetch(`/api/daily-cost-settings?${params.toString()}`, {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("No se pudo cargar el costo diario");
+      return res.json();
+    },
+    enabled: Boolean(costDate),
+  });
+
+  useEffect(() => {
+    const row = costSettingsForDate[0];
+    if (!row) {
+      setCostPerInboundChatBs("");
+      setOfficialRateBs("");
+      setParallelRateBs("");
+      return;
+    }
+    setCostPerInboundChatBs(String(row.unitCostBs));
+    setOfficialRateBs(String(row.officialRateBs));
+    setParallelRateBs(String(row.parallelRateBs));
+  }, [costSettingsForDate]);
+
+  const saveDailyCostMutation = useMutation({
+    mutationFn: async () => {
+      const unitCostBs = parsePositiveNumber(costPerInboundChatBs, 0);
+      const officialRate = parsePositiveNumber(officialRateBs, 0);
+      const parallelRate = parsePositiveNumber(parallelRateBs, 0);
+
+      if (!costDate) {
+        throw new Error("Seleccione una fecha");
+      }
+      if (unitCostBs <= 0) {
+        throw new Error("Costo por chat invalido");
+      }
+      if (officialRate <= 0) {
+        throw new Error("Tipo de cambio oficial invalido");
+      }
+      if (parallelRate <= 0) {
+        throw new Error("Dolar paralelo invalido");
+      }
+
+      const res = await fetch(`/api/daily-cost-settings/${costDate}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          unitCostBs,
+          officialRateBs: officialRate,
+          parallelRateBs: parallelRate,
+        }),
+      });
+
+      if (!res.ok) {
+        const errorBody = await res.json().catch(() => ({}));
+        throw new Error(errorBody.message || "No se pudo guardar el costo diario");
+      }
+
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/daily-cost-settings", costDate] });
+      toast({ title: "Costo diario guardado" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
 
@@ -265,9 +354,11 @@ export default function AgentsPage() {
   const unitCostBs = parsePositiveNumber(costPerInboundChatBs, 0);
   const officialRate = parsePositiveNumber(officialRateBs, 0);
   const parallelRate = parsePositiveNumber(parallelRateBs, 0);
-  const totalBaseCostBs = totalInboundChats * unitCostBs;
-  const totalCostUsd = officialRate > 0 ? totalBaseCostBs / officialRate : 0;
-  const totalParallelCostBs = totalCostUsd * parallelRate;
+  const hasValidCostConfig = unitCostBs > 0 && officialRate > 0 && parallelRate > 0;
+  const totalBaseCostBs = hasValidCostConfig ? totalInboundChats * unitCostBs : null;
+  const totalCostUsd = hasValidCostConfig && totalBaseCostBs != null ? totalBaseCostBs / officialRate : null;
+  const totalParallelCostBs =
+    hasValidCostConfig && totalCostUsd != null ? totalCostUsd * parallelRate : null;
 
   const toggleRoutingAgent = (agentId: number) => {
     setRoutingAgentIds((prev) =>
@@ -412,12 +503,23 @@ export default function AgentsPage() {
               Formula: (Chats con inbound * costo unitario Bs) / TC oficial * TC paralelo
             </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <div>
+              <label className="text-xs text-slate-500 mb-1 block">Fecha de costo diario</label>
+              <Input
+                type="date"
+                value={costDate}
+                onChange={(e) => setCostDate(e.target.value)}
+                className="h-9 bg-slate-800/60 border-slate-700/50 text-white"
+                data-testid="input-cost-date"
+              />
+            </div>
             <div>
               <label className="text-xs text-slate-500 mb-1 block">Costo por chat con inbound (Bs)</label>
               <Input
                 value={costPerInboundChatBs}
                 onChange={(e) => setCostPerInboundChatBs(e.target.value)}
+                placeholder="Ej. 1.23"
                 className="h-9 bg-slate-800/60 border-slate-700/50 text-white"
                 data-testid="input-cost-per-inbound-chat-bs"
               />
@@ -427,6 +529,7 @@ export default function AgentsPage() {
               <Input
                 value={officialRateBs}
                 onChange={(e) => setOfficialRateBs(e.target.value)}
+                placeholder="Ej. 6.6"
                 className="h-9 bg-slate-800/60 border-slate-700/50 text-white"
                 data-testid="input-official-rate-bs-usd"
               />
@@ -436,23 +539,43 @@ export default function AgentsPage() {
               <Input
                 value={parallelRateBs}
                 onChange={(e) => setParallelRateBs(e.target.value)}
+                placeholder="Ej. 9.23"
                 className="h-9 bg-slate-800/60 border-slate-700/50 text-white"
                 data-testid="input-parallel-rate-bs-usd"
               />
             </div>
           </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Button
+              onClick={() => saveDailyCostMutation.mutate()}
+              disabled={saveDailyCostMutation.isPending || !costDate}
+              className="h-9 bg-gradient-to-r from-emerald-600 to-cyan-600 border-0"
+              data-testid="button-save-daily-cost"
+            >
+              {saveDailyCostMutation.isPending ? "Guardando..." : "Guardar dia"}
+            </Button>
+            <p className="text-xs text-slate-500">
+              Si no guarda precio para una fecha, el monto se muestra como `—`.
+            </p>
+          </div>
           <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
             <div className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-3 py-2">
               <p className="text-[11px] uppercase tracking-wide text-cyan-300">Costo base total</p>
-              <p className="text-lg font-semibold text-white mt-1">{formatBs(totalBaseCostBs)}</p>
+              <p className="text-lg font-semibold text-white mt-1">
+                {totalBaseCostBs == null ? "—" : formatBs(totalBaseCostBs)}
+              </p>
             </div>
             <div className="rounded-xl border border-violet-500/30 bg-violet-500/10 px-3 py-2">
               <p className="text-[11px] uppercase tracking-wide text-violet-200">Equivalente USD</p>
-              <p className="text-lg font-semibold text-white mt-1">{formatUsd(totalCostUsd)}</p>
+              <p className="text-lg font-semibold text-white mt-1">
+                {totalCostUsd == null ? "—" : formatUsd(totalCostUsd)}
+              </p>
             </div>
             <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2">
               <p className="text-[11px] uppercase tracking-wide text-emerald-300">Costo paralelo total</p>
-              <p className="text-lg font-semibold text-white mt-1">{formatBs(totalParallelCostBs)}</p>
+              <p className="text-lg font-semibold text-white mt-1">
+                {totalParallelCostBs == null ? "—" : formatBs(totalParallelCostBs)}
+              </p>
             </div>
           </div>
         </div>
