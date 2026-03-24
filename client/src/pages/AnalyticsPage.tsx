@@ -31,18 +31,22 @@ interface DailyCostSetting {
   updatedAt?: string | null;
 }
 
+function toInputDate(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 export default function AnalyticsPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const isAdmin = user?.role === "admin";
   const { data: conversations = [] } = useConversations();
-  const [dateFilter, setDateFilter] = useState<"today" | "week" | "month">("today");
+  const [dateFrom, setDateFrom] = useState(() => toInputDate(new Date()));
+  const [dateTo, setDateTo] = useState(() => toInputDate(new Date()));
   const [costDate, setCostDate] = useState(() => {
-    const now = new Date();
-    const y = now.getFullYear();
-    const m = String(now.getMonth() + 1).padStart(2, "0");
-    const d = String(now.getDate()).padStart(2, "0");
-    return `${y}-${m}-${d}`;
+    return toInputDate(new Date());
   });
   const [unitCostBsInput, setUnitCostBsInput] = useState("");
   const [officialRateInput, setOfficialRateInput] = useState("");
@@ -55,25 +59,18 @@ export default function AnalyticsPage() {
     `USD ${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   const dateRange = useMemo(() => {
-    const now = new Date();
-    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const start = new Date(end);
+    const today = toInputDate(new Date());
+    let from = dateFrom || today;
+    let to = dateTo || today;
 
-    if (dateFilter === "week") {
-      start.setDate(end.getDate() - 6);
-    } else if (dateFilter === "month") {
-      start.setDate(end.getDate() - 29);
+    if (from > to) {
+      const tmp = from;
+      from = to;
+      to = tmp;
     }
 
-    const toInput = (date: Date) => {
-      const y = date.getFullYear();
-      const m = String(date.getMonth() + 1).padStart(2, "0");
-      const d = String(date.getDate()).padStart(2, "0");
-      return `${y}-${m}-${d}`;
-    };
-
-    return { from: toInput(start), to: toInput(end) };
-  }, [dateFilter]);
+    return { from, to };
+  }, [dateFrom, dateTo]);
 
   const { data: agentStats = [] } = useQuery<AgentStat[]>({
     queryKey: ["/api/agent-stats", dateRange.from, dateRange.to],
@@ -153,26 +150,12 @@ export default function AnalyticsPage() {
   });
 
   const filteredConversations = useMemo(() => {
-    const now = new Date();
-    let cutoff: Date;
-    
-    switch (dateFilter) {
-      case "today":
-        cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        break;
-      case "week":
-        cutoff = new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000);
-        break;
-      case "month":
-        cutoff = new Date(now.getTime() - 29 * 24 * 60 * 60 * 1000);
-        break;
-    }
-
     return conversations.filter(c => {
       if (!c.lastMessageTimestamp) return false;
-      return new Date(c.lastMessageTimestamp) >= cutoff;
+      const msgDate = toInputDate(new Date(c.lastMessageTimestamp));
+      return msgDate >= dateRange.from && msgDate <= dateRange.to;
     });
-  }, [conversations, dateFilter]);
+  }, [conversations, dateRange.from, dateRange.to]);
 
   const stats = useMemo(() => {
     const humano = filteredConversations.filter(c => c.needsHumanAttention).length;
@@ -293,25 +276,50 @@ export default function AnalyticsPage() {
               <p className="text-xs text-slate-400">Panel de estadísticas</p>
             </div>
           </div>
-          <div className="flex gap-1">
-            {(["today", "week", "month"] as const).map((f) => (
-              <button
-                key={f}
-                onClick={() => setDateFilter(f)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                  dateFilter === f 
-                    ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/50" 
-                    : "text-slate-500 hover:text-slate-300"
-                }`}
-              >
-                {f === "today" ? "Hoy" : f === "week" ? "Semana" : "Mes"}
-              </button>
-            ))}
-          </div>
         </div>
       </div>
 
       <div className="p-4 space-y-6 pb-20">
+        <div className="rounded-2xl border border-slate-700/40 bg-slate-800/60 p-4">
+          <h3 className="text-sm font-semibold text-white mb-3">Filtro de fechas</h3>
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3 items-end">
+            <div>
+              <label className="text-xs text-slate-400 mb-1 block">Desde</label>
+              <Input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="h-9 bg-slate-900/80 border-slate-700/60 text-white"
+                data-testid="input-analytics-date-from"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-slate-400 mb-1 block">Hasta</label>
+              <Input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="h-9 bg-slate-900/80 border-slate-700/60 text-white"
+                data-testid="input-analytics-date-to"
+              />
+            </div>
+            <Button
+              onClick={() => {
+                const today = toInputDate(new Date());
+                setDateFrom(today);
+                setDateTo(today);
+              }}
+              className="h-9 bg-gradient-to-r from-emerald-600 to-cyan-600 border-0"
+              data-testid="button-analytics-range-today"
+            >
+              Hoy
+            </Button>
+          </div>
+          <p className="text-xs text-slate-500 mt-2">
+            Rango aplicado: {dateRange.from} a {dateRange.to}
+          </p>
+        </div>
+
         {isAdmin && (
           <div className="rounded-2xl border border-cyan-500/30 bg-slate-800/70 p-4">
             <h3 className="text-sm font-semibold text-white mb-3">Costo diario (admin)</h3>
@@ -558,9 +566,9 @@ export default function AnalyticsPage() {
             Mensajes por Agente
           </h3>
           {agentStats.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm" data-testid="table-agent-stats">
-                <thead>
+            <div className="overflow-auto max-h-[460px] rounded-xl border border-slate-700/40">
+              <table className="min-w-[980px] w-full text-sm table-fixed" data-testid="table-agent-stats">
+                <thead className="sticky top-0 bg-slate-900/95 backdrop-blur-sm z-10">
                   <tr className="border-b border-slate-700/50">
                     <th className="text-left py-2 px-2 text-slate-400 font-medium">Agente</th>
                     <th className="text-left py-2 px-2 text-slate-400 font-medium">Fecha</th>
@@ -578,13 +586,13 @@ export default function AnalyticsPage() {
                 <tbody>
                   {agentStats.map((row, i) => (
                     <tr key={i} className="border-b border-slate-800/50">
-                      <td className="py-2 px-2 font-medium text-white">{row.agent_name}</td>
-                      <td className="py-2 px-2 text-slate-300">{new Date(row.date).toLocaleDateString("es-BO", { day: "2-digit", month: "short" })}</td>
-                      <td className="py-2 px-2 text-center text-emerald-400 font-semibold">{row.incoming}</td>
-                      <td className="py-2 px-2 text-center text-cyan-400 font-semibold">{row.outgoing}</td>
-                      <td className="py-2 px-2 text-center text-sky-300 font-semibold">{row.inbound_chats}</td>
-                      <td className="py-2 px-2 text-center text-amber-400 font-bold">{Number(row.incoming) + Number(row.outgoing)}</td>
-                      <td className="py-2 px-2 text-center text-violet-300 font-semibold">
+                      <td className="py-2 px-2 font-medium text-white whitespace-nowrap truncate">{row.agent_name}</td>
+                      <td className="py-2 px-2 text-slate-300 whitespace-nowrap">{new Date(row.date).toLocaleDateString("es-BO", { day: "2-digit", month: "short" })}</td>
+                      <td className="py-2 px-2 text-center text-emerald-400 font-semibold whitespace-nowrap">{row.incoming}</td>
+                      <td className="py-2 px-2 text-center text-cyan-400 font-semibold whitespace-nowrap">{row.outgoing}</td>
+                      <td className="py-2 px-2 text-center text-sky-300 font-semibold whitespace-nowrap">{row.inbound_chats}</td>
+                      <td className="py-2 px-2 text-center text-amber-400 font-bold whitespace-nowrap">{Number(row.incoming) + Number(row.outgoing)}</td>
+                      <td className="py-2 px-2 text-center text-violet-300 font-semibold whitespace-nowrap">
                         {row.parallel_cost_bs == null ? "—" : formatBs(Number(row.parallel_cost_bs))}
                       </td>
                     </tr>
