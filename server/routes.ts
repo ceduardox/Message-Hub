@@ -3009,7 +3009,7 @@ export async function registerRoutes(
         SELECT date::text AS date, unit_cost_bs, official_rate_bs, parallel_rate_bs, updated_at
         FROM daily_cost_settings
         WHERE 1 = 1
-          ${!dateFrom && !dateTo ? sql`AND date >= (CURRENT_DATE - INTERVAL '29 days')::date` : sql``}
+          ${!dateFrom && !dateTo ? sql`AND date >= ((NOW() AT TIME ZONE 'America/La_Paz')::date - INTERVAL '29 days')::date` : sql``}
           ${dateFrom ? sql`AND date >= ${dateFrom}::date` : sql``}
           ${dateTo ? sql`AND date <= ${dateTo}::date` : sql``}
         ORDER BY date DESC
@@ -3097,7 +3097,7 @@ export async function registerRoutes(
           JOIN conversations c ON m.conversation_id = c.id
           JOIN agents a ON c.assigned_agent_id = a.id
           WHERE 1 = 1
-            ${!dateFrom && !dateTo ? sql`AND ${dayExpression} >= (CURRENT_DATE - INTERVAL '29 days')::date` : sql``}
+            ${!dateFrom && !dateTo ? sql`AND ${dayExpression} >= ((NOW() AT TIME ZONE 'America/La_Paz')::date - INTERVAL '29 days')::date` : sql``}
             ${dateFrom ? sql`AND ${dayExpression} >= ${dateFrom}::date` : sql``}
             ${dateTo ? sql`AND ${dayExpression} <= ${dateTo}::date` : sql``}
           GROUP BY a.id, a.name, ${dayExpression}

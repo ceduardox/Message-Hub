@@ -31,17 +31,49 @@ interface DailyCostSetting {
   updatedAt?: string | null;
 }
 
-function toInputDate(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
+const LA_PAZ_TIMEZONE = "America/La_Paz";
+const SHORT_MONTHS_ES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+
+function toLaPazInputDate(value: Date | string | number): string {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: LA_PAZ_TIMEZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+
+  const year = parts.find((p) => p.type === "year")?.value;
+  const month = parts.find((p) => p.type === "month")?.value;
+  const day = parts.find((p) => p.type === "day")?.value;
+
+  if (!year || !month || !day) return "";
+  return `${year}-${month}-${day}`;
 }
 
-function addDays(date: Date, days: number): Date {
-  const next = new Date(date);
-  next.setDate(next.getDate() + days);
-  return next;
+function shiftIsoDate(isoDate: string, days: number): string {
+  const [year, month, day] = isoDate.split("-").map(Number);
+  if (!year || !month || !day) return isoDate;
+
+  const utcDate = new Date(Date.UTC(year, month - 1, day));
+  utcDate.setUTCDate(utcDate.getUTCDate() + days);
+
+  const nextYear = String(utcDate.getUTCFullYear());
+  const nextMonth = String(utcDate.getUTCMonth() + 1).padStart(2, "0");
+  const nextDay = String(utcDate.getUTCDate()).padStart(2, "0");
+  return `${nextYear}-${nextMonth}-${nextDay}`;
+}
+
+function formatShortDateFromIso(isoDate: string): string {
+  const [year, monthRaw, dayRaw] = isoDate.split("-");
+  const monthNumber = Number(monthRaw);
+  if (!year || !monthRaw || !dayRaw || !Number.isFinite(monthNumber) || monthNumber < 1 || monthNumber > 12) {
+    return isoDate;
+  }
+  const day = String(Number(dayRaw)).padStart(2, "0");
+  return `${day}-${SHORT_MONTHS_ES[monthNumber - 1]}`;
 }
 
 export default function AnalyticsPage() {
@@ -50,11 +82,11 @@ export default function AnalyticsPage() {
   const isAdmin = user?.role === "admin";
   const { data: conversations = [] } = useConversations();
   const [filterMode, setFilterMode] = useState<"day" | "range">("day");
-  const [reportDate, setReportDate] = useState(() => toInputDate(new Date()));
-  const [reportDateFrom, setReportDateFrom] = useState(() => toInputDate(new Date()));
-  const [reportDateTo, setReportDateTo] = useState(() => toInputDate(new Date()));
+  const [reportDate, setReportDate] = useState(() => toLaPazInputDate(new Date()));
+  const [reportDateFrom, setReportDateFrom] = useState(() => toLaPazInputDate(new Date()));
+  const [reportDateTo, setReportDateTo] = useState(() => toLaPazInputDate(new Date()));
   const [costDate, setCostDate] = useState(() => {
-    return toInputDate(new Date());
+    return toLaPazInputDate(new Date());
   });
   const [unitCostBsInput, setUnitCostBsInput] = useState("");
   const [officialRateInput, setOfficialRateInput] = useState("");
@@ -69,7 +101,7 @@ export default function AnalyticsPage() {
     `USD ${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   const appliedRange = useMemo(() => {
-    const today = toInputDate(new Date());
+    const today = toLaPazInputDate(new Date());
     if (filterMode === "day") {
       const date = reportDate || today;
       return {
@@ -174,31 +206,33 @@ export default function AnalyticsPage() {
   const filteredConversations = useMemo(() => {
     return conversations.filter(c => {
       if (!c.lastMessageTimestamp) return false;
-      const msgDate = toInputDate(new Date(c.lastMessageTimestamp));
+      const msgDate = toLaPazInputDate(c.lastMessageTimestamp);
+      if (!msgDate) return false;
       return msgDate >= appliedRange.dateFrom && msgDate <= appliedRange.dateTo;
     });
   }, [conversations, appliedRange.dateFrom, appliedRange.dateTo]);
 
   const applyQuickDay = (offsetDays = 0) => {
-    const date = toInputDate(addDays(new Date(), offsetDays));
+    const date = shiftIsoDate(toLaPazInputDate(new Date()), offsetDays);
     setFilterMode("day");
     setReportDate(date);
   };
 
   const applyQuickRangeDays = (days: number) => {
-    const end = new Date();
-    const start = addDays(end, -(days - 1));
+    const end = toLaPazInputDate(new Date());
+    const start = shiftIsoDate(end, -(days - 1));
     setFilterMode("range");
-    setReportDateFrom(toInputDate(start));
-    setReportDateTo(toInputDate(end));
+    setReportDateFrom(start);
+    setReportDateTo(end);
   };
 
   const applyQuickCurrentMonth = () => {
-    const end = new Date();
-    const start = new Date(end.getFullYear(), end.getMonth(), 1);
+    const end = toLaPazInputDate(new Date());
+    const [year, month] = end.split("-");
+    const start = `${year}-${month}-01`;
     setFilterMode("range");
-    setReportDateFrom(toInputDate(start));
-    setReportDateTo(toInputDate(end));
+    setReportDateFrom(start);
+    setReportDateTo(end);
   };
 
   const stats = useMemo(() => {
@@ -836,7 +870,7 @@ export default function AnalyticsPage() {
                     <div className="flex items-center justify-between border-b border-slate-700/50 pb-2 mb-2">
                       <p className="font-semibold text-white">{row.agent_name}</p>
                       <p className="text-xs text-slate-400">
-                        {new Date(row.date).toLocaleDateString("es-BO", { day: "2-digit", month: "short" })}
+                        {formatShortDateFromIso(row.date)}
                       </p>
                     </div>
                     <div className="space-y-1.5 text-sm">
@@ -888,7 +922,7 @@ export default function AnalyticsPage() {
                     {agentStatsFiltered.map((row, i) => (
                       <tr key={i} className="border-b border-slate-800/50">
                         <td className="py-2 px-2 font-medium text-white whitespace-nowrap truncate">{row.agent_name}</td>
-                        <td className="py-2 px-2 text-slate-300 whitespace-nowrap">{new Date(row.date).toLocaleDateString("es-BO", { day: "2-digit", month: "short" })}</td>
+                        <td className="py-2 px-2 text-slate-300 whitespace-nowrap">{formatShortDateFromIso(row.date)}</td>
                         <td className="py-2 px-2 text-center text-emerald-400 font-semibold whitespace-nowrap">{row.incoming}</td>
                         <td className="py-2 px-2 text-center text-cyan-400 font-semibold whitespace-nowrap">{row.outgoing}</td>
                         <td className="py-2 px-2 text-center text-sky-300 font-semibold whitespace-nowrap">{row.inbound_chats}</td>
