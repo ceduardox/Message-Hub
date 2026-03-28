@@ -1,11 +1,14 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 import { 
   ArrowLeft, 
   Phone, 
@@ -43,6 +46,14 @@ interface PurchaseAnalysis {
   createdAt: string;
 }
 
+interface FollowUpSettings {
+  enabled: boolean | null;
+  followUpEnabled: boolean | null;
+  followUpMinutes: number | null;
+  followUpMessageMode: string | null;
+  followUpFixedMessage: string | null;
+}
+
 export default function FollowUpPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -53,6 +64,23 @@ export default function FollowUpPage() {
   const [followUpMessages, setFollowUpMessages] = useState<Record<number, string>>({});
   const [expandedHistory, setExpandedHistory] = useState<number | null>(null);
   const [historyData, setHistoryData] = useState<Record<number, PurchaseAnalysis[]>>({});
+  const [followUpEnabled, setFollowUpEnabled] = useState(false);
+  const [followUpMinutes, setFollowUpMinutes] = useState(20);
+  const [followUpMessageMode, setFollowUpMessageMode] = useState<"ai" | "fixed">("ai");
+  const [followUpFixedMessage, setFollowUpFixedMessage] = useState("");
+  const [settingsEdited, setSettingsEdited] = useState(false);
+
+  const { data: settings } = useQuery<FollowUpSettings>({
+    queryKey: ["/api/ai/settings"],
+  });
+
+  useEffect(() => {
+    if (!settings || settingsEdited) return;
+    setFollowUpEnabled(settings.followUpEnabled || false);
+    setFollowUpMinutes(settings.followUpMinutes || 20);
+    setFollowUpMessageMode(settings.followUpMessageMode === "fixed" ? "fixed" : "ai");
+    setFollowUpFixedMessage(settings.followUpFixedMessage || "");
+  }, [settings, settingsEdited]);
 
   const { data: conversations = [], isLoading, refetch } = useQuery<FollowUpConversation[]>({
     queryKey: ["/api/follow-up", timeFilter],
@@ -86,6 +114,26 @@ export default function FollowUpPage() {
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const saveSettingsMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("PATCH", "/api/ai/settings", {
+        followUpEnabled,
+        followUpMinutes,
+        followUpMessageMode,
+        followUpFixedMessage: followUpMessageMode === "fixed" ? (followUpFixedMessage.trim() || null) : null,
+      });
+    },
+    onSuccess: () => {
+      toast({ title: "Configuración de seguimiento guardada" });
+      setSettingsEdited(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/ai/settings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/follow-up"] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error al guardar", description: error.message, variant: "destructive" });
     },
   });
 
@@ -225,6 +273,120 @@ export default function FollowUpPage() {
             Todos
           </Button>
         </div>
+
+        <Card className="mb-6" data-testid="follow-up-settings-card">
+          <CardHeader>
+            <CardTitle>Automatización de Re-enganche</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
+              <div className="space-y-1">
+                <Label htmlFor="follow-up-enabled">Re-enganche automático</Label>
+                <p className="text-sm text-muted-foreground">
+                  Si el cliente te dejó en visto, el CRM le escribe para retomar la conversación.
+                </p>
+              </div>
+              <Switch
+                id="follow-up-enabled"
+                checked={followUpEnabled}
+                onCheckedChange={(checked) => {
+                  setFollowUpEnabled(checked);
+                  setSettingsEdited(true);
+                }}
+                data-testid="switch-follow-up-enabled-page"
+              />
+            </div>
+
+            {followUpEnabled && (
+              <div className="space-y-4 rounded-lg border p-4">
+                <div className="space-y-2">
+                  <Label htmlFor="follow-up-minutes">Minutos de espera</Label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      id="follow-up-minutes"
+                      type="range"
+                      min={5}
+                      max={60}
+                      value={followUpMinutes}
+                      onChange={(e) => {
+                        setFollowUpMinutes(parseInt(e.target.value) || 20);
+                        setSettingsEdited(true);
+                      }}
+                      className="flex-1 accent-emerald-500"
+                      data-testid="slider-follow-up-minutes-page"
+                    />
+                    <span className="min-w-[4rem] text-center font-semibold text-emerald-600">{followUpMinutes} min</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    El scheduler revisa candidatos cada 5 minutos y aplica este tiempo de espera antes del primer re-enganche.
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  <Label>Mensaje del primer re-enganche</Label>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <Button
+                      type="button"
+                      variant={followUpMessageMode === "ai" ? "default" : "outline"}
+                      onClick={() => {
+                        setFollowUpMessageMode("ai");
+                        setSettingsEdited(true);
+                      }}
+                      data-testid="button-follow-up-mode-ai"
+                    >
+                      Generado por IA
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={followUpMessageMode === "fixed" ? "default" : "outline"}
+                      onClick={() => {
+                        setFollowUpMessageMode("fixed");
+                        setSettingsEdited(true);
+                      }}
+                      data-testid="button-follow-up-mode-fixed"
+                    >
+                      Texto pregrabado
+                    </Button>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Esto solo afecta el primer mensaje automático. El segundo seguimiento con botones sigue igual.
+                  </p>
+                </div>
+
+                {followUpMessageMode === "fixed" && (
+                  <div className="space-y-2">
+                    <Label htmlFor="follow-up-fixed-message">Texto pregrabado</Label>
+                    <Textarea
+                      id="follow-up-fixed-message"
+                      value={followUpFixedMessage}
+                      onChange={(e) => {
+                        setFollowUpFixedMessage(e.target.value);
+                        setSettingsEdited(true);
+                      }}
+                      className="min-h-[110px]"
+                      placeholder="Ej: Quedo atento por si desea que le confirme precio y envío según su ciudad."
+                      data-testid="textarea-follow-up-fixed-message"
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      Si lo dejas vacío, el sistema hará fallback al mensaje generado por IA.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {settingsEdited && (
+              <Button
+                onClick={() => saveSettingsMutation.mutate()}
+                disabled={saveSettingsMutation.isPending}
+                data-testid="button-save-follow-up-settings"
+              >
+                {saveSettingsMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />}
+                Guardar automatización
+              </Button>
+            )}
+          </CardContent>
+        </Card>
 
         {isLoading ? (
           <div className="flex justify-center py-12">

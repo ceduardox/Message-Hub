@@ -115,6 +115,7 @@ export interface IStorage {
 export class DatabaseStorage implements IStorage {
   private reminderColumnsEnsured = false;
   private agentAiColumnEnsured = false;
+  private aiSettingsColumnsEnsured = false;
 
   private mapFallbackAgentRow(row: any): Agent {
     return {
@@ -185,6 +186,19 @@ export class DatabaseStorage implements IStorage {
       ADD COLUMN IF NOT EXISTS is_ai_auto_reply_enabled BOOLEAN NOT NULL DEFAULT true
     `);
     this.agentAiColumnEnsured = true;
+  }
+
+  private async ensureAiSettingsColumns(): Promise<void> {
+    if (this.aiSettingsColumnsEnsured) return;
+    await db.execute(sql`
+      ALTER TABLE ai_settings
+      ADD COLUMN IF NOT EXISTS follow_up_message_mode VARCHAR(20) NOT NULL DEFAULT 'ai'
+    `);
+    await db.execute(sql`
+      ALTER TABLE ai_settings
+      ADD COLUMN IF NOT EXISTS follow_up_fixed_message TEXT
+    `);
+    this.aiSettingsColumnsEnsured = true;
   }
 
   private async getAssignmentCursor(): Promise<number> {
@@ -366,11 +380,13 @@ export class DatabaseStorage implements IStorage {
 
   // AI Agent
   async getAiSettings(): Promise<AiSettings | undefined> {
+    await this.ensureAiSettingsColumns();
     const [settings] = await db.select().from(aiSettings).limit(1);
     return settings;
   }
 
   async updateAiSettings(settings: Partial<InsertAiSettings>): Promise<AiSettings> {
+    await this.ensureAiSettingsColumns();
     const existing = await this.getAiSettings();
     if (existing) {
       const [updated] = await db

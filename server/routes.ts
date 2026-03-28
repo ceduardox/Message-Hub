@@ -3978,6 +3978,8 @@ NO uses saludos formales. Se directo y amigable.`
     learningMode: z.boolean().optional(),
     followUpEnabled: z.boolean().optional(),
     followUpMinutes: z.number().min(5).max(60).optional(),
+    followUpMessageMode: z.enum(["ai", "fixed"]).optional(),
+    followUpFixedMessage: z.string().nullable().optional(),
   });
 
   const promptProfilesUpdateSchema = z.object({

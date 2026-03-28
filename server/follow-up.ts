@@ -76,6 +76,8 @@ async function checkAndSendFollowUps() {
 
   const now = Date.now();
   const waitMinutes = settings.followUpMinutes || 20;
+  const followUpMessageMode = settings.followUpMessageMode === "fixed" ? "fixed" : "ai";
+  const fixedFollowUpMessage = settings.followUpFixedMessage?.trim() || "";
   const catalogAfterMs = 5 * 60 * 60 * 1000; // 5h
   const cutoff = new Date(now - waitMinutes * 60 * 1000);
   const window24hStart = new Date(now - 24 * 60 * 60 * 1000);
@@ -122,17 +124,24 @@ async function checkAndSendFollowUps() {
 
       // Stage 1: regular AI follow-up (X minutes)
       if (!conv.lastFollowUpAt) {
-        const recentMessages = msgs.slice(-10);
-        const result = await generateAiResponse(
-          conv.id,
-          `[SISTEMA: Seguimiento automatico dentro de ventana de 24 horas. El cliente no respondio en ${waitMinutes} minutos. Genera UN mensaje corto de reenganche, natural y no invasivo. No saludes de nuevo.]`,
-          recentMessages,
-        );
+        let followUpText = "";
 
-        if (!result?.response) continue;
+        if (followUpMessageMode === "fixed" && fixedFollowUpMessage) {
+          followUpText = fixedFollowUpMessage;
+        } else {
+          const recentMessages = msgs.slice(-10);
+          const result = await generateAiResponse(
+            conv.id,
+            `[SISTEMA: Seguimiento automatico dentro de ventana de 24 horas. El cliente no respondio en ${waitMinutes} minutos. Genera UN mensaje corto de reenganche, natural y no invasivo. No saludes de nuevo.]`,
+            recentMessages,
+          );
+
+          if (!result?.response) continue;
+          followUpText = result.response;
+        }
 
         try {
-          await sendAiResponseFn(conv.waId, result.response);
+          await sendAiResponseFn(conv.waId, followUpText);
         } catch (sendErr) {
           console.error(`[FollowUp] Send failed for conv ${conv.id}:`, sendErr);
           continue;
@@ -143,13 +152,13 @@ async function checkAndSendFollowUps() {
           waMessageId: `followup_${Date.now()}_${conv.id}`,
           direction: "out",
           type: "text",
-          text: result.response,
+          text: followUpText,
           timestamp: Math.floor(Date.now() / 1000).toString(),
           status: "sent",
         });
 
         await storage.updateConversation(conv.id, {
-          lastMessage: result.response,
+          lastMessage: followUpText,
           lastMessageTimestamp: new Date(),
           lastFollowUpAt: new Date(),
         });
