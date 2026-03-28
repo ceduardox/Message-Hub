@@ -5,7 +5,7 @@ import { useConversations } from "@/hooks/use-inbox";
 import { NotificationBell } from "@/components/NotificationBell";
 import { KanbanView } from "@/components/KanbanView";
 import { Button } from "@/components/ui/button";
-import { LogOut, Bot, BotOff, ClipboardList, LayoutGrid, Sparkles, MessageSquare, Zap, Activity, BarChart3, Search, X, Users, Bell, Clock, EllipsisVertical } from "lucide-react";
+import { LogOut, Bot, BotOff, ClipboardList, LayoutGrid, Sparkles, MessageSquare, Zap, Activity, BarChart3, Search, X, Users, Bell, Clock, EllipsisVertical, KeyRound } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Link, useLocation } from "wouter";
 import {
@@ -26,7 +26,7 @@ const pulseLineAnimation = `
 export default function InboxPage() {
   const INITIAL_VISIBLE_CONVERSATIONS = 50;
   const LOAD_MORE_STEP = 20;
-  const { logout, user, isAdmin } = useAuth();
+  const { logout, user, isAdmin, isPrimaryAdmin } = useAuth();
   const [daysToShow, setDaysToShow] = useState(7);
   const [location, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
@@ -190,6 +190,13 @@ export default function InboxPage() {
                   <Users className="h-5 w-5" />
                 </Button>
               </Link>
+              {isPrimaryAdmin && (
+                <Link href="/access">
+                  <Button variant="ghost" size="icon" title="Accesos" data-testid="button-access-desktop" className="text-slate-400 hover:text-amber-400 hover:bg-amber-500/10">
+                    <KeyRound className="h-5 w-5" />
+                  </Button>
+                </Link>
+              )}
             </>
           )}
           <div className="h-6 w-px bg-slate-600 mx-2" />
@@ -262,7 +269,7 @@ export default function InboxPage() {
         </Link>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className={`flex flex-col items-center px-3 py-1.5 rounded-xl transition-all ${(location === '/reminders' || location === '/push-settings' || location === '/follow-up' || location === '/agents') ? 'text-emerald-400 bg-emerald-500/20' : 'text-slate-500'}`}>
+            <button className={`flex flex-col items-center px-3 py-1.5 rounded-xl transition-all ${(location === '/reminders' || location === '/push-settings' || location === '/follow-up' || location === '/agents' || location === '/access') ? 'text-emerald-400 bg-emerald-500/20' : 'text-slate-500'}`}>
               <EllipsisVertical className="h-5 w-5" />
               <span className="text-[10px] mt-0.5 font-medium">Mas</span>
             </button>
@@ -286,6 +293,12 @@ export default function InboxPage() {
               <DropdownMenuItem onClick={() => setLocation("/agents")} className="focus:bg-slate-800">
                 <Users className="h-4 w-4 mr-2 text-violet-400" />
                 Agentes
+              </DropdownMenuItem>
+            )}
+            {isPrimaryAdmin && (
+              <DropdownMenuItem onClick={() => setLocation("/access")} className="focus:bg-slate-800">
+                <KeyRound className="h-4 w-4 mr-2 text-amber-400" />
+                Accesos
               </DropdownMenuItem>
             )}
             <DropdownMenuItem onClick={() => logout()} className="focus:bg-slate-800">

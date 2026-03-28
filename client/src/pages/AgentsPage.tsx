@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/use-auth";
 import { apiRequest } from "@/lib/queryClient";
 import { Link } from "wouter";
 import {
@@ -27,7 +26,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { Agent, Subadmin } from "@shared/schema";
+import type { Agent } from "@shared/schema";
 import {
   BarChart,
   Bar,
@@ -49,8 +48,6 @@ interface AgentWithStats extends Agent {
   shouldCallCount?: number;
   lastActivityAt?: string | null;
 }
-
-type SubadminAccount = Subadmin;
 
 interface AgentAiColumnStatus {
   exists: boolean;
@@ -112,17 +109,12 @@ function formatUsd(value: number): string {
 
 export default function AgentsPage() {
   const { toast } = useToast();
-  const { isPrimaryAdmin } = useAuth();
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
-  const [showSubadminForm, setShowSubadminForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [subadminName, setSubadminName] = useState("");
-  const [subadminUsername, setSubadminUsername] = useState("");
-  const [subadminPassword, setSubadminPassword] = useState("");
   const [weight, setWeight] = useState(1);
   const [showPasswords, setShowPasswords] = useState<Record<number, boolean>>({});
   const [dateFrom, setDateFrom] = useState("");
@@ -199,16 +191,6 @@ export default function AgentsPage() {
       return res.json();
     },
     enabled: Boolean(costDate),
-  });
-
-  const { data: subadmins = [] } = useQuery<SubadminAccount[]>({
-    queryKey: ["/api/subadmins"],
-    queryFn: async () => {
-      const res = await fetch("/api/subadmins", { credentials: "include" });
-      if (!res.ok) throw new Error("No se pudo cargar admins secundarios");
-      return res.json();
-    },
-    enabled: isPrimaryAdmin,
   });
 
   useEffect(() => {
@@ -335,49 +317,6 @@ export default function AgentsPage() {
     },
   });
 
-  const createSubadminMutation = useMutation({
-    mutationFn: async (data: { name: string; username: string; password: string }) => {
-      return apiRequest("POST", "/api/subadmins", data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/subadmins"] });
-      setShowSubadminForm(false);
-      setSubadminName("");
-      setSubadminUsername("");
-      setSubadminPassword("");
-      toast({ title: "Admin secundario creado" });
-    },
-    onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    },
-  });
-
-  const updateSubadminMutation = useMutation({
-    mutationFn: async ({ id, ...data }: { id: number; [key: string]: any }) => {
-      return apiRequest("PATCH", `/api/subadmins/${id}`, data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/subadmins"] });
-      toast({ title: "Acceso actualizado" });
-    },
-    onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    },
-  });
-
-  const deleteSubadminMutation = useMutation({
-    mutationFn: async (id: number) => {
-      return apiRequest("DELETE", `/api/subadmins/${id}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/subadmins"] });
-      toast({ title: "Admin secundario eliminado" });
-    },
-    onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    },
-  });
-
   const deleteAdRoutingMutation = useMutation({
     mutationFn: async (id: number) => {
       return apiRequest("DELETE", `/api/ad-routing-rules/${id}`);
@@ -416,18 +355,6 @@ export default function AgentsPage() {
     setUsername("");
     setPassword("");
     setWeight(1);
-  };
-
-  const handleCreateSubadmin = () => {
-    if (!subadminName || !subadminUsername || !subadminPassword) {
-      toast({ title: "Completa todos los campos del admin secundario", variant: "destructive" });
-      return;
-    }
-    createSubadminMutation.mutate({
-      name: subadminName,
-      username: subadminUsername,
-      password: subadminPassword,
-    });
   };
 
   const handleCreate = () => {
@@ -553,127 +480,6 @@ export default function AgentsPage() {
             {agentAiColumnStatus.exists
               ? "Columna OK: is_ai_auto_reply_enabled existe en la base de datos. El toggle IA auto por agente puede guardarse."
               : "Alerta: falta la columna is_ai_auto_reply_enabled en la base de datos. El toggle IA auto por agente no se guardara bien hasta corregir eso."}
-          </div>
-        )}
-
-        {isPrimaryAdmin && (
-          <div className="mb-5 rounded-2xl border border-amber-500/30 bg-amber-500/10 backdrop-blur-xl p-4">
-            <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
-              <div>
-                <h3 className="text-sm font-semibold text-white">Admins secundarios</h3>
-                <p className="text-xs text-amber-100/80">
-                  Tienen acceso operativo de admin. Solo el admin principal puede activarlos, desactivarlos o borrarlos.
-                </p>
-              </div>
-              <Button
-                onClick={() => setShowSubadminForm((value) => !value)}
-                variant="outline"
-                className="border-amber-400/40 text-amber-100 bg-transparent"
-                data-testid="button-toggle-subadmin-form"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                {showSubadminForm ? "Cancelar" : "Nuevo admin secundario"}
-              </Button>
-            </div>
-
-            {showSubadminForm && (
-              <div className="rounded-xl border border-amber-400/20 bg-slate-900/40 p-4 mb-3">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <Input
-                    placeholder="Nombre"
-                    value={subadminName}
-                    onChange={(e) => setSubadminName(e.target.value)}
-                    className="bg-slate-800/60 border-slate-700/50 text-white"
-                    data-testid="input-subadmin-name"
-                  />
-                  <Input
-                    placeholder="Usuario"
-                    value={subadminUsername}
-                    onChange={(e) => setSubadminUsername(e.target.value)}
-                    className="bg-slate-800/60 border-slate-700/50 text-white"
-                    data-testid="input-subadmin-username"
-                  />
-                  <Input
-                    placeholder="Contrasena"
-                    value={subadminPassword}
-                    onChange={(e) => setSubadminPassword(e.target.value)}
-                    className="bg-slate-800/60 border-slate-700/50 text-white"
-                    data-testid="input-subadmin-password"
-                  />
-                </div>
-                <div className="mt-3 flex gap-2">
-                  <Button
-                    onClick={handleCreateSubadmin}
-                    disabled={createSubadminMutation.isPending}
-                    className="bg-gradient-to-r from-amber-500 to-orange-500 border-0 text-slate-950"
-                    data-testid="button-save-subadmin"
-                  >
-                    {createSubadminMutation.isPending ? "Creando..." : "Crear acceso"}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    onClick={() => {
-                      setShowSubadminForm(false);
-                      setSubadminName("");
-                      setSubadminUsername("");
-                      setSubadminPassword("");
-                    }}
-                    className="text-slate-300"
-                    data-testid="button-cancel-subadmin"
-                  >
-                    Cancelar
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            <div className="space-y-2">
-              {subadmins.length === 0 ? (
-                <p className="text-xs text-amber-50/70">Aun no hay admins secundarios creados.</p>
-              ) : (
-                subadmins.map((subadmin) => (
-                  <div
-                    key={`subadmin-${subadmin.id}`}
-                    className="rounded-xl border border-amber-400/20 bg-slate-900/40 p-3 flex flex-wrap items-center justify-between gap-3"
-                    data-testid={`card-subadmin-${subadmin.id}`}
-                  >
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-white">{subadmin.name}</p>
-                      <p className="text-xs text-slate-300">@{subadmin.username}</p>
-                      <p className="text-xs text-slate-400 mt-1">
-                        {subadmin.isActive ? "Acceso activo" : "Acceso bloqueado"}
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className={subadmin.isActive ? "border-amber-400/40 text-amber-100" : "border-emerald-500/40 text-emerald-200"}
-                        onClick={() => updateSubadminMutation.mutate({ id: subadmin.id, isActive: !subadmin.isActive })}
-                        disabled={updateSubadminMutation.isPending}
-                        data-testid={`button-toggle-subadmin-${subadmin.id}`}
-                      >
-                        {subadmin.isActive ? "Desactivar" : "Activar"}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="border-red-500/50 text-red-300 hover:bg-red-500/10"
-                        onClick={() => {
-                          if (confirm(`Eliminar admin secundario "${subadmin.name}"?`)) {
-                            deleteSubadminMutation.mutate(subadmin.id);
-                          }
-                        }}
-                        disabled={deleteSubadminMutation.isPending}
-                        data-testid={`button-delete-subadmin-${subadmin.id}`}
-                      >
-                        Eliminar
-                      </Button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
           </div>
         )}
 

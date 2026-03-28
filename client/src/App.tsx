@@ -13,6 +13,7 @@ const FollowUpPage = lazy(() => import("@/pages/FollowUpPage"));
 const RemindersPage = lazy(() => import("@/pages/RemindersPage"));
 const AnalyticsPage = lazy(() => import("@/pages/AnalyticsPage"));
 const AgentsPage = lazy(() => import("@/pages/AgentsPage"));
+const AdminAccessPage = lazy(() => import("@/pages/AdminAccessPage"));
 const AgentAiPage = lazy(() => import("@/pages/AgentAiPage"));
 const PushSettingsPage = lazy(() => import("@/pages/PushSettingsPage"));
 const PrivacyPolicyPage = lazy(() => import("@/pages/PrivacyPolicyPage"));
@@ -47,6 +48,25 @@ function AdminRoute({ component: Component }: { component: React.ComponentType }
   }
 
   if (!isAdmin) {
+    setTimeout(() => setLocation("/"), 0);
+    return null;
+  }
+
+  return <Component />;
+}
+
+function PrimaryAdminRoute({ component: Component }: { component: React.ComponentType }) {
+  const { user, isLoading, isPrimaryAdmin } = useAuth();
+  const [, setLocation] = useLocation();
+
+  if (isLoading) return null;
+
+  if (!user) {
+    setTimeout(() => setLocation("/login"), 0);
+    return null;
+  }
+
+  if (!isPrimaryAdmin) {
     setTimeout(() => setLocation("/"), 0);
     return null;
   }
@@ -100,6 +120,9 @@ function Router() {
         </Route>
         <Route path="/agents">
           <AdminRoute component={AgentsPage} />
+        </Route>
+        <Route path="/access">
+          <PrimaryAdminRoute component={AdminAccessPage} />
         </Route>
         <Route path="/">
           <ProtectedRoute component={InboxPage} />
