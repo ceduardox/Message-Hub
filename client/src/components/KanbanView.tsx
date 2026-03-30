@@ -1096,6 +1096,7 @@ export function KanbanView({ conversations, isLoading, daysToShow, onDaysChange,
             <ChatArea
               conversation={activeConversation.conversation}
               messages={activeConversation.messages}
+              onClose={() => setActiveId(null)}
             />
           </div>
         ) : null}

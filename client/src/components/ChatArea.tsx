@@ -32,6 +32,7 @@ import { Slider } from "@/components/ui/slider";
 interface ChatAreaProps {
   conversation: Conversation;
   messages: Message[];
+  onClose?: () => void;
 }
 
 const FAILED_MEDIA_STORAGE_KEY = "ryzapp_failed_media_ids_v1";
@@ -77,7 +78,7 @@ const recordingWaveCss = `
 }
 `;
 
-export function ChatArea({ conversation, messages }: ChatAreaProps) {
+export function ChatArea({ conversation, messages, onClose }: ChatAreaProps) {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
   const canToggleConversationAi = user?.role === "admin" || user?.role === "agent";
@@ -1394,6 +1395,18 @@ export function ChatArea({ conversation, messages }: ChatAreaProps) {
           ))}
         </div>
         <div className="flex items-center justify-center gap-1 overflow-x-auto md:justify-end md:gap-0 md:overflow-visible">
+        {onClose && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="flex-shrink-0 h-7 w-7"
+            onClick={onClose}
+            data-testid="button-close-chat-area"
+            title="Cerrar chat"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        )}
         {/* Reassign Agent Dropdown (admin only) */}
         {isAdmin && (
           <DropdownMenu>
