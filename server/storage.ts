@@ -203,6 +203,10 @@ export class DatabaseStorage implements IStorage {
     if (this.aiSettingsColumnsEnsured) return;
     await db.execute(sql`
       ALTER TABLE ai_settings
+      ADD COLUMN IF NOT EXISTS ai_provider VARCHAR(20) NOT NULL DEFAULT 'openai'
+    `);
+    await db.execute(sql`
+      ALTER TABLE ai_settings
       ADD COLUMN IF NOT EXISTS follow_up_check_interval_minutes INTEGER NOT NULL DEFAULT 5
     `);
     await db.execute(sql`

@@ -4008,6 +4008,7 @@ NO uses saludos formales. Se directo y amigable.`
     catalog: z.string().nullable().optional(),
     maxTokens: z.number().min(50).max(500).optional(),
     temperature: z.number().min(0).max(100).optional(),
+    aiProvider: z.enum(["openai", "gemini"]).optional(),
     model: z.string().optional(),
     maxPromptChars: z.number().min(500).max(20000).optional(),
     conversationHistory: z.number().min(1).max(20).optional(),

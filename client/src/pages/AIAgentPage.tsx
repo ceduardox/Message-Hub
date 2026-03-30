@@ -36,6 +36,7 @@ interface AiSettings {
   catalog: string | null;
   maxTokens: number | null;
   temperature: number | null;
+  aiProvider: string | null;
   model: string | null;
   maxPromptChars: number | null;
   conversationHistory: number | null;
@@ -113,6 +114,7 @@ export default function AIAgentPage() {
   // AI config state
   const [maxTokens, setMaxTokens] = useState(120);
   const [temperature, setTemperature] = useState(70);
+  const [aiProvider, setAiProvider] = useState<"openai" | "gemini">("openai");
   const [model, setModel] = useState("gpt-4o-mini");
   const [maxPromptChars, setMaxPromptChars] = useState(2000);
   const [conversationHistory, setConversationHistory] = useState(3);
@@ -128,6 +130,21 @@ export default function AIAgentPage() {
   const [followUpEnabled, setFollowUpEnabled] = useState(false);
   const [followUpMinutes, setFollowUpMinutes] = useState(20);
   const [configEdited, setConfigEdited] = useState(false);
+
+  const openAiModelOptions = [
+    { value: "gpt-4o-mini", label: "GPT-4o Mini (rapido, economico)" },
+    { value: "gpt-4o", label: "GPT-4o (mas inteligente)" },
+    { value: "gpt-4-turbo", label: "GPT-4 Turbo" },
+  ];
+  const geminiModelOptions = [
+    { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash (rapido)" },
+    { value: "gemini-2.0-flash-lite", label: "Gemini 2.0 Flash Lite (economico)" },
+    { value: "gemini-1.5-pro", label: "Gemini 1.5 Pro (mas completo)" },
+  ];
+  const modelOptions = aiProvider === "gemini" ? geminiModelOptions : openAiModelOptions;
+
+  const getDefaultModelForProvider = (provider: "openai" | "gemini") =>
+    provider === "gemini" ? "gemini-2.0-flash" : "gpt-4o-mini";
   
   // Product form state
   const [newName, setNewName] = useState("");
@@ -279,7 +296,9 @@ export default function AIAgentPage() {
     if (settings && !configEdited) {
       setMaxTokens(settings.maxTokens || 120);
       setTemperature(settings.temperature || 70);
-      setModel(settings.model || "gpt-4o-mini");
+      const provider = settings.aiProvider === "gemini" ? "gemini" : "openai";
+      setAiProvider(provider);
+      setModel(settings.model || getDefaultModelForProvider(provider));
       setMaxPromptChars(settings.maxPromptChars || 2000);
       setConversationHistory(settings.conversationHistory || 3);
       setAudioResponseEnabled(settings.audioResponseEnabled || false);
@@ -293,6 +312,14 @@ export default function AIAgentPage() {
       setFollowUpMinutes(settings.followUpMinutes || 20);
     }
   }, [settings, promptProfiles, promptEdited, configEdited]);
+
+  useEffect(() => {
+    const validModels = new Set(modelOptions.map((option) => option.value));
+    if (!validModels.has(model)) {
+      setModel(getDefaultModelForProvider(aiProvider));
+      setConfigEdited(true);
+    }
+  }, [aiProvider]);
 
   const updateSettingsMutation = useMutation({
     mutationFn: async (data: Partial<AiSettings>) => {
@@ -388,7 +415,7 @@ export default function AIAgentPage() {
 
   const handleSaveConfig = () => {
     console.log("Saving config:", { maxTokens, temperature, model, maxPromptChars, conversationHistory, fixedCommerceFlowEnabled });
-    updateSettingsMutation.mutate({ maxTokens, temperature, model, maxPromptChars, conversationHistory, audioResponseEnabled, audioVoice, ttsProvider, elevenlabsVoiceId, ttsSpeed, ttsInstructions: ttsInstructions || null, learningMode: !fixedCommerceFlowEnabled, followUpEnabled, followUpMinutes });
+    updateSettingsMutation.mutate({ aiProvider, maxTokens, temperature, model, maxPromptChars, conversationHistory, audioResponseEnabled, audioVoice, ttsProvider, elevenlabsVoiceId, ttsSpeed, ttsInstructions: ttsInstructions || null, learningMode: !fixedCommerceFlowEnabled, followUpEnabled, followUpMinutes });
   };
 
   const playVoicePreview = async () => {
@@ -822,6 +849,44 @@ export default function AIAgentPage() {
                 <p className="text-xs text-slate-500 mt-1">0=preciso, 100=creativo</p>
               </div>
               <div>
+                <Label className="text-slate-300">Proveedor de respuesta</Label>
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAiProvider("openai");
+                      setConfigEdited(true);
+                    }}
+                    className={`rounded-xl border-2 p-3 text-left transition-all ${
+                      aiProvider === "openai"
+                        ? "border-emerald-500 bg-emerald-500/15 shadow-lg shadow-emerald-500/10"
+                        : "border-slate-600/50 bg-slate-800/50 hover:border-emerald-500/40"
+                    }`}
+                    data-testid="provider-response-openai"
+                  >
+                    <div className="font-semibold text-sm text-white">OpenAI</div>
+                    <div className="text-xs text-slate-400">Actual y estable</div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAiProvider("gemini");
+                      setConfigEdited(true);
+                    }}
+                    className={`rounded-xl border-2 p-3 text-left transition-all ${
+                      aiProvider === "gemini"
+                        ? "border-cyan-500 bg-cyan-500/15 shadow-lg shadow-cyan-500/10"
+                        : "border-slate-600/50 bg-slate-800/50 hover:border-cyan-500/40"
+                    }`}
+                    data-testid="provider-response-gemini"
+                  >
+                    <div className="font-semibold text-sm text-white">Gemini</div>
+                    <div className="text-xs text-slate-400">Test con rollback rapido</div>
+                  </button>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">Solo cambia la IA que redacta. El audio sigue aparte.</p>
+              </div>
+              <div>
                 <Label htmlFor="model" className="text-slate-300">Modelo</Label>
                 <select
                   id="model"
@@ -833,11 +898,15 @@ export default function AIAgentPage() {
                   className="w-full h-9 rounded-md border border-slate-600/50 bg-slate-800/50 px-3 text-sm text-white"
                   data-testid="select-model"
                 >
-                  <option value="gpt-4o-mini">GPT-4o Mini (rápido, económico)</option>
-                  <option value="gpt-4o">GPT-4o (más inteligente)</option>
-                  <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                  {modelOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
                 </select>
-                <p className="text-xs text-slate-500 mt-1">Modelo de OpenAI a usar</p>
+                <p className="text-xs text-slate-500 mt-1">
+                  {aiProvider === "gemini" ? "Modelo de Gemini para testeo" : "Modelo de OpenAI a usar"}
+                </p>
               </div>
               <div>
                 <Label htmlFor="maxPromptChars" className="text-slate-300">Máx. Caracteres (instrucciones)</Label>
@@ -1788,5 +1857,3 @@ export default function AIAgentPage() {
     </div>
   );
 }
-
-

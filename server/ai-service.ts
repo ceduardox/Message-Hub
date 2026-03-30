@@ -6,6 +6,10 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 const DEFAULT_PUBLIC_BASE_URL = "https://ryzapp.org";
+const DEFAULT_OPENAI_MODEL = "gpt-4o-mini";
+const DEFAULT_GEMINI_MODEL = "gemini-2.0-flash";
+
+type AiProvider = "openai" | "gemini";
 
 // Order status type
 export type OrderStatus = 'pending' | 'ready' | 'delivered' | null;
@@ -100,6 +104,98 @@ function resolvePublicImageUrl(imageUrl?: string | null): string {
   return `${baseUrl}${value}`;
 }
 
+function normalizeAiProvider(value?: string | null): AiProvider {
+  return value === "gemini" ? "gemini" : "openai";
+}
+
+function getDefaultModelForProvider(provider: AiProvider): string {
+  return provider === "gemini" ? DEFAULT_GEMINI_MODEL : DEFAULT_OPENAI_MODEL;
+}
+
+async function requestOpenAiCompletion(params: {
+  model: string;
+  messages: any[];
+  maxTokens: number;
+  temperature: number;
+}) {
+  const completion = await openai.chat.completions.create({
+    model: params.model,
+    messages: params.messages,
+    max_tokens: params.maxTokens,
+    temperature: params.temperature,
+  });
+
+  return {
+    responseText: completion.choices[0]?.message?.content || "",
+    tokensUsed: completion.usage?.total_tokens || 0,
+    providerUsed: "openai" as const,
+  };
+}
+
+async function requestGeminiCompletion(params: {
+  model: string;
+  systemPrompt: string;
+  conversationHistory: Array<{ role: "user" | "assistant"; content: string }>;
+  userMessage: string;
+  maxTokens: number;
+  temperature: number;
+}) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY is not configured");
+  }
+
+  const contents = [
+    ...params.conversationHistory.map((message) => ({
+      role: message.role === "assistant" ? "model" : "user",
+      parts: [{ text: message.content }],
+    })),
+    {
+      role: "user",
+      parts: [{ text: params.userMessage }],
+    },
+  ];
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${params.model}:generateContent?key=${encodeURIComponent(apiKey)}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        system_instruction: {
+          parts: [{ text: params.systemPrompt }],
+        },
+        contents,
+        generationConfig: {
+          temperature: params.temperature,
+          maxOutputTokens: params.maxTokens,
+        },
+      }),
+    },
+  );
+
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const errorMessage =
+      payload?.error?.message ||
+      payload?.message ||
+      `Gemini request failed with status ${response.status}`;
+    throw new Error(errorMessage);
+  }
+
+  const parts = payload?.candidates?.[0]?.content?.parts;
+  const responseText = Array.isArray(parts)
+    ? parts.map((part: any) => String(part?.text || "")).join("").trim()
+    : "";
+  const tokensUsed = Number(payload?.usageMetadata?.totalTokenCount || 0);
+
+  return {
+    responseText,
+    tokensUsed,
+    providerUsed: "gemini" as const,
+  };
+}
+
 function getProductImageContext(product: Product) {
   const imageLines: string[] = [];
   const mainImage = resolvePublicImageUrl(product.imageUrl);
@@ -177,7 +273,7 @@ export async function generateAiResponse(
       .map((m) => ({
         role: m.direction === "in" ? "user" : "assistant",
         content: m.text || `[${m.type}]`,
-      }));
+      })) as Array<{ role: "user" | "assistant"; content: string }>;
 
     const resolvedAdvisorName = (advisorName || "").trim() || "Isabella";
     const promptTemplate = settings.systemPrompt || "Eres un asistente de ventas amigable.";
@@ -244,20 +340,56 @@ ${productContext ? `\n=== PRODUCTOS ===\n${productContext}` : ""}`;
       { role: "user", content: userContent },
     ];
 
-    // Use settings or defaults
-    const modelToUse = settings.model || "gpt-4o-mini";
+    const configuredProvider = normalizeAiProvider(settings.aiProvider);
+    const modelToUse = settings.model || getDefaultModelForProvider(configuredProvider);
     const maxTokensToUse = settings.maxTokens || 120;
     const temperatureToUse = (settings.temperature || 70) / 100; // Convert 0-100 to 0-1
+    const shouldUseGemini = configuredProvider === "gemini" && !imageBase64;
 
-    const completion = await openai.chat.completions.create({
-      model: modelToUse,
-      messages,
-      max_tokens: maxTokensToUse,
-      temperature: temperatureToUse,
-    });
+    let responseText = "";
+    let tokensUsed = 0;
+    let providerUsed: AiProvider = "openai";
 
-    const responseText = completion.choices[0]?.message?.content || "";
-    const tokensUsed = completion.usage?.total_tokens || 0;
+    if (configuredProvider === "gemini" && imageBase64) {
+      console.log("[AI] Gemini selected but image input detected. Falling back to OpenAI for vision.");
+    }
+
+    if (shouldUseGemini) {
+      try {
+        const geminiResult = await requestGeminiCompletion({
+          model: modelToUse,
+          systemPrompt,
+          conversationHistory,
+          userMessage,
+          maxTokens: maxTokensToUse,
+          temperature: temperatureToUse,
+        });
+        responseText = geminiResult.responseText;
+        tokensUsed = geminiResult.tokensUsed;
+        providerUsed = geminiResult.providerUsed;
+      } catch (geminiError) {
+        console.error("[AI] Gemini failed. Falling back to OpenAI:", geminiError);
+        const openAiResult = await requestOpenAiCompletion({
+          model: getDefaultModelForProvider("openai"),
+          messages,
+          maxTokens: maxTokensToUse,
+          temperature: temperatureToUse,
+        });
+        responseText = openAiResult.responseText;
+        tokensUsed = openAiResult.tokensUsed;
+        providerUsed = openAiResult.providerUsed;
+      }
+    } else {
+      const openAiResult = await requestOpenAiCompletion({
+        model: configuredProvider === "openai" ? modelToUse : getDefaultModelForProvider("openai"),
+        messages,
+        maxTokens: maxTokensToUse,
+        temperature: temperatureToUse,
+      });
+      responseText = openAiResult.responseText;
+      tokensUsed = openAiResult.tokensUsed;
+      providerUsed = openAiResult.providerUsed;
+    }
 
     // Extract image URL if present
     const imageMatch = responseText.match(/\[IMAGEN:\s*([^\]]+)\]/i);
@@ -293,7 +425,7 @@ ${productContext ? `\n=== PRODUCTOS ===\n${productContext}` : ""}`;
     storage.createAiLog({
       conversationId,
       userMessage,
-      aiResponse: responseText,
+      aiResponse: `[${providerUsed}] ${responseText}`,
       tokensUsed,
       success: true,
     }).catch(err => console.error("AI log error:", err));
