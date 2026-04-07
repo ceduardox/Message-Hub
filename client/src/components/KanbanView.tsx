@@ -3,7 +3,7 @@ import type { Conversation, Label } from "@shared/schema";
 import { useConversation } from "@/hooks/use-inbox";
 import { useAuth } from "@/hooks/use-auth";
 import { ChatArea } from "./ChatArea";
-import { Phone, Clock, AlertCircle, Truck, CheckCircle, Check, Zap, ArrowLeft, Tag, Package, Search, X } from "lucide-react";
+import { Phone, Clock, AlertCircle, Truck, CheckCircle, Check, Zap, ArrowLeft, Tag, Package, Search, X, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -484,6 +484,7 @@ export function KanbanView({ conversations, isLoading, daysToShow, onDaysChange,
   const [readStateByConversation, setReadStateByConversation] = useState<Record<number, number>>(() => readKanbanReadState());
   const [mobileTab, setMobileTab] = useState<TabType>("nuevo");
   const [filterLabelId, setFilterLabelId] = useState<number | null>(null);
+  const [filterAgentId, setFilterAgentId] = useState<number | null>(null);
   const [draggingConversationId, setDraggingConversationId] = useState<number | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<TabType | null>(null);
   const [swipeOffset, setSwipeOffset] = useState(0);
@@ -526,6 +527,7 @@ export function KanbanView({ conversations, isLoading, daysToShow, onDaysChange,
     if (!assignedAgentId) return null;
     return agentNameById.get(assignedAgentId) || null;
   };
+  const selectedAgentName = filterAgentId ? (agentNameById.get(filterAgentId) || `Agente ${filterAgentId}`) : "Todos";
 
   const markConversationRead = (conversationId: number, lastMessageTimestamp?: Date | string | null) => {
     const ts = lastMessageTimestamp ? new Date(lastMessageTimestamp).getTime() : Date.now();
@@ -538,9 +540,14 @@ export function KanbanView({ conversations, isLoading, daysToShow, onDaysChange,
     });
   };
 
+  const conversationsByAgent = useMemo(() => {
+    if (!isAdmin || !filterAgentId) return conversations;
+    return conversations.filter((conversation) => conversation.assignedAgentId === filterAgentId);
+  }, [conversations, isAdmin, filterAgentId]);
+
   const unreadIds = useMemo(() => {
     const unread = new Set<number>();
-    for (const conv of conversations) {
+    for (const conv of conversationsByAgent) {
       const lastTs = conv.lastMessageTimestamp ? new Date(conv.lastMessageTimestamp).getTime() : 0;
       const seenTs = readStateByConversation[conv.id] || 0;
       if (lastTs > 0 && lastTs > seenTs) {
@@ -548,10 +555,10 @@ export function KanbanView({ conversations, isLoading, daysToShow, onDaysChange,
       }
     }
     return unread;
-  }, [conversations, readStateByConversation]);
+  }, [conversationsByAgent, readStateByConversation]);
 
   const handleSelectConversation = (id: number) => {
-    const selected = conversations.find((conv) => conv.id === id);
+    const selected = conversationsByAgent.find((conv) => conv.id === id);
     if (selected) {
       markConversationRead(id, selected.lastMessageTimestamp);
     }
@@ -575,7 +582,25 @@ export function KanbanView({ conversations, isLoading, daysToShow, onDaysChange,
     const cleanQuery = params.toString();
     const cleanUrl = cleanQuery ? `${window.location.pathname}?${cleanQuery}` : window.location.pathname;
     window.history.replaceState(window.history.state, "", cleanUrl);
-  }, [conversations]);
+  }, [conversationsByAgent]);
+
+  useEffect(() => {
+    if (filterAgentId && !agents.some((agent) => agent.id === filterAgentId)) {
+      setFilterAgentId(null);
+    }
+  }, [filterAgentId, agents]);
+
+  useEffect(() => {
+    if (!isAdmin && filterAgentId !== null) {
+      setFilterAgentId(null);
+    }
+  }, [isAdmin, filterAgentId]);
+
+  useEffect(() => {
+    if (activeId && !conversationsByAgent.some((conversation) => conversation.id === activeId)) {
+      setActiveId(null);
+    }
+  }, [activeId, conversationsByAgent]);
 
   useEffect(() => {
     if (activeId && activeConversation?.conversation) {
@@ -611,8 +636,8 @@ export function KanbanView({ conversations, isLoading, daysToShow, onDaysChange,
   });
 
   const filtered = filterLabelId
-    ? conversations.filter((c) => c.labelId === filterLabelId || c.labelId2 === filterLabelId)
-    : conversations;
+    ? conversationsByAgent.filter((c) => c.labelId === filterLabelId || c.labelId2 === filterLabelId)
+    : conversationsByAgent;
 
   const getConversationSortTimestamp = (conv: Conversation) => {
     if (conv.lastMessageTimestamp) {
@@ -752,7 +777,7 @@ export function KanbanView({ conversations, isLoading, daysToShow, onDaysChange,
 
   const handleDropOnColumn = (targetColumn: TabType) => {
     if (!canDragKanban || draggingConversationId === null) return;
-    const conversation = conversations.find((c) => c.id === draggingConversationId);
+    const conversation = conversationsByAgent.find((c) => c.id === draggingConversationId);
     if (!conversation) {
       handleDragEndCard();
       return;
@@ -874,6 +899,48 @@ export function KanbanView({ conversations, isLoading, daysToShow, onDaysChange,
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
+        {isAdmin ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                className="h-9 border-slate-600/70 bg-slate-800/70 px-2 md:px-3 text-slate-200 hover:bg-slate-700/80"
+                data-testid="button-filter-agents"
+                title={`Agente: ${selectedAgentName}`}
+              >
+                <Users className="h-4 w-4 text-slate-300" />
+                <span className="hidden md:inline ml-2 text-xs text-slate-200 max-w-[140px] truncate">
+                  {selectedAgentName}
+                </span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-56 !bg-slate-900 !border-slate-700 !text-slate-200 [&_svg]:!text-slate-300">
+              <DropdownMenuItem
+                onClick={() => setFilterAgentId(null)}
+                data-testid="filter-agent-all"
+                className="!text-slate-300 focus:bg-slate-700 !focus:text-slate-100 data-[highlighted]:bg-slate-700 !data-[highlighted]:text-slate-100"
+              >
+                <span className={cn("mr-2 inline-flex", !filterAgentId ? "text-emerald-400" : "text-transparent")}>
+                  <Check className="h-3.5 w-3.5" />
+                </span>
+                Todos
+              </DropdownMenuItem>
+              {agents.map((agent) => (
+                <DropdownMenuItem
+                  key={agent.id}
+                  onClick={() => setFilterAgentId(filterAgentId === agent.id ? null : agent.id)}
+                  data-testid={`filter-agent-${agent.id}`}
+                  className="!text-slate-300 focus:bg-slate-700 !focus:text-slate-100 data-[highlighted]:bg-slate-700 !data-[highlighted]:text-slate-100"
+                >
+                  <span className={cn("mr-2 inline-flex", filterAgentId === agent.id ? "text-emerald-400" : "text-transparent")}>
+                    <Check className="h-3.5 w-3.5" />
+                  </span>
+                  {agent.name}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
         {hasMoreConversations && (
           <Button
             onClick={onLoadMore}
