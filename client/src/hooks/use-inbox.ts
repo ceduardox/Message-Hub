@@ -5,13 +5,14 @@ import { useToast } from "@/hooks/use-toast";
 
 const POLL_INTERVAL = 5000;
 
-export function useConversations(limit?: number, before?: string) {
+export function useConversations(limit?: number, before?: string, search?: string) {
   return useQuery({
-    queryKey: [api.conversations.list.path, limit, before ?? null],
+    queryKey: [api.conversations.list.path, limit, before ?? null, search ?? null],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (typeof limit === "number") params.set("limit", String(limit));
       if (before) params.set("before", before);
+      if (search) params.set("q", search);
       const qs = params.toString();
       const url = qs ? `${api.conversations.list.path}?${qs}` : api.conversations.list.path;
       const res = await fetch(url);

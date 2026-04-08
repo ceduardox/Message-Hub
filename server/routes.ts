@@ -2797,6 +2797,9 @@ export async function registerRoutes(
     const parsedBefore = beforeRaw ? new Date(beforeRaw) : undefined;
     const before = parsedBefore && !Number.isNaN(parsedBefore.getTime()) ? parsedBefore : undefined;
 
+    const searchRaw = typeof req.query.q === "string" ? req.query.q : undefined;
+    const search = searchRaw?.trim() ? searchRaw.trim() : undefined;
+
     const assignedAgentId = (req.session as any).role === "agent"
       ? Number((req.session as any).agentId)
       : undefined;
@@ -2805,6 +2808,7 @@ export async function registerRoutes(
       limit,
       before,
       assignedAgentId,
+      search,
     });
     res.json(page);
   });

@@ -37,7 +37,7 @@ import {
   type Subadmin,
   type InsertSubadmin,
 } from "@shared/schema";
-import { eq, and, lt, desc, asc, sql } from "drizzle-orm";
+import { eq, and, lt, desc, asc, sql, ilike, or } from "drizzle-orm";
 
 type AssignmentOptions = {
   excludeAgentIds?: Iterable<number>;
@@ -53,6 +53,7 @@ export interface IStorage {
     limit?: number;
     before?: Date;
     assignedAgentId?: number;
+    search?: string;
   }): Promise<Conversation[]>;
   getConversation(id: number): Promise<Conversation | undefined>;
   getConversationByWaId(waId: string): Promise<Conversation | undefined>;
@@ -279,9 +280,10 @@ export class DatabaseStorage implements IStorage {
     limit?: number;
     before?: Date;
     assignedAgentId?: number;
+    search?: string;
   } = {}): Promise<Conversation[]> {
     await this.ensureConversationReminderColumns();
-    const { limit, before, assignedAgentId } = options;
+    const { limit, before, assignedAgentId, search } = options;
     const safeLimit =
       typeof limit === "number"
         ? Math.max(1, Math.min(limit, 600))
@@ -293,6 +295,14 @@ export class DatabaseStorage implements IStorage {
     }
     if (before) {
       filters.push(lt(conversations.updatedAt, before));
+    }
+    if (typeof search === "string" && search.trim()) {
+      const pattern = `%${search.trim()}%`;
+      filters.push(or(
+        ilike(conversations.contactName, pattern),
+        ilike(conversations.waId, pattern),
+        ilike(conversations.lastMessage, pattern),
+      ));
     }
 
     const whereExpr =

@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { useConversations } from "@/hooks/use-inbox";
+import { useConversation, useConversations } from "@/hooks/use-inbox";
 import { NotificationBell } from "@/components/NotificationBell";
 import { KanbanView } from "@/components/KanbanView";
 import { Button } from "@/components/ui/button";
@@ -45,14 +45,33 @@ export default function InboxPage() {
     [searchQuery, visibleConversations],
   );
   
-  const { data: conversations = [], isLoading: loadingList } = useConversations(serverLimit);
+  const urlConversationId = useMemo(() => {
+    const params = new URLSearchParams(window.location.search);
+    const rawId = params.get("conversationId");
+    if (!rawId) return null;
+    const conversationId = Number(rawId);
+    if (!Number.isInteger(conversationId) || conversationId <= 0) return null;
+    return conversationId;
+  }, [location]);
+
+  const { data: forcedConversationData } = useConversation(urlConversationId);
+  const forcedConversation = forcedConversationData?.conversation ?? null;
+
+  const { data: conversations = [], isLoading: loadingList } = useConversations(
+    serverLimit,
+    undefined,
+    searchQuery.trim() || undefined,
+  );
 
   const filteredByRangeAndSearch = useMemo(() => {
     const now = new Date();
     const cutoff = new Date(now.getTime() - daysToShow * 24 * 60 * 60 * 1000);
     const query = searchQuery.toLowerCase().trim();
-    
-    return conversations.filter((c) => {
+    const merged = forcedConversation && !conversations.some((c) => c.id === forcedConversation.id)
+      ? [forcedConversation, ...conversations]
+      : conversations;
+
+    const filtered = merged.filter((c) => {
       if (query) {
         const nameMatch = c.contactName?.toLowerCase().includes(query);
         const messageMatch = c.lastMessage?.toLowerCase().includes(query);
@@ -67,7 +86,13 @@ export default function InboxPage() {
       if (!c.lastMessageTimestamp) return true;
       return new Date(c.lastMessageTimestamp) >= cutoff;
     });
-  }, [conversations, daysToShow, searchQuery]);
+
+    if (forcedConversation && !filtered.some((c) => c.id === forcedConversation.id)) {
+      return [forcedConversation, ...filtered];
+    }
+
+    return filtered;
+  }, [conversations, daysToShow, searchQuery, forcedConversation]);
 
   const serverHasMoreConversations = conversations.length >= serverLimit;
   const hasHiddenColumnsByLimit = useMemo(() => {
