@@ -91,11 +91,17 @@ export default function ReportPage() {
       lines.push(`OPERADOR: ${operatorName.trim()}`);
     }
 
-    lines.push("");
-    lines.push(`Llamadas realizadas: ${callsMade || 0}`);
-    lines.push(`Llamadas contestadas: ${callsAnswered || 0}`);
-    lines.push(`No contestada: ${callsMissed || 0}`);
-    lines.push(`Pendientes: ${callsPending || 0}`);
+    const callLines = [
+      { label: "Llamadas realizadas", value: parseCount(callsMade) },
+      { label: "Llamadas contestadas", value: parseCount(callsAnswered) },
+      { label: "No contestada", value: parseCount(callsMissed) },
+      { label: "Pendientes", value: parseCount(callsPending) },
+    ].filter((item) => item.value > 0);
+
+    if (callLines.length > 0) {
+      lines.push("");
+      callLines.forEach((item) => lines.push(`${item.label}: ${item.value}`));
+    }
 
     CITIES.forEach(({ key, label }) => {
       const totalCity = totalsByCity[key];
