@@ -378,9 +378,16 @@ export default function RemindersPage() {
     >
       <CardHeader className={compact ? "pb-2 pt-4" : "pb-2"}>
         <div className="flex items-center justify-between gap-2 flex-wrap">
-          <CardTitle className={cn("text-sm sm:text-base text-slate-100", conv.reminderDone && "line-through decoration-2 decoration-red-400 opacity-75")}>
-            {conv.contactName || conv.waId}
-          </CardTitle>
+          <div className="min-w-0">
+            <CardTitle className={cn("text-sm sm:text-base text-slate-100 truncate", conv.reminderDone && "line-through decoration-2 decoration-red-400 opacity-75")}>
+              {conv.contactName || conv.waId}
+            </CardTitle>
+            {conv.contactName && conv.waId && (
+              <p className={cn("text-[11px] text-slate-400 truncate", conv.reminderDone && "line-through decoration-2 decoration-red-400 opacity-75")}>
+                {conv.waId}
+              </p>
+            )}
+          </div>
           <Badge variant="outline" className="border-amber-400/70 bg-amber-500/10 text-amber-300 font-semibold">
             {compact ? formatTimeOnly(conv.reminderAt) : formatReminder(conv.reminderAt)}
           </Badge>
@@ -394,16 +401,15 @@ export default function RemindersPage() {
           <Badge className="mt-2 bg-emerald-500/20 text-emerald-300 border border-emerald-400/40">Completado</Badge>
         )}
         <div className="mt-3 flex flex-wrap gap-2">
-          <Link href={`/?conversationId=${conv.id}`}>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 px-2.5 text-xs sm:h-9 sm:px-3 sm:text-sm border-slate-500/80 bg-slate-800/70 text-slate-100 hover:bg-slate-700/80"
-              data-testid={`button-open-chat-${conv.id}`}
-            >
-              Ver chat
-            </Button>
-          </Link>
+          <Button
+            asChild
+            variant="outline"
+            size="sm"
+            className="h-8 px-2.5 text-xs sm:h-9 sm:px-3 sm:text-sm border-slate-500/80 bg-slate-800/70 text-slate-100 hover:bg-slate-700/80"
+            data-testid={`button-open-chat-${conv.id}`}
+          >
+            <Link href={`/?conversationId=${conv.id}`}>Ver chat</Link>
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -489,6 +495,11 @@ export default function RemindersPage() {
             >
               {item.conv.contactName || item.conv.waId}
             </p>
+            {item.conv.contactName && item.conv.waId && (
+              <p className={cn("truncate text-[10px] text-white/70", compact && "text-[9px]", item.conv.reminderDone && "line-through decoration-2 decoration-red-300 opacity-75")}>
+                {item.conv.waId}
+              </p>
+            )}
             <p className={cn("truncate text-[10px] text-white/90", compact && "text-[9px]", item.conv.reminderDone && "line-through decoration-2 decoration-red-300 opacity-75")}>
               {formatTimeOnly(item.conv.reminderAt)}
             </p>
@@ -510,17 +521,20 @@ export default function RemindersPage() {
               <Check className="h-3.5 w-3.5" />
             </Button>
           )}
-          {showActions && <Link href={`/?conversationId=${item.conv.id}`}>
+          {showActions && (
             <Button
+              asChild
               variant="ghost"
               size="icon"
               className="h-6 w-6 rounded bg-black/25 text-white hover:bg-black/40"
               data-testid={`agenda-event-open-chat-${item.conv.id}`}
               title="Ir al chat"
             >
-              <MessageSquare className="h-3.5 w-3.5" />
+              <Link href={`/?conversationId=${item.conv.id}`}>
+                <MessageSquare className="h-3.5 w-3.5" />
+              </Link>
             </Button>
-          </Link>}
+          )}
         </div>
       </div>
     );
