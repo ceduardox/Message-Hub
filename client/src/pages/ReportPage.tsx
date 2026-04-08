@@ -472,6 +472,9 @@ export default function ReportPage() {
                   id="calls-made"
                   type="number"
                   min={0}
+                  step={1}
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   value={callsMade}
                   onChange={(e) => setCallsMade(e.target.value)}
                   placeholder="Ej: 27"
@@ -486,6 +489,9 @@ export default function ReportPage() {
                   id="calls-answered"
                   type="number"
                   min={0}
+                  step={1}
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   value={callsAnswered}
                   onChange={(e) => setCallsAnswered(e.target.value)}
                   placeholder="Ej: 13"
@@ -500,6 +506,9 @@ export default function ReportPage() {
                   id="calls-missed"
                   type="number"
                   min={0}
+                  step={1}
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   value={callsMissed}
                   onChange={(e) => setCallsMissed(e.target.value)}
                   placeholder="Ej: 19"
@@ -514,6 +523,9 @@ export default function ReportPage() {
                   id="calls-pending"
                   type="number"
                   min={0}
+                  step={1}
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   value={callsPending}
                   onChange={(e) => setCallsPending(e.target.value)}
                   placeholder="Ej: 0"
@@ -548,6 +560,9 @@ export default function ReportPage() {
                           id={`${city.key}-${product.key}`}
                           type="number"
                           min={0}
+                          step={1}
+                          inputMode="numeric"
+                          pattern="[0-9]*"
                           value={salesByCity[city.key][product.key]}
                           onChange={(e) => updateCityValue(city.key, product.key, e.target.value)}
                           placeholder="0"
