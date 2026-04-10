@@ -773,6 +773,33 @@ function normalizeInboundText(text: string): string {
     .trim();
 }
 
+const MEDICAL_SENSITIVE_PATTERNS: RegExp[] = [
+  /\bcancer\b/,
+  /\bcancerigen[oa]?\b/,
+  /\btumor(?:es)?\b/,
+  /\bcarcinom(?:a|as)?\b/,
+  /\bneoplas(?:ia|ico|ica)?\b/,
+  /\bmetastas(?:is|ico|ica)?\b/,
+  /\boncolog(?:ia|ico|ica)?\b/,
+  /\bquimioterap(?:ia|ico|ica)?\b/,
+  /\bradioterap(?:ia|ico|ica)?\b/,
+  /\bbiopsia\b/,
+  /\bembaraz(?:o|ada|adas)?\b/,
+  /\blactanci(?:a|ar)?\b/,
+  /\bamamant(?:ar|ando|o)?\b/,
+  /\btrasplante\b/,
+  /\bvih\b/,
+  /\bsida\b/,
+];
+
+function isSensitiveMedicalMessage(message: string): boolean {
+  const trimmed = (message || "").trim();
+  if (!trimmed || trimmed.startsWith("[")) return false;
+  const normalized = normalizeInboundText(trimmed);
+  if (!normalized) return false;
+  return MEDICAL_SENSITIVE_PATTERNS.some((pattern) => pattern.test(normalized));
+}
+
 function countMojibakeArtifacts(text: string): number {
   const matches = text.match(/(?:Ã.|Â.|ðŸ|â.|ï¸|�)/g);
   return matches ? matches.length : 0;
@@ -1160,6 +1187,18 @@ async function processAiResponse(data: BufferedMessage) {
     const aiSettings = await storage.getAiSettings();
     const fixedCommerceFlowEnabled = aiSettings?.learningMode !== true;
     const recentMessages = await storage.getMessages(conversationId);
+
+    if (isSensitiveMedicalMessage(messageForAi)) {
+      await storage.updateConversation(conversationId, { needsHumanAttention: true });
+      console.log("=== MEDICAL SENSITIVE - MARKED FOR ATTENTION ===", conversationId);
+      sendPushNotification(
+        "Atencion Humana Requerida",
+        `${name}: Consulta medica delicada`,
+        { conversationId: conversationId.toString(), waId: from, event: "human_attention" },
+        getConversationPushOptions(conversation)
+      );
+      return;
+    }
 
     if (fixedCommerceFlowEnabled && shouldForceFirstContactProblemMenu(messageForAi, recentMessages, imageBase64ForAi, wasAudioMessage)) {
       const firstContactResponseText = getFirstContactProblemMenuResponse(advisorName);
