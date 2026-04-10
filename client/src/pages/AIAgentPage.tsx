@@ -1071,17 +1071,26 @@ export default function AIAgentPage() {
                     </Button>
                     {previewMeta && (
                       <div className="flex flex-wrap items-center gap-2 text-[11px]">
-                        <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-emerald-200">
+                        <span
+                          className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-emerald-200"
+                          title="Se guardó en la base de datos para reutilizar el audio"
+                        >
                           <CheckCircle className="h-3.5 w-3.5" />
                           Guardado en base
                         </span>
                         {previewMeta.free && (
-                          <span className="inline-flex items-center gap-1 rounded-full border border-cyan-500/40 bg-cyan-500/10 px-2 py-0.5 text-cyan-200">
+                          <span
+                            className="inline-flex items-center gap-1 rounded-full border border-cyan-500/40 bg-cyan-500/10 px-2 py-0.5 text-cyan-200"
+                            title="Este preview es gratis y no consume créditos"
+                          >
                             Preview gratis
                           </span>
                         )}
                         {previewMeta.cache === "hit" && (
-                          <span className="inline-flex items-center gap-1 rounded-full border border-slate-500/40 bg-slate-500/10 px-2 py-0.5 text-slate-200">
+                          <span
+                            className="inline-flex items-center gap-1 rounded-full border border-slate-500/40 bg-slate-500/10 px-2 py-0.5 text-slate-200"
+                            title="Se reutilizó un audio previamente guardado"
+                          >
                             Cache
                           </span>
                         )}
@@ -1153,17 +1162,26 @@ export default function AIAgentPage() {
                       </Button>
                       {previewMeta && (
                         <div className="flex flex-wrap items-center gap-2 text-[11px]">
-                          <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-emerald-200">
+                          <span
+                            className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-emerald-200"
+                            title="Se guardó en la base de datos para reutilizar el audio"
+                          >
                             <CheckCircle className="h-3.5 w-3.5" />
                             Guardado en base
                           </span>
                           {previewMeta.free && (
-                            <span className="inline-flex items-center gap-1 rounded-full border border-cyan-500/40 bg-cyan-500/10 px-2 py-0.5 text-cyan-200">
+                            <span
+                              className="inline-flex items-center gap-1 rounded-full border border-cyan-500/40 bg-cyan-500/10 px-2 py-0.5 text-cyan-200"
+                              title="Este preview es gratis y no consume créditos"
+                            >
                               Preview gratis
                             </span>
                           )}
                           {previewMeta.cache === "hit" && (
-                            <span className="inline-flex items-center gap-1 rounded-full border border-slate-500/40 bg-slate-500/10 px-2 py-0.5 text-slate-200">
+                            <span
+                              className="inline-flex items-center gap-1 rounded-full border border-slate-500/40 bg-slate-500/10 px-2 py-0.5 text-slate-200"
+                              title="Se reutilizó un audio previamente guardado"
+                            >
                               Cache
                             </span>
                           )}
