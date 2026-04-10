@@ -125,6 +125,7 @@ export default function AIAgentPage() {
   const [voiceSearchQuery, setVoiceSearchQuery] = useState("");
   const [previewPlaying, setPreviewPlaying] = useState(false);
   const [previewMeta, setPreviewMeta] = useState<{ saved: boolean; free: boolean; cache: "hit" | "miss" | null } | null>(null);
+  const [previewStatusLoading, setPreviewStatusLoading] = useState(false);
   const [ttsSpeed, setTtsSpeed] = useState(100);
   const [ttsInstructions, setTtsInstructions] = useState("");
   const [fixedCommerceFlowEnabled, setFixedCommerceFlowEnabled] = useState(true);
@@ -192,6 +193,8 @@ export default function AIAgentPage() {
     enabled: ttsProvider === "elevenlabs" && audioResponseEnabled,
     staleTime: 5 * 60 * 1000,
   });
+  const selectedElevenVoice = elevenLabsVoices.find((voice) => voice.voice_id === elevenlabsVoiceId);
+  const selectedElevenPreviewUrl = selectedElevenVoice?.preview_url;
 
   const { data: products = [], isLoading: productsLoading } = useQuery<Product[]>({
     queryKey: ["/api/products"],
@@ -322,10 +325,6 @@ export default function AIAgentPage() {
     }
   }, [aiProvider]);
 
-  useEffect(() => {
-    setPreviewMeta(null);
-  }, [ttsProvider, audioVoice, elevenlabsVoiceId, ttsSpeed, ttsInstructions]);
-
   const updateSettingsMutation = useMutation({
     mutationFn: async (data: Partial<AiSettings>) => {
       return apiRequest("PATCH", "/api/ai/settings", data);
@@ -423,27 +422,77 @@ export default function AIAgentPage() {
     updateSettingsMutation.mutate({ aiProvider, maxTokens, temperature, model, maxPromptChars, conversationHistory, audioResponseEnabled, audioVoice, ttsProvider, elevenlabsVoiceId, ttsSpeed, ttsInstructions: ttsInstructions || null, learningMode: !fixedCommerceFlowEnabled, followUpEnabled, followUpMinutes });
   };
 
+  const buildPreviewPayload = () => {
+    const previewText = "Hola, esta es una prueba de voz para tu CRM.";
+    if (ttsProvider === "elevenlabs") {
+      return {
+        provider: "elevenlabs",
+        elevenlabsVoiceId,
+        previewUrl: selectedElevenPreviewUrl,
+        text: previewText,
+      };
+    }
+    return {
+      provider: "openai",
+      voice: audioVoice,
+      speed: ttsSpeed,
+      instructions: ttsInstructions || null,
+      text: previewText,
+    };
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadPreviewStatus = async () => {
+      setPreviewStatusLoading(true);
+      setPreviewMeta(null);
+      try {
+        const response = await fetch("/api/tts/preview-status", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(buildPreviewPayload()),
+        });
+        if (!response.ok) {
+          throw new Error("No se pudo verificar la muestra");
+        }
+        const data = await response.json();
+        if (cancelled) return;
+        const saved = Boolean(data?.saved);
+        const free = Boolean(data?.free);
+        setPreviewMeta({ saved, free, cache: saved ? "hit" : "miss" });
+      } catch {
+        if (cancelled) return;
+        setPreviewMeta({
+          saved: false,
+          free: ttsProvider === "elevenlabs" && Boolean(selectedElevenPreviewUrl),
+          cache: "miss",
+        });
+      } finally {
+        if (!cancelled) {
+          setPreviewStatusLoading(false);
+        }
+      }
+    };
+
+    if (!audioResponseEnabled) {
+      setPreviewMeta(null);
+      setPreviewStatusLoading(false);
+      return;
+    }
+
+    loadPreviewStatus();
+    return () => {
+      cancelled = true;
+    };
+  }, [ttsProvider, audioVoice, elevenlabsVoiceId, ttsSpeed, ttsInstructions, audioResponseEnabled, selectedElevenPreviewUrl]);
+
   const playVoicePreview = async () => {
     try {
       setPreviewPlaying(true);
+      setPreviewStatusLoading(false);
       setPreviewMeta(null);
-      const selectedElevenVoice = elevenLabsVoices.find((voice) => voice.voice_id === elevenlabsVoiceId);
-      const previewUrl = selectedElevenVoice?.preview_url;
-      const payload =
-        ttsProvider === "elevenlabs"
-          ? {
-              provider: "elevenlabs",
-              elevenlabsVoiceId,
-              previewUrl,
-              text: "Hola, esta es una prueba de voz para tu CRM.",
-            }
-          : {
-              provider: "openai",
-              voice: audioVoice,
-              speed: ttsSpeed,
-              instructions: ttsInstructions || null,
-              text: "Hola, esta es una prueba de voz para tu CRM.",
-            };
+      const payload = buildPreviewPayload();
 
       const response = await fetch("/api/tts/preview", {
         method: "POST",
@@ -490,6 +539,56 @@ export default function AIAgentPage() {
         variant: "destructive",
       });
     }
+  };
+
+  const renderPreviewStatusBadges = () => {
+    if (!previewStatusLoading && !previewMeta) return null;
+    return (
+      <div className="flex flex-wrap items-center gap-2 text-[11px]">
+        {previewStatusLoading && (
+          <span className="inline-flex items-center gap-1 rounded-full border border-slate-500/40 bg-slate-500/10 px-2 py-0.5 text-slate-200">
+            Verificando...
+          </span>
+        )}
+        {!previewStatusLoading && previewMeta && (
+          <>
+            {previewMeta.saved ? (
+              <span
+                className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-emerald-200"
+                title="Se guardó en la base de datos para reutilizar el audio"
+              >
+                <CheckCircle className="h-3.5 w-3.5" />
+                Guardado en base
+              </span>
+            ) : (
+              <span
+                className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-amber-200"
+                title="Aún no está guardado en la base de datos"
+              >
+                <XCircle className="h-3.5 w-3.5" />
+                No guardado
+              </span>
+            )}
+            {previewMeta.free && (
+              <span
+                className="inline-flex items-center gap-1 rounded-full border border-cyan-500/40 bg-cyan-500/10 px-2 py-0.5 text-cyan-200"
+                title="Este preview es gratis y no consume créditos"
+              >
+                Preview gratis
+              </span>
+            )}
+            {previewMeta.cache === "hit" && previewMeta.saved && (
+              <span
+                className="inline-flex items-center gap-1 rounded-full border border-slate-500/40 bg-slate-500/10 px-2 py-0.5 text-slate-200"
+                title="Se reutilizó un audio previamente guardado"
+              >
+                Cache
+              </span>
+            )}
+          </>
+        )}
+      </div>
+    );
   };
 
   const uploadProductImageWithProgress = (file: File, slotKey: string): Promise<string> =>
@@ -1073,33 +1172,7 @@ export default function AIAgentPage() {
                       {previewPlaying ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                       Probar voz seleccionada
                     </Button>
-                    {previewMeta && (
-                      <div className="flex flex-wrap items-center gap-2 text-[11px]">
-                        <span
-                          className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-emerald-200"
-                          title="Se guardó en la base de datos para reutilizar el audio"
-                        >
-                          <CheckCircle className="h-3.5 w-3.5" />
-                          Guardado en base
-                        </span>
-                        {previewMeta.free && (
-                          <span
-                            className="inline-flex items-center gap-1 rounded-full border border-cyan-500/40 bg-cyan-500/10 px-2 py-0.5 text-cyan-200"
-                            title="Este preview es gratis y no consume créditos"
-                          >
-                            Preview gratis
-                          </span>
-                        )}
-                        {previewMeta.cache === "hit" && (
-                          <span
-                            className="inline-flex items-center gap-1 rounded-full border border-slate-500/40 bg-slate-500/10 px-2 py-0.5 text-slate-200"
-                            title="Se reutilizó un audio previamente guardado"
-                          >
-                            Cache
-                          </span>
-                        )}
-                      </div>
-                    )}
+                    {renderPreviewStatusBadges()}
                   </>
                 )}
 
@@ -1164,33 +1237,7 @@ export default function AIAgentPage() {
                         {previewPlaying ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                         Probar voz seleccionada
                       </Button>
-                      {previewMeta && (
-                        <div className="flex flex-wrap items-center gap-2 text-[11px]">
-                          <span
-                            className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-emerald-200"
-                            title="Se guardó en la base de datos para reutilizar el audio"
-                          >
-                            <CheckCircle className="h-3.5 w-3.5" />
-                            Guardado en base
-                          </span>
-                          {previewMeta.free && (
-                            <span
-                              className="inline-flex items-center gap-1 rounded-full border border-cyan-500/40 bg-cyan-500/10 px-2 py-0.5 text-cyan-200"
-                              title="Este preview es gratis y no consume créditos"
-                            >
-                              Preview gratis
-                            </span>
-                          )}
-                          {previewMeta.cache === "hit" && (
-                            <span
-                              className="inline-flex items-center gap-1 rounded-full border border-slate-500/40 bg-slate-500/10 px-2 py-0.5 text-slate-200"
-                              title="Se reutilizó un audio previamente guardado"
-                            >
-                              Cache
-                            </span>
-                          )}
-                        </div>
-                      )}
+                      {renderPreviewStatusBadges()}
                       </>
 	                    )}
 	                  </>

@@ -4942,6 +4942,41 @@ NO uses saludos formales. Se directo y amigable.`
     `);
   }
 
+  app.post("/api/tts/preview-status", requireAuth, async (req, res) => {
+    try {
+      const parsed = ttsPreviewSchema.parse(req.body);
+      const previewText = parsed.text?.trim() || TTS_PREVIEW_DEFAULT_TEXT;
+      const provider = parsed.provider;
+      const voiceId = provider === "elevenlabs"
+        ? parsed.elevenlabsVoiceId
+        : parsed.voice || "nova";
+
+      if (!voiceId) {
+        return res.status(400).json({ message: "Missing voice identifier" });
+      }
+
+      const speed = parsed.speed ? parsed.speed / 100 : 1.0;
+      const instructions = parsed.instructions ?? null;
+      const isElevenlabsPreview = provider === "elevenlabs" && Boolean(parsed.previewUrl);
+      const cacheKey = provider === "elevenlabs"
+        ? `elevenlabs|${voiceId}|${isElevenlabsPreview ? "preview-free-v1" : "preview-paid-v1"}`
+        : `openai|${voiceId}|${speed}|${instructions || ""}|${previewText}`;
+
+      const cached = await getCachedTtsPreview(cacheKey);
+      res.json({
+        saved: Boolean(cached?.audio_data),
+        free: isElevenlabsPreview,
+        provider,
+      });
+    } catch (error: any) {
+      if (error.name === "ZodError") {
+        return res.status(400).json({ message: "Invalid preview payload", errors: error.errors });
+      }
+      console.error("Error checking TTS preview status:", error?.message || error);
+      res.status(500).json({ message: "Error checking TTS preview status" });
+    }
+  });
+
   app.post("/api/tts/preview", requireAuth, async (req, res) => {
     try {
       const parsed = ttsPreviewSchema.parse(req.body);
