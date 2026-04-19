@@ -1729,6 +1729,29 @@ interface TtsOptions {
   elevenlabsVoiceId?: string; // ElevenLabs voice ID
 }
 
+function normalizeTextForTts(rawText: string): string {
+  if (!rawText) return rawText;
+
+  const repairedText = repairMojibakeText(rawText);
+  const parsedInteractive = parseInteractiveElements(repairedText);
+
+  const normalized = (parsedInteractive.cleanText || repairedText)
+    .replace(/\[IMAGEN:\s*[^\]]+\]/gi, " ")
+    .replace(/\[(?:PEDIDO_LISTO|LLAMAR|NECESITO_HUMANO)\]/gi, " ")
+    .replace(/https?:\/\/\S+/gi, " ")
+    .replace(/\bwww\.\S+/gi, " ")
+    .replace(/\*(.*?)\*/g, "$1")
+    .replace(/\|/g, ", ")
+    .replace(/(\d[\d.,]*)\s*bs\b/gi, "$1 bolivianos")
+    .replace(/\bbs\b/gi, "bolivianos")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+
+  return normalized;
+}
+
 // Get ElevenLabs API key via Replit connector
 async function getElevenLabsApiKey(): Promise<string> {
   const directApiKey = process.env.ELEVENLABS_API_KEY;
@@ -1889,7 +1912,18 @@ async function sendAudioResponse(phoneNumber: string, text: string, voice: strin
   let tempPath: string | null = null;
   
   try {
-    const generated = await generateTtsAudioBuffer(text, voice, options, "whatsapp");
+    const ttsText = normalizeTextForTts(text);
+    if (!ttsText) {
+      console.log("[TTS] Skipping audio: no speech-safe text after normalization");
+      return false;
+    }
+    console.log("[TTS] Prepared speech text", {
+      provider,
+      originalLength: text.length,
+      speechLength: ttsText.length,
+    });
+
+    const generated = await generateTtsAudioBuffer(ttsText, voice, options, "whatsapp");
     const sourceAudioBuffer = generated.audioBuffer;
     console.log("[TTS] Audio generated:", sourceAudioBuffer.length, "bytes", {
       provider,
