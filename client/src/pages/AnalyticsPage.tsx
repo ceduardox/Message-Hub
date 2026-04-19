@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Tooltip } from "recharts";
-import { ArrowLeft, TrendingUp, Users, Phone, Truck, CheckCircle, AlertCircle, MessageSquare, Calendar, Zap, Inbox, Send as SendIcon } from "lucide-react";
+import { ArrowLeft, TrendingUp, Users, Phone, Truck, CheckCircle, AlertCircle, MessageSquare, Calendar, CalendarDays, Zap, Inbox, Send as SendIcon } from "lucide-react";
 import { Link } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -526,7 +526,7 @@ export default function AnalyticsPage() {
   return (
     <div className="min-h-screen bg-slate-900 text-white">
       <div className="sticky top-0 z-10 bg-slate-800/80 backdrop-blur-lg border-b border-slate-700/50 px-4 py-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <Link href="/">
               <Button variant="ghost" size="icon" className="text-slate-400 hover:text-white">
@@ -540,6 +540,16 @@ export default function AnalyticsPage() {
               <p className="text-xs text-slate-400">Panel de estadisticas</p>
             </div>
           </div>
+          <Link href="/analytics/calendar">
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-cyan-500/35 bg-cyan-500/10 text-cyan-100 hover:bg-cyan-500/20 hover:text-white"
+            >
+              <CalendarDays className="h-4 w-4 mr-2" />
+              Vista calendario
+            </Button>
+          </Link>
         </div>
       </div>
 

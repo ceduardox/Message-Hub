@@ -12,6 +12,7 @@ const AIAgentPage = lazy(() => import("@/pages/AIAgentPage"));
 const FollowUpPage = lazy(() => import("@/pages/FollowUpPage"));
 const RemindersPage = lazy(() => import("@/pages/RemindersPage"));
 const AnalyticsPage = lazy(() => import("@/pages/AnalyticsPage"));
+const AnalyticsCalendarPage = lazy(() => import("@/pages/AnalyticsCalendarPage"));
 const AgentsPage = lazy(() => import("@/pages/AgentsPage"));
 const AdminAccessPage = lazy(() => import("@/pages/AdminAccessPage"));
 const AgentAiPage = lazy(() => import("@/pages/AgentAiPage"));
@@ -109,6 +110,9 @@ function Router() {
         </Route>
         <Route path="/reminders">
           <ProtectedRoute component={RemindersPage} />
+        </Route>
+        <Route path="/analytics/calendar">
+          <ProtectedRoute component={AnalyticsCalendarPage} />
         </Route>
         <Route path="/analytics">
           <ProtectedRoute component={AnalyticsPage} />
