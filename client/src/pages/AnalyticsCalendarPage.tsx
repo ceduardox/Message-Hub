@@ -1,16 +1,35 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { ArrowLeft, CalendarDays, Users, Zap } from "lucide-react";
+import { ArrowLeft, CalendarDays, Plus, Trash2, Users, Wallet, Zap } from "lucide-react";
 
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
 interface AgentStat {
   agent_id: number;
   agent_name: string;
   date: string;
   total_estimated_parallel_cost_bs?: number | null;
+}
+
+interface AnalyticsDeposit {
+  id: number;
+  viewerAgentId: number;
+  depositDate: string;
+  amountBs: number;
+  note?: string | null;
+  createdAt?: string | null;
+}
+
+interface DepositOwnerAgent {
+  id: number;
+  name: string;
+  isActive?: boolean;
 }
 
 type DayCostRow = {
@@ -23,6 +42,11 @@ type DayCostSummary = {
   rows: DayCostRow[];
   totalCostBs: number;
   hasAnyCost: boolean;
+};
+
+type DayDepositSummary = {
+  amountBs: number;
+  entries: AnalyticsDeposit[];
 };
 
 type MonthSummary = {
@@ -162,6 +186,20 @@ function formatIsoShort(isoDate: string): string {
   return `${String(day).padStart(2, "0")} ${SHORT_MONTHS_ES[month - 1]}`;
 }
 
+function formatIsoLong(isoDate: string): string {
+  const [yearRaw, monthRaw, dayRaw] = isoDate.split("-");
+  const year = Number(yearRaw);
+  const month = Number(monthRaw);
+  const day = Number(dayRaw);
+  if (!year || !month || !day) return isoDate;
+  return new Intl.DateTimeFormat("es-BO", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(Date.UTC(year, month - 1, day)));
+}
+
 function formatRangeLabel(dateFrom: string, dateTo: string): string {
   const formatOne = (value: string) => {
     const [year, month, day] = value.split("-").map(Number);
@@ -183,6 +221,13 @@ function formatBs(value: number): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })} Bs`;
+}
+
+function formatSignedBs(value: number): string {
+  const formatted = formatBs(Math.abs(value));
+  if (value > 0) return `+${formatted}`;
+  if (value < 0) return `-${formatted}`;
+  return formatted;
 }
 
 function countDaysInRange(dateFrom: string, dateTo: string): number {
@@ -223,11 +268,34 @@ function getCalendarDays(monthValue: string) {
   return days;
 }
 
+function getNetToneClass(value: number): string {
+  if (value > 0) return "text-emerald-300";
+  if (value < 0) return "text-rose-300";
+  return "text-slate-200";
+}
+
+function parsePositiveAmountInput(value: string): number {
+  const normalized = value.replace(",", ".").trim();
+  const parsed = Number(normalized);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    throw new Error("Ingrese un monto valido");
+  }
+  return parsed;
+}
+
 export default function AnalyticsCalendarPage() {
+  const { user, isAdmin } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const initialRange = useMemo(() => getCurrentMonthRange(), []);
   const [reportDateFrom, setReportDateFrom] = useState(initialRange.dateFrom);
   const [reportDateTo, setReportDateTo] = useState(initialRange.dateTo);
   const [selectedAgentIds, setSelectedAgentIds] = useState<number[]>([]);
+  const [isDepositsDialogOpen, setIsDepositsDialogOpen] = useState(false);
+  const [depositOwnerAgentId, setDepositOwnerAgentId] = useState<number | null>(null);
+  const [depositDateInput, setDepositDateInput] = useState(() => getTodayIsoDate());
+  const [depositAmountInput, setDepositAmountInput] = useState("");
+  const [depositNoteInput, setDepositNoteInput] = useState("");
   const agentsFilterInitializedRef = useRef(false);
   const todayIso = useMemo(() => getTodayIsoDate(), []);
 
@@ -255,6 +323,16 @@ export default function AnalyticsCalendarPage() {
     },
   });
 
+  const { data: adminAgents = [] } = useQuery<DepositOwnerAgent[]>({
+    queryKey: ["/api/agents", "analytics-calendar-deposit-owners"],
+    queryFn: async () => {
+      const response = await fetch("/api/agents", { credentials: "include" });
+      if (!response.ok) throw new Error("No se pudo cargar agentes para depositos");
+      return response.json();
+    },
+    enabled: isAdmin,
+  });
+
   const availableAgents = useMemo(() => {
     const grouped = new Map<number, string>();
     for (const row of agentStats) {
@@ -266,6 +344,20 @@ export default function AnalyticsCalendarPage() {
       .map(([id, name]) => ({ id, name }))
       .sort((left, right) => left.name.localeCompare(right.name));
   }, [agentStats]);
+
+  const depositOwnerOptions = useMemo(() => {
+    if (isAdmin) {
+      return [...adminAgents].sort((left, right) => left.name.localeCompare(right.name));
+    }
+    if (user?.role === "agent" && typeof user.agentId === "number") {
+      return [{ id: user.agentId, name: user.username || `Agente ${user.agentId}` }];
+    }
+    return [];
+  }, [adminAgents, isAdmin, user?.agentId, user?.role, user?.username]);
+
+  const depositOwnerName =
+    depositOwnerOptions.find((agent) => agent.id === depositOwnerAgentId)?.name ||
+    (depositOwnerAgentId != null ? `Agente ${depositOwnerAgentId}` : "Agente visor");
 
   useEffect(() => {
     const availableIds = availableAgents.map((item) => item.id);
@@ -279,6 +371,24 @@ export default function AnalyticsCalendarPage() {
       return next.length > 0 ? next : availableIds;
     });
   }, [availableAgents]);
+
+  useEffect(() => {
+    const optionIds = depositOwnerOptions.map((item) => item.id);
+    if (optionIds.length === 0) {
+      setDepositOwnerAgentId(null);
+      return;
+    }
+
+    if (user?.role === "agent" && typeof user.agentId === "number") {
+      setDepositOwnerAgentId(user.agentId);
+      return;
+    }
+
+    setDepositOwnerAgentId((previous) => {
+      if (previous != null && optionIds.includes(previous)) return previous;
+      return optionIds[0];
+    });
+  }, [depositOwnerOptions, user?.agentId, user?.role]);
 
   const isAllAgentsSelected =
     availableAgents.length > 0 && selectedAgentIds.length === availableAgents.length;
@@ -375,6 +485,103 @@ export default function AnalyticsCalendarPage() {
     };
   }, [appliedRange.dateFrom, appliedRange.dateTo, dayCostMap, monthValues.length, selectedAgentIds.length]);
 
+  const { data: deposits = [], isLoading: isDepositsLoading } = useQuery<AnalyticsDeposit[]>({
+    queryKey: ["/api/analytics-deposits", depositOwnerAgentId, appliedRange.dateFrom, appliedRange.dateTo],
+    queryFn: async () => {
+      if (depositOwnerAgentId == null) return [];
+      const params = new URLSearchParams();
+      params.set("dateFrom", appliedRange.dateFrom);
+      params.set("dateTo", appliedRange.dateTo);
+      if (isAdmin) {
+        params.set("viewerAgentId", String(depositOwnerAgentId));
+      }
+      const response = await fetch(`/api/analytics-deposits?${params.toString()}`, {
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("No se pudieron cargar los depositos");
+      return response.json();
+    },
+    enabled: depositOwnerAgentId != null,
+  });
+
+  const dayDepositMap = useMemo(() => {
+    const grouped = new Map<string, DayDepositSummary>();
+    for (const deposit of deposits) {
+      const dateKey = String(deposit.depositDate);
+      const current = grouped.get(dateKey) || {
+        amountBs: 0,
+        entries: [],
+      };
+      current.amountBs += Number(deposit.amountBs || 0);
+      current.entries.push(deposit);
+      grouped.set(dateKey, current);
+    }
+
+    for (const summary of Array.from(grouped.values())) {
+      summary.entries.sort((left, right) => right.id - left.id);
+    }
+
+    return grouped;
+  }, [deposits]);
+
+  const depositSummary = useMemo(() => {
+    let totalAmountBs = 0;
+    for (const deposit of deposits) {
+      totalAmountBs += Number(deposit.amountBs || 0);
+    }
+    return {
+      totalAmountBs,
+      entryCount: deposits.length,
+      dayCount: dayDepositMap.size,
+    };
+  }, [deposits, dayDepositMap.size]);
+
+  const rangeCostBs = rangeSummary.hasAnyCost ? rangeSummary.totalCostBs : 0;
+  const rangeNetBs = depositSummary.totalAmountBs - rangeCostBs;
+
+  const createDepositMutation = useMutation({
+    mutationFn: async () => {
+      if (depositOwnerAgentId == null) {
+        throw new Error("Seleccione el agente visor");
+      }
+      const amountBs = parsePositiveAmountInput(depositAmountInput);
+      const payload: Record<string, unknown> = {
+        depositDate: depositDateInput || appliedRange.dateTo || todayIso,
+        amountBs,
+        note: depositNoteInput.trim() || null,
+      };
+      if (isAdmin) {
+        payload.viewerAgentId = depositOwnerAgentId;
+      }
+      const response = await apiRequest("POST", "/api/analytics-deposits", payload);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/analytics-deposits"] });
+      setDepositAmountInput("");
+      setDepositNoteInput("");
+      setDepositDateInput(appliedRange.dateTo || todayIso);
+      toast({ title: "Deposito guardado" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const deleteDepositMutation = useMutation({
+    mutationFn: async (depositId: number) => {
+      const response = await apiRequest("DELETE", `/api/analytics-deposits/${depositId}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/analytics-deposits"] });
+      toast({ title: "Deposito eliminado" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
   const applyQuickToday = () => {
     const today = getTodayIsoDate();
     setReportDateFrom(today);
@@ -438,7 +645,7 @@ export default function AnalyticsCalendarPage() {
         </div>
       </div>
 
-      <div className="p-4 space-y-5 pb-16">
+      <div className="p-4 space-y-5 pb-28 md:pb-20">
         <div className="rounded-3xl border border-slate-800/80 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.12),transparent_35%),linear-gradient(180deg,rgba(15,23,42,0.92),rgba(2,6,23,0.96))] p-4 shadow-[0_18px_60px_rgba(2,6,23,.45)]">
           <div className="grid gap-4 xl:grid-cols-[minmax(0,360px)_1fr]">
             <div className="rounded-2xl border border-slate-700/60 bg-slate-900/55 p-4">
@@ -567,7 +774,7 @@ export default function AnalyticsCalendarPage() {
                 })}
               </div>
 
-              <div className="grid gap-3 md:grid-cols-4">
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
                 <div className="rounded-2xl border border-cyan-500/25 bg-cyan-500/10 p-3">
                   <p className="text-[11px] uppercase tracking-[0.2em] text-cyan-300">Dias del rango</p>
                   <p className="mt-2 text-3xl font-bold text-white">{rangeSummary.rangeDayCount}</p>
@@ -581,9 +788,19 @@ export default function AnalyticsCalendarPage() {
                   <p className="mt-2 text-3xl font-bold text-white">{rangeSummary.dayCountWithEntries}</p>
                 </div>
                 <div className="rounded-2xl border border-amber-500/25 bg-amber-500/10 p-3">
-                  <p className="text-[11px] uppercase tracking-[0.2em] text-amber-300">Total del rango</p>
+                  <p className="text-[11px] uppercase tracking-[0.2em] text-amber-300">Total gastado</p>
                   <p className="mt-2 text-2xl font-bold text-white">
-                    {rangeSummary.hasAnyCost ? formatBs(rangeSummary.totalCostBs) : "N/D"}
+                    {rangeSummary.hasAnyCost ? formatBs(rangeSummary.totalCostBs) : formatBs(0)}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-sky-500/25 bg-sky-500/10 p-3">
+                  <p className="text-[11px] uppercase tracking-[0.2em] text-sky-300">Total depositado</p>
+                  <p className="mt-2 text-2xl font-bold text-white">{formatBs(depositSummary.totalAmountBs)}</p>
+                </div>
+                <div className="rounded-2xl border border-rose-500/25 bg-rose-500/10 p-3">
+                  <p className="text-[11px] uppercase tracking-[0.2em] text-rose-300">Saldo / debe</p>
+                  <p className={`mt-2 text-2xl font-bold ${getNetToneClass(rangeNetBs)}`}>
+                    {formatSignedBs(rangeNetBs)}
                   </p>
                 </div>
               </div>
@@ -617,7 +834,7 @@ export default function AnalyticsCalendarPage() {
                       </p>
                     </div>
                     <div className="rounded-full border border-violet-500/30 bg-violet-500/10 px-3 py-1 text-xs text-violet-100">
-                      {monthSummary.hasAnyCost ? formatBs(monthSummary.totalCostBs) : "N/D"}
+                      {monthSummary.hasAnyCost ? formatBs(monthSummary.totalCostBs) : formatBs(0)}
                     </div>
                   </div>
 
@@ -634,12 +851,16 @@ export default function AnalyticsCalendarPage() {
                       const isToday = day.iso === todayIso;
                       const isWithinRange = day.iso >= appliedRange.dateFrom && day.iso <= appliedRange.dateTo;
                       const dayData = isWithinRange && day.inCurrentMonth ? dayCostMap.get(day.iso) : undefined;
+                      const dayDeposit = isWithinRange && day.inCurrentMonth ? dayDepositMap.get(day.iso) : undefined;
                       const dayHasRows = Boolean(dayData && dayData.rows.length > 0);
+                      const dayCostBs = dayHasRows && dayData?.hasAnyCost ? dayData.totalCostBs : 0;
+                      const dayDepositBs = dayDeposit?.amountBs ?? 0;
+                      const dayNetBs = dayDepositBs - dayCostBs;
 
                       return (
                         <div
                           key={`${monthValue}-${day.iso}`}
-                          className={`min-h-[220px] p-2.5 flex flex-col ${
+                          className={`min-h-[250px] p-2.5 flex flex-col ${
                             day.inCurrentMonth ? "bg-slate-950/90" : "bg-slate-950/45"
                           }`}
                         >
@@ -694,18 +915,43 @@ export default function AnalyticsCalendarPage() {
                           )}
 
                           <div className="mt-2 rounded-2xl border border-violet-500/25 bg-violet-500/10 px-3 py-2">
-                            <p className="text-[10px] uppercase tracking-[0.2em] text-violet-300">Total global del dia</p>
-                            <p className="mt-1 text-sm font-semibold text-white">
-                              {!day.inCurrentMonth
-                                ? "-"
-                                : !isWithinRange
-                                  ? "Fuera"
-                                  : dayHasRows
-                                    ? dayData!.hasAnyCost
-                                      ? formatBs(dayData!.totalCostBs)
-                                      : "N/D"
-                                    : "Sin gasto"}
-                            </p>
+                            <p className="text-[10px] uppercase tracking-[0.2em] text-violet-300">Resumen del dia</p>
+                            <div className="mt-1.5 space-y-1 text-[11px] text-slate-200">
+                              <div className="flex items-center justify-between gap-2">
+                                <span>Gasto</span>
+                                <span>
+                                  {!day.inCurrentMonth
+                                    ? "-"
+                                    : !isWithinRange
+                                      ? "Fuera"
+                                      : dayHasRows
+                                        ? dayData!.hasAnyCost
+                                          ? formatBs(dayData!.totalCostBs)
+                                          : "N/D"
+                                        : formatBs(0)}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between gap-2">
+                                <span>Depositos</span>
+                                <span>
+                                  {!day.inCurrentMonth
+                                    ? "-"
+                                    : !isWithinRange
+                                      ? "Fuera"
+                                      : formatBs(dayDepositBs)}
+                                </span>
+                              </div>
+                              <div className={`flex items-center justify-between gap-2 font-semibold ${getNetToneClass(dayNetBs)}`}>
+                                <span>Neto</span>
+                                <span>
+                                  {!day.inCurrentMonth
+                                    ? "-"
+                                    : !isWithinRange
+                                      ? "Fuera"
+                                      : formatSignedBs(dayNetBs)}
+                                </span>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       );
@@ -717,6 +963,194 @@ export default function AnalyticsCalendarPage() {
           </div>
         )}
       </div>
+
+      <Button
+        type="button"
+        className="fixed bottom-20 right-4 z-20 h-12 rounded-full bg-gradient-to-r from-emerald-600 to-cyan-600 px-4 text-white shadow-[0_16px_48px_rgba(6,182,212,.28)] hover:from-emerald-500 hover:to-cyan-500 md:bottom-6"
+        onClick={() => setIsDepositsDialogOpen(true)}
+      >
+        <Wallet className="mr-2 h-4 w-4" />
+        Depositos
+      </Button>
+
+      <Dialog open={isDepositsDialogOpen} onOpenChange={setIsDepositsDialogOpen}>
+        <DialogContent className="border-slate-700 bg-slate-950 text-slate-100 sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Depositos del agente visor</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-slate-800/80 bg-slate-900/70 p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-white">{depositOwnerName}</p>
+                  <p className="text-xs text-slate-400">
+                    Se compara contra el gasto del rango y los agentes actualmente seleccionados.
+                  </p>
+                </div>
+                <div className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3 py-1 text-xs text-cyan-100">
+                  {formatRangeLabel(appliedRange.dateFrom, appliedRange.dateTo)}
+                </div>
+              </div>
+
+              <div className="mt-3 grid gap-3 md:grid-cols-3">
+                <div className="rounded-2xl border border-sky-500/25 bg-sky-500/10 p-3">
+                  <p className="text-[11px] uppercase tracking-[0.2em] text-sky-300">Depositado</p>
+                  <p className="mt-2 text-2xl font-bold text-white">{formatBs(depositSummary.totalAmountBs)}</p>
+                </div>
+                <div className="rounded-2xl border border-amber-500/25 bg-amber-500/10 p-3">
+                  <p className="text-[11px] uppercase tracking-[0.2em] text-amber-300">Gastado</p>
+                  <p className="mt-2 text-2xl font-bold text-white">{formatBs(rangeCostBs)}</p>
+                </div>
+                <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/10 p-3">
+                  <p className="text-[11px] uppercase tracking-[0.2em] text-emerald-300">Saldo / debe</p>
+                  <p className={`mt-2 text-2xl font-bold ${getNetToneClass(rangeNetBs)}`}>{formatSignedBs(rangeNetBs)}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,320px)_1fr]">
+              <div className="rounded-2xl border border-slate-800/80 bg-slate-900/70 p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-300">
+                    <Plus className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-white">Nuevo deposito</p>
+                    <p className="text-xs text-slate-400">Se guarda solo el movimiento; el saldo se calcula visualmente.</p>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  {isAdmin ? (
+                    <div>
+                      <label className="mb-1 block text-xs text-slate-400">Agente visor / lider</label>
+                      <select
+                        value={depositOwnerAgentId ?? ""}
+                        onChange={(event) => setDepositOwnerAgentId(event.target.value ? Number(event.target.value) : null)}
+                        className="h-10 w-full rounded-md border border-slate-700/60 bg-slate-950/80 px-3 text-sm text-white outline-none"
+                      >
+                        <option value="">Seleccione un agente</option>
+                        {depositOwnerOptions.map((agent) => (
+                          <option key={`deposit-owner-${agent.id}`} value={agent.id}>
+                            {agent.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : null}
+
+                  <div>
+                    <label className="mb-1 block text-xs text-slate-400">Fecha</label>
+                    <Input
+                      type="date"
+                      value={depositDateInput}
+                      onChange={(event) => setDepositDateInput(event.target.value)}
+                      className="bg-slate-950/80 border-slate-700/60 text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-xs text-slate-400">Monto en Bs</label>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={depositAmountInput}
+                      onChange={(event) => setDepositAmountInput(event.target.value)}
+                      placeholder="Ej: 1500"
+                      className="bg-slate-950/80 border-slate-700/60 text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-xs text-slate-400">Nota opcional</label>
+                    <Input
+                      value={depositNoteInput}
+                      onChange={(event) => setDepositNoteInput(event.target.value)}
+                      placeholder="Referencia o comentario"
+                      className="bg-slate-950/80 border-slate-700/60 text-white"
+                    />
+                  </div>
+
+                  <Button
+                    type="button"
+                    className="w-full bg-gradient-to-r from-emerald-600 to-cyan-600 border-0"
+                    disabled={createDepositMutation.isPending || depositOwnerAgentId == null}
+                    onClick={() => createDepositMutation.mutate()}
+                  >
+                    {createDepositMutation.isPending ? "Guardando..." : "Guardar deposito"}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-800/80 bg-slate-900/70 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+                  <div>
+                    <p className="text-sm font-semibold text-white">Movimientos del rango</p>
+                    <p className="text-xs text-slate-400">
+                      {depositSummary.entryCount} deposito(s) en {depositSummary.dayCount} dia(s)
+                    </p>
+                  </div>
+                  <div className="rounded-full border border-slate-700/70 bg-slate-950/80 px-3 py-1 text-xs text-slate-300">
+                    {isDepositsLoading ? "Cargando..." : formatBs(depositSummary.totalAmountBs)}
+                  </div>
+                </div>
+
+                <div className="max-h-[420px] space-y-2 overflow-y-auto pr-1">
+                  {isDepositsLoading ? (
+                    <div className="rounded-2xl border border-dashed border-slate-700/70 bg-slate-950/70 p-5 text-center text-sm text-slate-400">
+                      Cargando depositos...
+                    </div>
+                  ) : deposits.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-slate-700/70 bg-slate-950/70 p-5 text-center text-sm text-slate-400">
+                      Sin depositos guardados para este rango.
+                    </div>
+                  ) : (
+                    deposits.map((deposit) => {
+                      const costForDay = dayCostMap.get(deposit.depositDate);
+                      const netForDay = Number(deposit.amountBs || 0) - (costForDay?.hasAnyCost ? costForDay.totalCostBs : 0);
+                      return (
+                        <div key={`deposit-${deposit.id}`} className="rounded-2xl border border-slate-800/80 bg-slate-950/80 p-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-white">{formatIsoLong(deposit.depositDate)}</p>
+                              <p className="mt-1 text-xs text-slate-400 break-words">
+                                {deposit.note?.trim() || "Sin nota"}
+                              </p>
+                              <p className={`mt-2 text-xs font-semibold ${getNetToneClass(netForDay)}`}>
+                                Neto del dia: {formatSignedBs(netForDay)}
+                              </p>
+                            </div>
+                            <div className="flex flex-col items-end gap-2">
+                              <p className="text-sm font-semibold text-emerald-200">{formatBs(deposit.amountBs)}</p>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                className="border-rose-500/40 text-rose-200 hover:bg-rose-500/10"
+                                disabled={deleteDepositMutation.isPending}
+                                onClick={() => {
+                                  if (window.confirm("Eliminar este deposito?")) {
+                                    deleteDepositMutation.mutate(deposit.id);
+                                  }
+                                }}
+                              >
+                                <Trash2 className="mr-2 h-3.5 w-3.5" />
+                                Eliminar
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

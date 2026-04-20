@@ -209,6 +209,14 @@ interface AnalyticsViewPermission {
   visibleAgentIds: number[];
   updatedAt?: string | Date | null;
 }
+interface AnalyticsDeposit {
+  id: number;
+  viewerAgentId: number;
+  depositDate: string;
+  amountBs: number;
+  note?: string | null;
+  createdAt?: string | Date | null;
+}
 const DEFAULT_REMINDER_LEAD_MINUTES = [30, 15];
 const REMINDER_PUSH_CHECK_INTERVAL_MS = 60 * 1000;
 const REMINDER_PUSH_WINDOW_MS = 70 * 1000;
@@ -222,6 +230,7 @@ let conversationLabelColumnsEnsured = false;
 let adLeadRoutingTableEnsured = false;
 let dailyCostSettingsTableEnsured = false;
 let analyticsViewPermissionsTableEnsured = false;
+let analyticsDepositsTableEnsured = false;
 let conversationAssignmentEventsTableEnsured = false;
 let aiLearnHistoryTableEnsured = false;
 const PUSH_SETTINGS_CACHE_TTL_MS = 15000;
@@ -374,6 +383,25 @@ async function ensureAnalyticsViewPermissionsTableExists() {
   analyticsViewPermissionsTableEnsured = true;
 }
 
+async function ensureAnalyticsDepositsTableExists() {
+  if (analyticsDepositsTableEnsured) return;
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS analytics_deposits (
+      id SERIAL PRIMARY KEY,
+      viewer_agent_id INTEGER NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+      deposit_date DATE NOT NULL,
+      amount_bs NUMERIC(12, 2) NOT NULL,
+      note TEXT,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )
+  `);
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS idx_analytics_deposits_viewer_date
+    ON analytics_deposits (viewer_agent_id, deposit_date)
+  `);
+  analyticsDepositsTableEnsured = true;
+}
+
 async function ensureConversationAssignmentEventsTableExists() {
   if (conversationAssignmentEventsTableEnsured) return;
   await db.execute(sql`
@@ -467,6 +495,17 @@ function mapAnalyticsViewPermissionRow(row: any): AnalyticsViewPermission {
     viewerAgentId: Number(row.viewer_agent_id),
     visibleAgentIds: parseAgentIds(row.visible_agent_ids),
     updatedAt: row.updated_at ?? null,
+  };
+}
+
+function mapAnalyticsDepositRow(row: any): AnalyticsDeposit {
+  return {
+    id: Number(row.id),
+    viewerAgentId: Number(row.viewer_agent_id),
+    depositDate: String(row.deposit_date),
+    amountBs: Number(row.amount_bs),
+    note: row.note == null ? null : String(row.note),
+    createdAt: row.created_at ?? null,
   };
 }
 
@@ -728,6 +767,20 @@ async function getAllowedAnalyticsAgentIdsForViewer(viewerAgentId: number): Prom
     allowed.add(Number(id));
   }
   return allowed;
+}
+
+function resolveAnalyticsDepositViewerAgentId(session: any, requestedViewerAgentId?: unknown): number | null {
+  if (session?.role === "agent") {
+    const ownAgentId = Number(session.agentId);
+    return Number.isInteger(ownAgentId) && ownAgentId > 0 ? ownAgentId : null;
+  }
+
+  if (session?.role === "admin") {
+    const viewerAgentId = Number(requestedViewerAgentId);
+    return Number.isInteger(viewerAgentId) && viewerAgentId > 0 ? viewerAgentId : null;
+  }
+
+  return null;
 }
 
 function extractAdIdFromIncomingMessage(msg: any): string | null {
@@ -3467,6 +3520,13 @@ export async function registerRoutes(
     }
   });
 
+  const analyticsDepositUpsertSchema = z.object({
+    viewerAgentId: z.number().int().positive().optional(),
+    depositDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    amountBs: z.number().positive(),
+    note: z.string().trim().max(300).nullable().optional(),
+  });
+
   app.put("/api/daily-cost-settings/:date", requireAdmin, async (req, res) => {
     try {
       await ensureDailyCostSettingsTableExists();
@@ -3504,6 +3564,126 @@ export async function registerRoutes(
       }
       console.error("Error updating daily cost settings:", error);
       res.status(500).json({ message: "Error updating daily cost settings" });
+    }
+  });
+
+  app.get("/api/analytics-deposits", requireAuth, async (req, res) => {
+    try {
+      await ensureAnalyticsDepositsTableExists();
+
+      const session = req.session as any;
+      const viewerAgentId = resolveAnalyticsDepositViewerAgentId(session, req.query.viewerAgentId);
+      if (!viewerAgentId) {
+        return res.json([]);
+      }
+
+      const dateFrom = typeof req.query.dateFrom === "string" ? req.query.dateFrom.trim() : "";
+      const dateTo = typeof req.query.dateTo === "string" ? req.query.dateTo.trim() : "";
+      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+      if (dateFrom && !dateRegex.test(dateFrom)) {
+        return res.status(400).json({ message: "Invalid dateFrom format. Use YYYY-MM-DD" });
+      }
+      if (dateTo && !dateRegex.test(dateTo)) {
+        return res.status(400).json({ message: "Invalid dateTo format. Use YYYY-MM-DD" });
+      }
+      if (dateFrom && dateTo && dateFrom > dateTo) {
+        return res.status(400).json({ message: "dateFrom must be before or equal to dateTo" });
+      }
+
+      const rows: any = await db.execute(sql`
+        SELECT
+          id,
+          viewer_agent_id,
+          deposit_date::text AS deposit_date,
+          amount_bs,
+          note,
+          created_at
+        FROM analytics_deposits
+        WHERE viewer_agent_id = ${viewerAgentId}
+          ${!dateFrom && !dateTo ? sql`AND deposit_date >= ((NOW() AT TIME ZONE 'America/La_Paz')::date - INTERVAL '29 days')::date` : sql``}
+          ${dateFrom ? sql`AND deposit_date >= ${dateFrom}::date` : sql``}
+          ${dateTo ? sql`AND deposit_date <= ${dateTo}::date` : sql``}
+        ORDER BY deposit_date DESC, id DESC
+      `);
+
+      res.json((rows?.rows ?? []).map((row: any) => mapAnalyticsDepositRow(row)));
+    } catch (error) {
+      console.error("Error fetching analytics deposits:", error);
+      res.status(500).json({ message: "Error fetching analytics deposits" });
+    }
+  });
+
+  app.post("/api/analytics-deposits", requireAuth, async (req, res) => {
+    try {
+      await ensureAnalyticsDepositsTableExists();
+
+      const parsed = analyticsDepositUpsertSchema.parse(req.body);
+      const session = req.session as any;
+      const viewerAgentId = resolveAnalyticsDepositViewerAgentId(session, parsed.viewerAgentId);
+      if (!viewerAgentId) {
+        return res.status(400).json({ message: "viewerAgentId is required" });
+      }
+
+      const created: any = await db.execute(sql`
+        INSERT INTO analytics_deposits (viewer_agent_id, deposit_date, amount_bs, note)
+        VALUES (
+          ${viewerAgentId},
+          ${parsed.depositDate}::date,
+          ${parsed.amountBs},
+          ${parsed.note ?? null}
+        )
+        RETURNING
+          id,
+          viewer_agent_id,
+          deposit_date::text AS deposit_date,
+          amount_bs,
+          note,
+          created_at
+      `);
+
+      res.json(mapAnalyticsDepositRow(created.rows[0]));
+    } catch (error: any) {
+      if (error.name === "ZodError") {
+        return res.status(400).json({ message: "Invalid analytics deposit data", errors: error.errors });
+      }
+      console.error("Error creating analytics deposit:", error);
+      res.status(500).json({ message: "Error creating analytics deposit" });
+    }
+  });
+
+  app.delete("/api/analytics-deposits/:id", requireAuth, async (req, res) => {
+    try {
+      await ensureAnalyticsDepositsTableExists();
+
+      const depositId = Number(req.params.id);
+      if (!Number.isInteger(depositId) || depositId <= 0) {
+        return res.status(400).json({ message: "Invalid deposit id" });
+      }
+
+      const existing: any = await db.execute(sql`
+        SELECT id, viewer_agent_id
+        FROM analytics_deposits
+        WHERE id = ${depositId}
+        LIMIT 1
+      `);
+      const row = existing?.rows?.[0];
+      if (!row) {
+        return res.status(404).json({ message: "Deposit not found" });
+      }
+
+      const session = req.session as any;
+      if (session?.role === "agent") {
+        const ownAgentId = Number(session.agentId);
+        if (!Number.isInteger(ownAgentId) || ownAgentId <= 0 || Number(row.viewer_agent_id) !== ownAgentId) {
+          return res.status(403).json({ message: "Forbidden" });
+        }
+      }
+
+      await db.execute(sql`DELETE FROM analytics_deposits WHERE id = ${depositId}`);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting analytics deposit:", error);
+      res.status(500).json({ message: "Error deleting analytics deposit" });
     }
   });
 
