@@ -390,6 +390,16 @@ export default function AnalyticsCalendarPage() {
     });
   }, [depositOwnerOptions, user?.agentId, user?.role]);
 
+  useEffect(() => {
+    setDepositDateInput((previous) => {
+      if (!previous) return appliedRange.dateTo;
+      if (previous < appliedRange.dateFrom || previous > appliedRange.dateTo) {
+        return appliedRange.dateTo;
+      }
+      return previous;
+    });
+  }, [appliedRange.dateFrom, appliedRange.dateTo]);
+
   const isAllAgentsSelected =
     availableAgents.length > 0 && selectedAgentIds.length === availableAgents.length;
 
@@ -992,6 +1002,31 @@ export default function AnalyticsCalendarPage() {
                   {formatRangeLabel(appliedRange.dateFrom, appliedRange.dateTo)}
                 </div>
               </div>
+
+              <div className="mt-3 grid gap-3 md:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-xs text-slate-400">Desde del filtro</label>
+                  <Input
+                    type="date"
+                    value={reportDateFrom}
+                    onChange={(event) => setReportDateFrom(event.target.value)}
+                    className="bg-slate-950/80 border-slate-700/60 text-white"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs text-slate-400">Hasta del filtro</label>
+                  <Input
+                    type="date"
+                    value={reportDateTo}
+                    onChange={(event) => setReportDateTo(event.target.value)}
+                    className="bg-slate-950/80 border-slate-700/60 text-white"
+                  />
+                </div>
+              </div>
+
+              <p className="mt-2 text-xs text-slate-500">
+                Este modal usa exactamente el mismo rango activo del calendario, incluso si cruza entre meses.
+              </p>
 
               <div className="mt-3 grid gap-3 md:grid-cols-3">
                 <div className="rounded-2xl border border-sky-500/25 bg-sky-500/10 p-3">
